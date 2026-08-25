@@ -5,7 +5,7 @@
 .spark-canvas { width: 100%; height: min(66vh, 690px); min-height: 430px; display: block; background: #122543; border: 1px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); touch-action: none; outline: none; }
 .spark-canvas:focus-visible { outline: 3px solid var(--mustard); outline-offset: 4px; }
 .spark-canvas-tip { margin: 0; color: var(--ink); font: 12px var(--font-mono); }
-.spark-canvas-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.spark-canvas-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-width: 320px; margin: 0 auto; }
 .spark-canvas-controls button { min-height: 52px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 8px; font: 11px var(--font-mono); letter-spacing: .06em; }
 .spark-canvas-controls button:active { transform: translate(2px, 2px); box-shadow: none; background: var(--mustard); }
 .spark-canvas-controls b { font-size: 19px; }

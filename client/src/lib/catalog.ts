@@ -84,13 +84,13 @@ export const GAME_CATALOG: GameMeta[] = [
     id: "spark",
     number: "07",
     title: "Kıvılcım",
-    eyebrow: "Ritim / Kaçış",
+    eyebrow: "Trafik / Kaçış",
     accent: "#E9563F",
     ink: "#293B75",
     poster: "/manus-storage/kivilcim-poster-v2_5ac4584b.png",
-    motto: "Rüzgârı değil, aralığı oku.",
-    mechanic: "Bölümler halinde akan baskı koridorunda planörü yönlendir, eşikleri aş ve güvenli damga ritmini kur.",
-    controls: "← → yön · ↑ itki · ↓ fren / dokun",
+    motto: "Her şeritte bir boşluk vardır.",
+    mechanic: "Sonsuz akan yolda trafiği ve engelleri atlat, her zaman açık kalan şeridi erken gör, bonusları topla.",
+    controls: "← → şerit değiştir / dokun",
     playTime: "Sonsuz rota",
   },
   {
@@ -115,7 +115,7 @@ const ENGLISH_GAMES: Record<GameId, Pick<GameMeta, "title" | "eyebrow" | "motto"
   shadow: { title: "Shadow Share", eyebrow: "Time / Match", motto: "A step in the past opens a door now.", mechanic: "Align your delayed shadow on two pads, then take the exit.", controls: "Arrow keys / direction pad", playTime: "2 min" },
   vaka: { title: "Case", eyebrow: "Detective / Deduction", motto: "Present the evidence, not the word.", mechanic: "Accuse a suspect, then present the clue that contradicts their statement; the wrong clue leaves the case open.", controls: "Click or tap", playTime: "3–5 min" },
   hane: { title: "Hane", eyebrow: "Record / Inference", motto: "Count the evidence; choose the record type.", mechanic: "Choose a number or word record; use the receipt marks to reduce possibilities on every line.", controls: "Keyboard or tap", playTime: "2–4 min" },
-  spark: { title: "Spark", eyebrow: "Rhythm / Escape", motto: "Read the gaps, not the wind.", mechanic: "Guide the paper glider through repeating print corridors, clear thresholds on time, and build a safe stamp rhythm.", controls: "← → steer · ↑ thrust · ↓ brake / tap", playTime: "Endless route" },
+  spark: { title: "Spark", eyebrow: "Traffic / Escape", motto: "There is always one open lane.", mechanic: "Dodge endless traffic and road hazards, spot the lane that's always open before it's too late, and collect bonuses along the way.", controls: "← → change lane / tap", playTime: "Endless route" },
 };
 
 export function getGameCatalog(locale: "tr" | "en") {

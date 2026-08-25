@@ -107,24 +107,39 @@ describe("mini-game level generators", () => {
     }
   });
 
-  it("keeps Spark’s endless chapter compact, deterministic, and fair to replay", () => {
+  it("keeps Spark's endless chapter compact, deterministic, and fair to replay (top-down lane model)", () => {
     const level = generateSparkLevel(99183, 3);
-    expect(level.chapterDuration).toBeGreaterThanOrEqual(20);
+    expect(level.laneCount).toBeGreaterThanOrEqual(3);
     expect(level.events.length).toBeGreaterThan(10);
-    expect(level.events.every(event => event.at < level.chapterDuration)).toBe(true);
-    expect(level.events.every(event => event.drift >= .1 && event.drift <= .9)).toBe(true);
-    expect(level.events.every(event => !("lane" in event))).toBe(true);
+    expect(level.events.every(event => event.lane >= 0 && event.lane < level.laneCount)).toBe(true);
+    expect(level.events.every(event => event.z >= 0)).toBe(true);
     expect(isSparkLevelFair(level)).toBe(true);
   });
 
-  it("turns each Spark chapter into a bounded, deterministic world segment", () => {
+  it("keeps every Spark chapter fair (at least one open lane per blocked row) across many seeds/masteries", () => {
+    for (let seed = 1; seed <= 60; seed += 7) {
+      for (const mastery of [0, 2, 4]) {
+        expect(isSparkLevelFair(generateSparkLevel(seed, mastery))).toBe(true);
+      }
+    }
+  });
+
+  it("turns each Spark chapter into a bounded, deterministic, genuinely different world segment", () => {
     const level = generateSparkLevel(99183, 3);
     const first = generateSparkWorldSegment(level, 0);
     const next = generateSparkWorldSegment(level, 1);
     expect(first).toEqual(generateSparkWorldSegment(level, 0));
     expect(first.events).toHaveLength(level.events.length);
-    expect(next.events.every(event => event.drift >= .08 && event.drift <= .92)).toBe(true);
-    expect(next.events.map(event => event.drift)).not.toEqual(first.events.map(event => event.drift));
+    expect(next.events.every(event => event.lane >= 0 && event.lane < level.laneCount)).toBe(true);
+    expect(next.events.map(event => `${event.row}-${event.lane}-${event.type}`)).not.toEqual(first.events.map(event => `${event.row}-${event.lane}-${event.type}`));
+  });
+
+  it("ramps Spark's speed monotonically from baseSpeed toward maxSpeed as mastery rises", () => {
+    const speeds = [0, 1, 2, 3, 4].map(mastery => generateSparkLevel(14151, mastery));
+    for (let i = 1; i < speeds.length; i += 1) {
+      expect(speeds[i].baseSpeed).toBeGreaterThanOrEqual(speeds[i - 1].baseSpeed);
+      expect(speeds[i].maxSpeed).toBeGreaterThanOrEqual(speeds[i].baseSpeed);
+    }
   });
 
   it("builds a valid Hane record and accounts for repeated digits without over-counting", () => {

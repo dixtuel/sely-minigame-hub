@@ -906,57 +906,99 @@ export function evaluateVakaAttempt(vakaCase: VakaCase, accusedId: SuspectId, pr
   return accusedId === vakaCase.culpritId ? "correct" : "wrong-suspect";
 }
 
-export type SparkEventType = "stamp" | "barrier" | "drop" | "gate";
-export type SparkEvent = { id: number; at: number; drift: number; type: SparkEventType };
-export type SparkLevel = { chapterDuration: number; speed: number; focus: number; events: SparkEvent[]; lesson: string };
-export type SparkWorldSegment = { index: number; wind: number; events: SparkEvent[] };
+export type SparkHazardKind = "traffic" | "barrel" | "cone" | "barrier" | "rock" | "tires";
+export type SparkEventType = SparkHazardKind | "pickup";
+export type SparkEvent = { id: number; row: number; lane: number; z: number; type: SparkEventType };
+export type SparkLevel = {
+  seed: number;
+  mastery: number;
+  laneCount: number;
+  rowsPerChapter: number;
+  rowSpacing: number;
+  segmentDistance: number;
+  baseSpeed: number;
+  acceleration: number;
+  maxSpeed: number;
+  focus: number;
+  events: SparkEvent[];
+  lesson: string;
+};
+export type SparkWorldSegment = { index: number; events: SparkEvent[] };
+
+const SPARK_HAZARD_KINDS: SparkHazardKind[] = ["traffic", "barrel", "cone", "barrier", "rock", "tires"];
+const SPARK_ROW_SPACING = 5.2;
+const SPARK_ROWS_PER_CHAPTER = 46;
+
+function buildSparkChapterEvents(seed: number, mastery: number, laneCount: number, rowsPerChapter: number, rowSpacing: number, chapterIndex: number): SparkEvent[] {
+  const random = rng(seed ^ Math.imul(chapterIndex + 41, 0x2f6e2b1) ^ Math.imul(mastery + 7, 0x9e3779b1));
+  const events: SparkEvent[] = [];
+  let id = chapterIndex * 1000;
+  const zBase = chapterIndex * rowsPerChapter * rowSpacing;
+  // Zorluk mesafeyle (bölüm indeksiyle) gerçekten artıyor: hem yoğunluk (density) hem de aynı
+  // satırda kaç şeridin bloke olabileceği (maxBlock) kademeli büyüyor.
+  const density = clamp(.26 + mastery * .045 + chapterIndex * .012, .26, .62);
+  const maxBlock = Math.min(laneCount - 1, 1 + Math.floor(mastery / 2) + Math.floor(chapterIndex / 6));
+  for (let row = 4; row < rowsPerChapter; row += 1) {
+    if (random() > density) continue;
+    // blockCount HER ZAMAN laneCount-1'i aşamaz — yapı gereği en az bir şerit açık kalır,
+    // sonradan doğrulamaya (retry) gerek yok (bkz. isSparkLevelFair, yalnız güvenlik ağı).
+    const blockCount = 1 + Math.floor(random() * maxBlock);
+    const lanes = Array.from({ length: laneCount }, (_, laneIndex) => laneIndex);
+    for (let i = lanes.length - 1; i > 0; i -= 1) { const j = Math.floor(random() * (i + 1));[lanes[i], lanes[j]] = [lanes[j], lanes[i]]; }
+    const blockedLanes = lanes.slice(0, blockCount);
+    const z = Number((zBase + row * rowSpacing).toFixed(2));
+    for (const lane of blockedLanes) {
+      const kind = SPARK_HAZARD_KINDS[Math.floor(random() * SPARK_HAZARD_KINDS.length)];
+      events.push({ id: id++, row, lane, z, type: kind });
+    }
+    if (random() > .68) {
+      const openLanes = lanes.slice(blockCount);
+      if (openLanes.length) events.push({ id: id++, row, lane: openLanes[Math.floor(random() * openLanes.length)], z, type: "pickup" });
+    }
+  }
+  return events;
+}
 
 export function generateSparkLevel(seed: number, mastery: number): SparkLevel {
-  const random = rng(seed ^ 0x2f6e2b1);
-  const chapterDuration = 20 + mastery * 2;
-  const speed = 2.8 + mastery * .26;
-  const focus = Math.max(2, 5 - Math.floor(mastery / 2));
-  const events: SparkEvent[] = [];
-  let at = 2.4;
-  let id = 0;
-  while (at < chapterDuration - 1.6) {
-    const drift = Number((.14 + random() * .72).toFixed(2));
-    const type: SparkEventType = id % 5 === 0 ? "stamp" : id % 4 === 0 ? "gate" : id % 3 === 0 ? "drop" : "barrier";
-    events.push({ id, at: Number(at.toFixed(2)), drift, type });
-    if (type !== "stamp" && random() > .48) events.push({ id: id + 100, at: Number((at + .46).toFixed(2)), drift: Number(Math.max(.1, Math.min(.9, drift + (random() > .5 ? .18 : -.18))).toFixed(2)), type: "stamp" });
-    at += 1.16 - Math.min(.22, mastery * .04) + random() * .3;
-    id += 1;
-  }
-  return { chapterDuration, speed, focus, events, lesson: mastery >= 3 ? "Her baskı sayfası yeniden döner: boşluğu önce gör, damgayı yalnız güvenli çizgide al." : "Koridor döngüsel akar: engeli erken oku, sonra serbest boşluğa süzül." };
+  const laneCount = mastery >= 3 ? 4 : 3;
+  const rowsPerChapter = SPARK_ROWS_PER_CHAPTER;
+  const rowSpacing = SPARK_ROW_SPACING;
+  return {
+    seed,
+    mastery,
+    laneCount,
+    rowsPerChapter,
+    rowSpacing,
+    segmentDistance: rowsPerChapter * rowSpacing,
+    baseSpeed: 6.4 + mastery * .5,
+    acceleration: .045 + mastery * .01,
+    maxSpeed: 15 + mastery,
+    focus: Math.max(2, 5 - Math.floor(mastery / 2)),
+    events: buildSparkChapterEvents(seed, mastery, laneCount, rowsPerChapter, rowSpacing, 0),
+    lesson: mastery >= 3 ? "Trafik yoğunlaştıkça birden fazla şerit kapanabilir; her zaman en az bir açık şerit vardır, onu erkenden gör." : "Şeritler arada boş kalır; erkenden geç, son ana bırakma.",
+  };
 }
 
 export function sparkEscalationFor(segmentIndex: number) {
-  return Number(clamp(1 + Math.max(0, segmentIndex) * .06, 1, 2.4).toFixed(3));
+  return Number(clamp(1 + Math.max(0, segmentIndex) * .05, 1, 2.2).toFixed(3));
 }
 
 export function generateSparkWorldSegment(level: SparkLevel, index: number): SparkWorldSegment {
-  const wind = Number(((((index * 7 + level.events.length) % 5) - 2) * .035).toFixed(3));
-  const baseEvents = level.events.map(event => {
-    const oscillation = (((index + event.id * 3) % 7) - 3) * .035;
-    const drift = Number(clamp(event.drift + wind + oscillation, .08, .92).toFixed(2));
-    return { ...event, drift };
-  });
-  // Mesafeye göre gerçek zorluk artışı: derindeki bölümlere deterministik ekstra tehlike enjekte edilir
-  // (isSparkLevelFair yalnız temel generateSparkLevel çıktısını doğrular, bu ek akış ondan bağımsızdır).
-  const escalation = sparkEscalationFor(index);
-  const extraCount = Math.floor((escalation - 1) * 5);
-  const extraEvents: SparkEvent[] = Array.from({ length: extraCount }, (_, slot) => {
-    const t = ((index * 13 + slot * 37) % 97) / 97;
-    const at = Number((level.chapterDuration * (.18 + t * .64)).toFixed(2));
-    const drift = Number(clamp(.14 + ((index * 7 + slot * 19) % 71) / 71 * .72, .1, .9).toFixed(2));
-    return { id: 900 + slot, at, drift, type: slot % 2 === 0 ? "barrier" : "gate" };
-  });
-  return { index, wind, events: [...baseEvents, ...extraEvents] };
+  const events = index === 0
+    ? level.events
+    : buildSparkChapterEvents(level.seed, level.mastery, level.laneCount, level.rowsPerChapter, level.rowSpacing, index);
+  return { index, events };
 }
 
 export function isSparkLevelFair(level: SparkLevel) {
-  const hazards = level.events.filter(event => event.type !== "stamp");
-  return hazards.every((event, index) => (index === 0 || event.at - hazards[index - 1].at >= .82) && event.drift >= .1 && event.drift <= .9) && level.events.some(event => event.type === "stamp") && level.events.at(-1)!.at < level.chapterDuration;
+  const blockedByRow = new Map<number, Set<number>>();
+  for (const event of level.events) {
+    if (event.type === "pickup") continue;
+    if (!blockedByRow.has(event.row)) blockedByRow.set(event.row, new Set());
+    blockedByRow.get(event.row)!.add(event.lane);
+  }
+  for (const blocked of Array.from(blockedByRow.values())) if (blocked.size >= level.laneCount) return false;
+  return level.events.length > 0 && level.events.some(event => event.type !== "pickup");
 }
 
 export function validateDailySeed(seed: number, gameId: GameId) {

@@ -1,34 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { projectSparkWorld, sceneryForSparkSegment, sparkWorldCollision } from "./SparkCanvasGame";
+import { sparkCollision, sparkLaneBounds, sparkLaneOf } from "./SparkCanvasGame";
 
-describe("Spark Canvas world mapping", () => {
-  it("projects near entities larger and lower than distant entities", () => {
-    const distant = projectSparkWorld(0, 28, 0, 1000, 600);
-    const near = projectSparkWorld(0, 4, 0, 1000, 600);
-    expect(near.scale).toBeGreaterThan(distant.scale);
-    expect(near.y).toBeGreaterThan(distant.y);
+describe("Spark Canvas top-down lane mapping", () => {
+  it("splits the road into evenly spaced, non-overlapping lane centers", () => {
+    const bounds = sparkLaneBounds(3);
+    expect(bounds).toHaveLength(3);
+    expect(bounds[0].center).toBeLessThan(bounds[1].center);
+    expect(bounds[1].center).toBeLessThan(bounds[2].center);
+    expect(bounds.every(bound => bound.half > 0)).toBe(true);
   });
 
-  it("uses the same x-z world coordinates for a hit and a safe pass", () => {
-    const threat = { x: .32, z: 10, size: .68, kind: "barrier" as const };
-    expect(sparkWorldCollision(.32, 10, threat)).toBe(true);
-    expect(sparkWorldCollision(-.72, 10, threat)).toBe(false);
-    expect(sparkWorldCollision(.32, 12.1, threat)).toBe(false);
+  it("resolves an x position to its nearest lane", () => {
+    const bounds = sparkLaneBounds(3);
+    expect(sparkLaneOf(bounds[0].center, 3)).toBe(0);
+    expect(sparkLaneOf(bounds[1].center, 3)).toBe(1);
+    expect(sparkLaneOf(bounds[2].center, 3)).toBe(2);
   });
 
-  it("lets the player pass safely through the middle of a gate but hits its posts", () => {
-    const gate = { x: 0, z: 10, size: .5, kind: "gate" as const };
-    expect(sparkWorldCollision(0, 10, gate)).toBe(false);
-    expect(sparkWorldCollision(.05, 10, gate)).toBe(false);
-    expect(sparkWorldCollision(.3, 10, gate)).toBe(true);
-    expect(sparkWorldCollision(.9, 10, gate)).toBe(false);
-  });
-
-  it("prepares a deterministic, bounded ribbon of side scenery before a segment reaches view", () => {
-    const first = sceneryForSparkSegment(618_071, 4);
-    expect(first).toEqual(sceneryForSparkSegment(618_071, 4));
-    expect(first).toHaveLength(7);
-    expect(first.every(item => Math.abs(item.x) >= .9 && Math.abs(item.x) <= 1.46)).toBe(true);
-    expect(first[0].z).toBeGreaterThan(4 * 54);
+  it("only registers a collision when the player is in the hazard's lane and row", () => {
+    const bounds = sparkLaneBounds(3);
+    const hazardInLane1 = { lane: 1, z: 10 };
+    expect(sparkCollision(bounds[1].center, 10, hazardInLane1, 3)).toBe(true);
+    expect(sparkCollision(bounds[0].center, 10, hazardInLane1, 3)).toBe(false);
+    expect(sparkCollision(bounds[2].center, 10, hazardInLane1, 3)).toBe(false);
+    expect(sparkCollision(bounds[1].center, 15, hazardInLane1, 3)).toBe(false);
   });
 });

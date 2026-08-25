@@ -13,16 +13,12 @@ import {
   type Direction,
   generateVakaCases,
   generateShadowLevel,
-  generateSparkLevel,
-  generateSparkWorldSegment,
   masteryBand,
   compareHaneNumberGuess,
   compareHaneWordGuess,
   isHaneGuessValid,
   isHaneWordGuessValid,
-  pointKey,
   type Point,
-  type SparkEvent,
 } from "@/lib/levelGenerators";
 
 type GameStudioProps = {
@@ -545,140 +541,6 @@ function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
       {!isWord ? <div className="hane-word-keypad hane-number-keypad" aria-label={local(locale, "Sayı tuşları", "Number keypad")}><div>{[1,2,3,4,5,6,7,8,9,0].map(value => <button type="button" key={value} className={numberKeyboardMarks[String(value)] ? `is-${numberKeyboardMarks[String(value)]}` : ""} onClick={() => append(String(value))}>{value}</button>)}</div><button className="hane-backspace" type="button" onClick={() => setGuess(current => current.slice(0, -1))}>⌫</button></div> : <div className="hane-word-keypad" aria-label={local(locale, "Türkçe harf tuşları", "Turkish letter keys")}>{wordKeyboard.map((line, index) => <div key={index}>{Array.from(line).map(letter => <button type="button" key={letter} className={keyboardMarks[letter] ? `is-${keyboardMarks[letter]}` : ""} onClick={() => append(letter)}>{letter}</button>)}</div>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => Array.from(current).slice(0, -1).join(""))}>⌫</button></div>}
       <p id={`${inputId}-note`} className={notice ? "hane-note is-alert" : "hane-note"}>{notice || (isWord ? (locale === "en" ? `Today’s topic: ${wordLevel.categoryEn}. ${wordLevel.lesson}` : `Bugünün konusu: ${wordLevel.category}. ${wordLevel.lesson}`) : numberLevel.lesson)}</p>
     </section>
-  </div>;
-}
-
-function SparkGame({ locale, seed, mastery, demo = false, onFinish }: { locale: SiteLocale; seed: number; mastery: number; demo?: boolean; onFinish: (result: GameResult) => void }) {
-  const level = useMemo(() => generateSparkLevel(seed, mastery), [seed, mastery]);
-  const finish = useFinishOnce(onFinish);
-  const ended = useRef(false);
-  const [state, setState] = useState({ elapsed: 0, drift: .5, driftVelocity: 0, boosting: false, points: 0, focus: level.focus, stamps: 0, combo: 0, clean: 0, chapters: 0 });
-  const stateRef = useRef(state);
-  const resolved = useRef(new Set<number>());
-  const boostTimer = useRef<number | null>(null);
-  const lastChapter = useRef(-1);
-  const lastPaint = useRef(0);
-
-  useEffect(() => { stateRef.current = state; }, [state]);
-
-  const steer = useCallback((amount: number) => setState(previous => ({ ...previous, driftVelocity: Math.max(-.54, Math.min(.54, previous.driftVelocity + amount * 2.7)) })), []);
-  const setDrift = useCallback((drift: number) => setState(previous => ({ ...previous, drift: Math.max(.06, Math.min(.94, drift)), driftVelocity: 0 })), []);
-  const boost = useCallback(() => {
-    if (stateRef.current.boosting) return;
-    setState(previous => ({ ...previous, boosting: true }));
-    if (boostTimer.current) window.clearTimeout(boostTimer.current);
-    boostTimer.current = window.setTimeout(() => setState(previous => ({ ...previous, boosting: false })), 310);
-  }, []);
-  const finishRun = useCallback((result: GameResult) => {
-    if (ended.current) return;
-    ended.current = true;
-    finish(result);
-  }, [finish]);
-  useEffect(() => {
-    if (!demo) return;
-    const timers: number[] = [];
-    for (let chapter = 0; chapter < 2; chapter += 1) {
-      for (const event of generateSparkWorldSegment(level, chapter).events.filter(item => item.type !== "stamp")) {
-        const drift = event.drift; const offset = chapter * level.chapterDuration;
-        if (event.type === "drop") {
-          const targetDrift = drift < .5 ? Math.min(.9, drift + .26) : Math.max(.1, drift - .26);
-          timers.push(window.setTimeout(() => setDrift(targetDrift), Math.max(0, (offset + event.at - .34) * 1000)));
-        } else if (event.type === "barrier" || event.type === "gate") {
-          timers.push(window.setTimeout(boost, Math.max(0, (offset + event.at - .12) * 1000)));
-        }
-      }
-    }
-    return () => timers.forEach(timer => window.clearTimeout(timer));
-  }, [boost, demo, level, setDrift]);
-
-  useEffect(() => {
-    const keydown = (event: KeyboardEvent) => {
-      const action: Record<string, () => void> = { ArrowLeft: () => steer(-.11), ArrowRight: () => steer(.11), ArrowUp: () => steer(-.11), ArrowDown: () => steer(.11), " ": boost };
-      const run = action[event.key];
-      if (run) { event.preventDefault(); run(); }
-    };
-    window.addEventListener("keydown", keydown);
-    return () => window.removeEventListener("keydown", keydown);
-  }, [boost, steer]);
-
-  useEffect(() => {
-    const startedAt = performance.now();
-    let frame = 0;
-    let active = true;
-    let lastFrameAt = startedAt;
-    const tick = (now: number) => {
-      if (!active) return;
-      const elapsed = (now - startedAt) / 1000;
-      const deltaSeconds = Math.min(.06, Math.max(.001, (now - lastFrameAt) / 1000));
-      lastFrameAt = now;
-      const chapter = Math.floor(elapsed / level.chapterDuration);
-      const chapterElapsed = elapsed % level.chapterDuration;
-      const segment = generateSparkWorldSegment(level, chapter);
-      if (chapter !== lastChapter.current) { lastChapter.current = chapter; resolved.current.clear(); }
-      if (now - lastPaint.current >= 33) {
-        lastPaint.current = now;
-        setState(current => {
-          const velocity = Math.max(-.54, Math.min(.54, current.driftVelocity + segment.wind * .14));
-          const drift = Math.max(.06, Math.min(.94, current.drift + velocity * deltaSeconds));
-          return { ...current, elapsed, chapters: chapter, drift, driftVelocity: velocity * .9 };
-        });
-      }
-      for (const event of segment.events) {
-        if (event.at > chapterElapsed || resolved.current.has(event.id)) continue;
-        resolved.current.add(event.id);
-        const drift = event.drift;
-        setState(current => {
-          if (event.type === "stamp") {
-            if (Math.abs(drift - current.drift) > .12) return { ...current, combo: 0 };
-            const combo = Math.min(8, current.combo + 1);
-            return { ...current, points: current.points + 90 + combo * 18, stamps: current.stamps + 1, combo };
-          }
-          const driftClear = Math.abs(drift - current.drift) > .15;
-          const boostClear = current.boosting && (event.type === "barrier" || event.type === "gate");
-          if (driftClear || boostClear) return { ...current, clean: current.clean + 1 };
-          const focus = current.focus - 1;
-          if (focus <= 0) {
-            active = false;
-            window.setTimeout(() => finishRun({ outcome: "failure", score: Math.max(45, current.points + Math.floor(elapsed * 14)), label: local(locale, "Rüzgâr çizgiyi dağıttı", "The wind scattered the line"), detail: local(locale, "Engeli son anda değil, yaklaşırken okumayı dene. Açık şerit her zaman puandan değerlidir.", "Read the obstacle as it approaches, not at the last moment. An open lane is worth more than a stamp.") }), 0);
-          }
-          return { ...current, focus: Math.max(0, focus), combo: 0 };
-        });
-      }
-      if (!active) return;
-      if (demo && elapsed >= level.chapterDuration * 2) {
-        active = false;
-        const final = stateRef.current;
-        finishRun({ outcome: "success", score: 760 + final.points + final.focus * 120 + final.stamps * 35 + final.clean * 12, label: local(locale, "İki baskı şeridi tamamlandı", "Two print sheets completed"), detail: local(locale, `${final.stamps} damga, ${final.clean} temiz geçiş ve ${final.focus} odakla iki koridorluk akışı tamamladın.`, `You cleared two print corridors with ${final.stamps} stamps, ${final.clean} clean passes and ${final.focus} focus left.`) });
-        return;
-      }
-      frame = window.requestAnimationFrame(tick);
-    };
-    frame = window.requestAnimationFrame(tick);
-    return () => { active = false; window.cancelAnimationFrame(frame); if (boostTimer.current) window.clearTimeout(boostTimer.current); };
-  }, [demo, finishRun, level, locale]);
-
-  const chapterElapsed = state.elapsed % level.chapterDuration;
-  const visibleEvents = [state.chapters, state.chapters + 1].flatMap(chapter => generateSparkWorldSegment(level, chapter).events.map(event => ({ event, chapter, delta: event.at + (chapter - state.chapters) * level.chapterDuration - chapterElapsed }))).filter(item => item.delta > -.52 && item.delta < 4.9);
-  const quality = state.clean >= 18 ? local(locale, "Usta baskı", "Master print") : state.clean >= 9 ? local(locale, "Temiz baskı", "Clean print") : local(locale, "Prova baskısı", "Proof print");
-  return <div className="spark-game game-surface">
-    <div className="game-hud"><span>{local(locale, "MESAFE", "DISTANCE")} <b>{Math.floor(state.elapsed * 32)}m</b></span><span>{local(locale, "ODAK", "FOCUS")} <b>{state.focus}/{level.focus}</b></span><span>{local(locale, "ZİNCİR", "CHAIN")} <b>×{state.combo}</b></span><span>{local(locale, "BASKI", "SHEET")} <b>{String(state.chapters + 1).padStart(2, "0")}</b></span></div>
-    <div className="spark-track spark-world" role="application" aria-label={local(locale, "Kıvılcım oyun alanı. Yukarı ve aşağı okla baskı hattında yön değiştir, boşlukla itki kullan.", "Spark game field. Shift through the press line with up and down arrows; use Space for thrust.") }>
-      <div className="spark-sky" aria-hidden="true"><i /><i /><i /><b>SELY PRESSLINE / {String(state.chapters + 1).padStart(2, "0")}</b></div>
-      <div className="spark-world-sun" aria-hidden="true" /><div className="spark-world-horizon" aria-hidden="true" />
-      <div className="spark-world-grid" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /></div>
-      <div className="spark-world-silhouette silhouette-left" aria-hidden="true" /><div className="spark-world-silhouette silhouette-right" aria-hidden="true" />
-      <div className="spark-world-ribbons" aria-hidden="true"><i /><i /><i /></div>
-      <div className="spark-world-sign" aria-hidden="true"><span>R</span><span>E</span><span>G</span><span>↯</span></div>
-      <div className={`spark-player ${state.boosting ? "is-boosting" : ""}`} style={{ "--drift-top": `${14 + state.drift * 72}%` } as React.CSSProperties}><i /><b /><em /></div>
-      {visibleEvents.map(({ event, chapter, delta }) => {
-        const depth = Math.max(.08, Math.min(1, 1 - delta / 4.9));
-        return <div key={`${chapter}-${event.id}`} className={`spark-event event-${event.type}`} style={{ "--drift-top": `${14 + event.drift * 72}%`, "--depth": depth, "--distance": `${Math.max(0, 22 + delta * 15)}%` } as React.CSSProperties} aria-hidden="true">{event.type === "stamp" ? "✦" : event.type === "drop" ? "●" : event.type === "gate" ? "⌇" : "━"}</div>;
-      })}
-      <div className="spark-drift-ruler" aria-hidden="true"><span>ALT</span><span>MERKEZ</span><span>ÜST</span></div>
-    </div>
-    <div className="spark-station" aria-live="polite"><span>{local(locale, "KALİTE", "QUALITY")} <b>{quality}</b></span><span>{local(locale, "TEMİZ GEÇİŞ", "CLEAN PASS")} <b>{state.clean}</b></span><span>{local(locale, "DAMGA", "STAMP")} <b>{state.stamps}</b></span></div>
-    <div className="spark-controls" aria-label={local(locale, "Kıvılcım dokunmatik kontrolleri", "Spark touch controls")}><button onClick={() => steer(-.14)} aria-label={local(locale, "Yukarı süzül", "Drift up")}>↑</button><button className="spark-jump" onClick={boost}>{local(locale, "Hızlan", "Boost")} <span>Space</span></button><button onClick={() => steer(.14)} aria-label={local(locale, "Aşağı süzül", "Drift down")}>↓</button></div>
-    <p className="game-tip">{level.lesson}</p>
   </div>;
 }
 
