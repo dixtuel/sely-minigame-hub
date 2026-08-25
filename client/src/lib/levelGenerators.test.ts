@@ -34,6 +34,38 @@ describe("mini-game level generators", () => {
     }
   });
 
+  it("produces a genuinely different level on each consecutive practice attempt (echo/knot/shadow)", () => {
+    for (const gameId of ["echo", "knot", "shadow"] as const) {
+      const seeds = Array.from({ length: 6 }, (_, attempt) => personalSeed(618_071, gameId, 2, attempt + 1));
+      const levels = seeds.map(seed => {
+        if (gameId === "echo") return generateEchoLevel(seed, 2);
+        if (gameId === "knot") return generateKnotLevel(seed, 2);
+        return generateShadowLevel(seed, 2);
+      });
+      const unique = new Set(levels.map(level => JSON.stringify(level)));
+      expect(unique.size).toBeGreaterThan(1); // en azından bazı attempt'ler birbirinden farklı olmalı
+    }
+  });
+
+  it("keeps Echo Room and Shadow Share solvable across many seeds and masteries (stress test)", () => {
+    for (let seed = 1; seed <= 60; seed += 7) {
+      for (const mastery of [0, 2, 4]) {
+        expect(isEchoLevelSolvable(generateEchoLevel(seed, mastery))).toBe(true);
+        expect(isShadowLevelSolvable(generateShadowLevel(seed, mastery))).toBe(true);
+      }
+    }
+  });
+
+  it("keeps Knot's bonus reachable within heatLimit at every mastery, including mastery 1", () => {
+    for (let seed = 1; seed <= 100; seed += 3) {
+      for (const mastery of [1, 2, 3, 4]) {
+        const level = generateKnotLevel(seed, mastery);
+        expect(isKnotLevelSolvable(level)).toBe(true);
+        if (mastery >= 2) expect(level.bonusIndex).toBe(5);
+      }
+    }
+  });
+
   it("keeps Echo Room’s longer three-mark route solvable within its sound budget", () => {
     const level = generateEchoLevel(76321, 2);
     expect(level.cols).toBeGreaterThanOrEqual(11);
@@ -82,6 +114,20 @@ describe("mini-game level generators", () => {
     expect(isHaneGuessValid("0234", novice)).toBe(false);
     expect(compareHaneGuess("1212", "1111")).toEqual({ locks: 2, traces: 0 });
     expect(compareHaneGuess("1212", "2121")).toEqual({ locks: 0, traces: 4 });
+  });
+
+  it("varies the daily Hane word length by seed and keeps every pool word valid for its own length", () => {
+    const lengths = new Set(Array.from({ length: 30 }, (_, seed) => generateHaneWordLevel(seed + 1, 2).length));
+    expect(lengths.size).toBeGreaterThan(1); // en az bazı seed'ler farklı uzunluk üretmeli (4-8 arası)
+    for (const length of [4, 5, 6, 7, 8]) {
+      const seed = Array.from({ length: 40 }, (_, index) => index + 1).find(candidate => generateHaneWordLevel(candidate, 2).length === length);
+      expect(seed, `${length} harfli bir seed bulunamadı`).toBeDefined();
+      if (!seed) continue;
+      const level = generateHaneWordLevel(seed, 2);
+      expect(level.length).toBe(length);
+      expect(Array.from(level.target)).toHaveLength(length);
+      expect(isHaneWordGuessValid(level.target, level)).toBe(true);
+    }
   });
 
   it("guarantees exactly one contradicting suspect and a fully cleared innocent set for every vaka case", () => {
@@ -157,8 +203,8 @@ describe("mini-game level generators", () => {
   it("builds a deterministic Turkish word record and consumes repeated letters only once", () => {
     const level = generateHaneWordLevel(74181, 2);
     expect(level).toEqual(generateHaneWordLevel(74181, 2));
-    expect(Array.from(level.target)).toHaveLength(5);
-    expect(isHaneWordGuessValid("bahçe", level)).toBe(true);
+    expect(Array.from(level.target)).toHaveLength(level.length);
+    expect(isHaneWordGuessValid("bahçe", level)).toBe(level.length === 5);
     expect(isHaneWordGuessValid("xxxxx", level)).toBe(false);
     expect(compareHaneWordGuess("KİTAP", "KİLİT")).toEqual({ marks: ["exact", "exact", "absent", "absent", "present"], exact: 2, present: 1 });
     expect(compareHaneWordGuess("KİTAP", "AAAAA")).toEqual({ marks: ["absent", "absent", "absent", "exact", "absent"], exact: 1, present: 0 });

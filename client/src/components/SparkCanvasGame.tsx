@@ -52,7 +52,9 @@ function entityForSegment(seed: number, mastery: number, segmentIndex: number) {
     kind: event.type,
     x: Number((event.drift * 2 - 1).toFixed(3)),
     z: segmentIndex * SEGMENT_DISTANCE + 6 + event.at / level.chapterDuration * (SEGMENT_DISTANCE - 10),
-    size: event.type === "gate" ? .78 : event.type === "barrier" ? .68 : event.type === "drop" ? .48 : .34,
+    // gate görsel olarak iki dar sütun arasında bir boşluk bırakıyor — tek geniş kutu toleransı
+    // (.78) bu boşluktan daha geniş olup "görünmez duvar" hissi yaratıyordu, .5'e daraltıldı.
+    size: event.type === "gate" ? .5 : event.type === "barrier" ? .68 : event.type === "drop" ? .48 : .34,
     resolved: false,
   }));
 }
@@ -162,7 +164,10 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
     const screen = projectSparkWorld(entity.x, entity.z, player.distance, width, height);
     context.save();
     context.translate(screen.x, screen.y);
-    context.scale(screen.scale, screen.scale);
+    // .68 (barrier) referans boyut — görsel boyut artık entity.size ile orantılı büyüyüp
+    // küçülüyor, çarpışma toleransı (sparkWorldCollision) de aynı entity.size'ı kullanıyor;
+    // tek kaynaktan geldikleri için hitbox/görsel artık yapısal olarak tutarlı.
+    context.scale(screen.scale * (entity.size / .68), screen.scale * (entity.size / .68));
     if (entity.kind === "stamp") {
       const pulse = 1 + Math.sin(world.lastAt * .006 + entity.z) * .06;
       context.scale(pulse, pulse);
@@ -217,8 +222,12 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
     context.restore();
   }
 
-  const playerX = width * .5 + player.x * width * .32;
-  const playerY = height * .84;
+  // Oyuncunun x/y'si engellerle AYNI projeksiyon formülünü (projectSparkWorld) kullanmalı —
+  // eskiden playerX ayrı bir sabit (width*.32) kullanıyordu, engellerin (.08+depth*.32)
+  // formülünden çarpışma anında (depth≈1) ~%25 sapıyordu ("görünmez duvar" hissi).
+  const playerProjection = projectSparkWorld(player.x, player.distance, player.distance, width, height);
+  const playerX = playerProjection.x;
+  const playerY = playerProjection.y;
   if (player.speed > 8) {
     context.save();
     context.globalAlpha = .5 + Math.sin(world.lastAt * .03) * .15;

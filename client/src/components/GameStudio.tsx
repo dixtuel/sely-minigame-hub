@@ -10,6 +10,12 @@ import {
   generateHaneLevel,
   generateHaneWordLevel,
   generateKnotLevel,
+  KNOT_BONUS_PATH,
+  KNOT_SOURCE_INDEX,
+  KNOT_TARGET_INDEX,
+  KNOT_TARGET_PATH,
+  KNOT_TILE_SHAPES,
+  type Direction,
   generateVakaCases,
   generateShadowLevel,
   generateSparkLevel,
@@ -27,7 +33,6 @@ import {
 type GameStudioProps = {
   game: GameMeta;
   locale?: SiteLocale;
-  runSource?: "daily" | "personal";
   autoStart?: boolean;
   demo?: "spark" | "spark-fail" | "cut-fail";
   dailySeed?: number;
@@ -63,7 +68,7 @@ function useFinishOnce(onFinish: (result: GameResult) => void) {
   }, [onFinish]);
 }
 
-export default function GameStudio({ game, locale = "tr", runSource = "daily", autoStart = false, demo, dailySeed = 0, dailyDifficulty = 1, highScore, soundOn, onToggleSound, onBack, onNextLevel, onScore }: GameStudioProps) {
+export default function GameStudio({ game, locale = "tr", autoStart = false, demo, dailySeed = 0, dailyDifficulty = 1, highScore, soundOn, onToggleSound, onBack, onNextLevel, onScore }: GameStudioProps) {
   const [started, setStarted] = useState(autoStart);
   const [runKey, setRunKey] = useState(0);
   const [result, setResult] = useState<GameResult | null>(null);
@@ -107,7 +112,7 @@ export default function GameStudio({ game, locale = "tr", runSource = "daily", a
           <div className="game-intro">
             <div className={`game-intro-art intro-art-${game.id}`} aria-hidden="true"><span /><i /><b>{game.number}</b></div>
             <div className="game-intro-copy">
-              <span className="studio-kicker">{runSource === "daily" ? (locale === "en" ? "TODAY’S EDITION" : "BUGÜNÜN BASKISI") : (locale === "en" ? "YOUR ROUTE · MASTERY" : "KENDİ ROTAN · USTALIK")} {runSource === "personal" ? `${displayMastery}/4` : ""}</span>
+              <span className="studio-kicker">{locale === "en" ? "YOUR ROUTE · MASTERY" : "ROTAN · USTALIK"} {displayMastery}/4</span>
               <h1>{game.motto}</h1>
               <p>{game.mechanic}</p>
               <div className="control-chip">{game.controls}</div>
@@ -241,25 +246,28 @@ function EchoRoomGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale;
   </div>;
 }
 
-type Direction = "N" | "E" | "S" | "W";
 type Tile = { r: number; c: number; base: Direction[]; rot: number; locked?: boolean; label?: string };
 const directionOrder: Direction[] = ["N", "E", "S", "W"];
 const step: Record<Direction, [number, number]> = { N: [-1, 0], E: [0, 1], S: [1, 0], W: [0, -1] };
 const opposite: Record<Direction, Direction> = { N: "S", E: "W", S: "N", W: "E" };
 const rotateDirs = (dirs: Direction[], rot: number) => dirs.map(dir => directionOrder[(directionOrder.indexOf(dir) + rot) % 4]);
 const tileKey = (r: number, c: number) => `${r}-${c}`;
+const KNOT_CRITICAL_INDEXES = new Set([...KNOT_TARGET_PATH, ...KNOT_BONUS_PATH]);
 
 function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; seed: number; mastery: number; onFinish: (result: GameResult) => void }) {
   const level = useMemo(() => generateKnotLevel(seed, mastery), [seed, mastery]);
   const finish = useFinishOnce(onFinish);
-  const baseTiles = useMemo<Tile[]>(() => [
-    { r: 0, c: 0, base: ["E"], rot: 0, locked: true, label: "S" }, { r: 0, c: 1, base: ["W", "E", "S"], rot: level.rotations[1] }, { r: 0, c: 2, base: ["W", "S"], rot: level.rotations[2] }, { r: 0, c: 3, base: ["W", "S"], rot: level.rotations[3] },
-    { r: 1, c: 0, base: ["N", "E"], rot: level.rotations[4] }, { r: 1, c: 1, base: ["N", "S"], rot: level.rotations[5] }, { r: 1, c: 2, base: ["N", "S"], rot: level.rotations[6] }, { r: 1, c: 3, base: ["N", "W", "S"], rot: level.rotations[7] },
-    { r: 2, c: 0, base: ["N", "E"], rot: level.rotations[8] }, { r: 2, c: 1, base: ["N", "E"], rot: level.rotations[9] }, { r: 2, c: 2, base: ["N", "E"], rot: level.rotations[10] }, { r: 2, c: 3, base: ["W"], rot: 0, locked: true, label: "H" },
-    { r: 3, c: 0, base: ["N", "E", "S"], rot: level.rotations[12] }, { r: 3, c: 1, base: ["N", "W"], rot: level.rotations[13] }, { r: 3, c: 2, base: ["N", "S"], rot: level.rotations[14] }, { r: 3, c: 3, base: ["N", "W", "S"], rot: level.rotations[15] },
-  ], [level.rotations]);
+  const baseTiles = useMemo<Tile[]>(() => KNOT_TILE_SHAPES.map((base, index) => ({
+    r: Math.floor(index / 4),
+    c: index % 4,
+    base,
+    rot: index === KNOT_SOURCE_INDEX || index === KNOT_TARGET_INDEX ? 0 : level.rotations[index],
+    locked: index === KNOT_SOURCE_INDEX || index === KNOT_TARGET_INDEX,
+    label: index === KNOT_SOURCE_INDEX ? "S" : index === KNOT_TARGET_INDEX ? "H" : undefined,
+  })), [level.rotations]);
   const [tiles, setTiles] = useState(baseTiles);
   const [turns, setTurns] = useState(0);
+  const [lastRotated, setLastRotated] = useState<number | null>(null);
 
   const connected = useMemo(() => {
     const map = new Map(tiles.map(tile => [tileKey(tile.r, tile.c), tile]));
@@ -275,7 +283,7 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     return visited;
   }, [tiles]);
 
-  const targetConnected = connected.has("2-3");
+  const targetConnected = connected.has(tileKey(Math.floor(KNOT_TARGET_INDEX / 4), KNOT_TARGET_INDEX % 4));
   const bonusConnected = level.bonusIndex >= 0 && connected.has(tileKey(Math.floor(level.bonusIndex / 4), level.bonusIndex % 4));
   const sealFlow = () => {
     if (!targetConnected) return;
@@ -287,7 +295,14 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     const nextTurns = turns + 1;
     setTiles(previous => previous.map((tile, tileIndex) => tileIndex === index ? { ...tile, rot: (tile.rot + 1) % 4 } : tile));
     setTurns(nextTurns);
+    setLastRotated(index);
     if (nextTurns > level.heatLimit) finish({ outcome: "failure", score: 65, label: "Hat fazla ısındı", detail: "Aynı akışı tekrar tekrar çevirmek yerine önce hedef çizgisini gözünle kur." });
+  };
+  const undoLast = () => {
+    if (lastRotated === null) return;
+    setTiles(previous => previous.map((tile, tileIndex) => tileIndex === lastRotated ? { ...tile, rot: (tile.rot + 3) % 4 } : tile));
+    setTurns(value => Math.max(0, value - 1));
+    setLastRotated(null);
   };
 
   return <div className="knot-game game-surface">
@@ -295,12 +310,16 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     <div className="knot-board" role="grid" aria-label="Düğüm bağlantı tahtası">
       {tiles.map((tile, index) => {
         const active = connected.has(tileKey(tile.r, tile.c)); const dirs = rotateDirs(tile.base, tile.rot); const bonus = level.bonusIndex === index;
-        return <button key={tileKey(tile.r, tile.c)} onClick={() => rotate(index)} className={`knot-tile ${active ? "is-active" : ""} ${tile.locked ? "is-locked" : ""} ${bonus ? "is-bonus" : ""}`} aria-label={`Bağlantı karosu ${tile.r + 1}-${tile.c + 1}`}>
+        const critical = KNOT_CRITICAL_INDEXES.has(index) && !tile.locked;
+        return <button key={tileKey(tile.r, tile.c)} onClick={() => rotate(index)} className={`knot-tile ${active ? "is-active" : ""} ${tile.locked ? "is-locked" : ""} ${bonus ? "is-bonus" : ""} ${critical ? "is-critical" : ""}`} aria-label={`Bağlantı karosu ${tile.r + 1}-${tile.c + 1}`}>
           <span className="knot-core">{tile.label || (bonus ? "✦" : "")}</span>{dirs.map(dir => <i key={dir} className={`knot-line line-${dir}`} />)}
         </button>;
       })}
     </div>
-    {targetConnected && <button className="ink-button knot-seal-button" onClick={sealFlow}>{bonusConnected ? "Akışı mühürle + bonus" : "Akışı mühürle"}</button>}
+    <div className="knot-actions">
+      <button type="button" className="quiet-button" onClick={undoLast} disabled={lastRotated === null}>{locale === "en" ? "Undo last turn" : "Son hamleyi geri al"}</button>
+      {targetConnected && <button className="ink-button knot-seal-button" onClick={sealFlow}>{bonusConnected ? "Akışı mühürle + bonus" : "Akışı mühürle"}</button>}
+    </div>
     <p className="game-tip">{level.lesson}</p>
   </div>;
 }
@@ -469,7 +488,7 @@ function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
       if (nextRows.length >= numberLevel.maxGuesses) finish({ outcome: "failure", score: Math.max(60, 180 + nextRows.reduce((total, row) => total + row.locks * 32 + row.traces * 14, 0)), label: local(locale, "Kayıt kapanmadı", "Record remained open"), detail: local(locale, "Kilit ve iz toplamlarını birlikte oku; aynı hane hedefte yalnız bulunduğu kadar sayılır.", "Read lock and trace totals together; a digit can be counted only as often as it exists in the target.") });
       return;
     }
-    if (!isHaneWordGuessValid(guess, wordLevel)) { setNotice(local(locale, "Beş harfli, kayıt bankasında bulunan bir sözcük gir.", "Enter a five-letter word from the record bank.")); return; }
+    if (!isHaneWordGuessValid(guess, wordLevel)) { setNotice(local(locale, `${wordLevel.length} harfli, kayıt bankasında bulunan bir sözcük gir.`, `Enter a ${wordLevel.length}-letter word from the record bank.`)); return; }
     const normalizedGuess = Array.from(guess.toLocaleUpperCase("tr-TR")).join("");
     const feedback = compareHaneWordGuess(wordLevel.target, normalizedGuess);
     const nextRows = [...wordRows, { guess: normalizedGuess, marks: feedback.marks }];
@@ -490,14 +509,25 @@ function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     return () => window.removeEventListener("keydown", keydown);
   }, [inputId, isWord, submit]);
   const wordKeyboard = ["QWERTYUIOPĞÜ", "ASDFGHJKLŞİ", "ZXCVBNMÖÇ"];
+  const keyboardMarks = useMemo(() => {
+    const rank: Record<"exact" | "present" | "absent", number> = { exact: 3, present: 2, absent: 1 };
+    const marks: Record<string, "exact" | "present" | "absent"> = {};
+    for (const row of wordRows) {
+      Array.from(row.guess).forEach((letter, index) => {
+        const mark = row.marks[index];
+        if (!marks[letter] || rank[mark] > rank[marks[letter]]) marks[letter] = mark;
+      });
+    }
+    return marks;
+  }, [wordRows]);
   return <div className="hane-game game-surface">
     <div className="game-hud"><span>{local(locale, "FİŞ", "RECEIPT")} <b>{activeRows.length}/{activeMaxGuesses}</b></span><span>{local(locale, "KAYIT", "RECORD")} <b>{isWord ? local(locale, "SÖZCÜK", "WORD") : local(locale, "SAYI", "NUMBER")}</b></span><span>{isWord ? local(locale, "KONU", "TOPIC") : local(locale, "KURAL", "RULE")} <b>{isWord ? (locale === "en" ? wordLevel.categoryEn : wordLevel.category) : (numberLevel.allowsRepeats ? local(locale, "TEKRAR AÇIK", "REPEATS ON") : local(locale, "TEKRAR YOK", "NO REPEATS"))}</b></span></div>
     <section className="hane-desk" aria-label={local(locale, "Hane kayıt masası", "Hane record desk")}>
       <div className="hane-head"><span>SELY / KAYIT MASASI</span><b>{isWord ? local(locale, "SÖZCÜK İZİ", "WORD TRACE") : local(locale, "KİLİT + İZ", "LOCK + TRACE")}</b></div>
       <div className="hane-mode-tabs" role="tablist" aria-label={local(locale, "Hane kayıt türü", "Hane record type")}><button type="button" role="tab" aria-selected={!isWord} className={!isWord ? "is-active" : ""} onClick={() => chooseMode("number")}>{local(locale, "Sayı kaydı", "Number record")}</button><button type="button" role="tab" aria-selected={isWord} className={isWord ? "is-active" : ""} onClick={() => chooseMode("word")}>{local(locale, "Sözcük kaydı", "Word record")}</button></div>
-      {!isWord ? <><div className="hane-key"><div><b>◼ {local(locale, "KİLİT", "LOCK")}</b><span>{local(locale, "doğru hane · doğru sıra", "right digit · right place")}</span></div><div><b>◌ {local(locale, "İZ", "TRACE")}</b><span>{local(locale, "doğru hane · başka sıra", "right digit · other place")}</span></div></div><ol className="hane-rows" aria-live="polite">{Array.from({ length: numberLevel.maxGuesses }, (_, index) => { const row = numberRows[index]; return <li key={index} className={row ? "is-filled" : ""}><span className="hane-row-index">{String(index + 1).padStart(2, "0")}</span><strong>{row?.guess || "—".repeat(numberLevel.digits)}</strong>{row ? <span className="hane-feedback"><i>◼ {row.locks}</i><i>◌ {row.traces}</i></span> : <span className="hane-feedback is-blank"><i>◼ ·</i><i>◌ ·</i></span>}</li>; })}</ol></> : <><div className="hane-key"><div><b>▣ {local(locale, "YERİNDE", "EXACT")}</b><span>{local(locale, "doğru harf · doğru yer", "right letter · right place")}</span></div><div><b>◌ {local(locale, "İZDE", "TRACED")}</b><span>{local(locale, "doğru harf · başka yer", "right letter · other place")}</span></div></div><ol className="hane-word-rows" aria-live="polite">{Array.from({ length: wordLevel.maxGuesses }, (_, index) => { const row = wordRows[index]; return <li key={index}>{Array.from({ length: wordLevel.length }, (_, letterIndex) => <span key={letterIndex} className={row ? `is-${row.marks[letterIndex]}` : ""}>{row?.guess[letterIndex] || ""}</span>)}</li>; })}</ol></>}
+      {!isWord ? <><div className="hane-key"><div><b>◼ {local(locale, "KİLİT", "LOCK")}</b><span>{local(locale, "doğru hane · doğru sıra", "right digit · right place")}</span></div><div><b>◌ {local(locale, "İZ", "TRACE")}</b><span>{local(locale, "doğru hane · başka sıra", "right digit · other place")}</span></div></div><ol className="hane-rows" aria-live="polite">{Array.from({ length: numberLevel.maxGuesses }, (_, index) => { const row = numberRows[index]; return <li key={index} className={row ? "is-filled" : ""}><span className="hane-row-index">{String(index + 1).padStart(2, "0")}</span><strong>{row?.guess || "—".repeat(numberLevel.digits)}</strong>{row ? <span className="hane-feedback"><i>◼ {row.locks}</i><i>◌ {row.traces}</i></span> : <span className="hane-feedback is-blank"><i>◼ ·</i><i>◌ ·</i></span>}</li>; })}</ol></> : <><div className="hane-key"><div><b>▣ {local(locale, "YERİNDE", "EXACT")}</b><span>{local(locale, "doğru harf · doğru yer", "right letter · right place")}</span></div><div><b>◌ {local(locale, "İZDE", "TRACED")}</b><span>{local(locale, "doğru harf · başka yer", "right letter · other place")}</span></div></div><ol className="hane-word-rows" aria-live="polite" style={{ "--word-length": wordLevel.length } as React.CSSProperties}>{Array.from({ length: wordLevel.maxGuesses }, (_, index) => { const row = wordRows[index]; return <li key={index}>{Array.from({ length: wordLevel.length }, (_, letterIndex) => <span key={letterIndex} className={row ? `is-${row.marks[letterIndex]}` : ""}>{row?.guess[letterIndex] || ""}</span>)}</li>; })}</ol></>}
       <form className="hane-entry" onSubmit={event => { event.preventDefault(); submit(); }}><label htmlFor={inputId}>{isWord ? local(locale, "SÖZCÜK YAZ", "ENTER WORD") : local(locale, "KAYIT GİR", "ENTER RECORD")}</label><input id={inputId} value={guess} onChange={event => { setNotice(""); const next = isWord ? Array.from(event.target.value.toLocaleUpperCase("tr-TR")).filter(letter => /^[A-ZÇĞİÖŞÜ]$/.test(letter)).slice(0, wordLevel.length).join("") : event.target.value.replace(/\D/g, "").slice(0, numberLevel.digits); setGuess(next); }} inputMode={isWord ? "text" : "numeric"} autoComplete="off" pattern={isWord ? "[A-Za-zÇĞİÖŞÜçğıöşü]+" : "[0-9]*"} aria-describedby={`${inputId}-note`} placeholder={isWord ? "—".repeat(wordLevel.length) : "0".repeat(numberLevel.digits)} /><button className="ink-button" type="submit">{local(locale, "Baskıya ver", "Stamp entry")}</button></form>
-      {!isWord ? <div className="hane-keypad" aria-label={local(locale, "Sayı tuşları", "Number keypad")}>{[1,2,3,4,5,6,7,8,9,0].map(value => <button type="button" key={value} onClick={() => append(String(value))}>{value}</button>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => current.slice(0, -1))}>⌫</button></div> : <div className="hane-word-keypad" aria-label={local(locale, "Türkçe harf tuşları", "Turkish letter keys")}>{wordKeyboard.map((line, index) => <div key={index}>{Array.from(line).map(letter => <button type="button" key={letter} onClick={() => append(letter)}>{letter}</button>)}</div>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => Array.from(current).slice(0, -1).join(""))}>⌫</button></div>}
+      {!isWord ? <div className="hane-keypad" aria-label={local(locale, "Sayı tuşları", "Number keypad")}>{[1,2,3,4,5,6,7,8,9,0].map(value => <button type="button" key={value} onClick={() => append(String(value))}>{value}</button>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => current.slice(0, -1))}>⌫</button></div> : <div className="hane-word-keypad" aria-label={local(locale, "Türkçe harf tuşları", "Turkish letter keys")}>{wordKeyboard.map((line, index) => <div key={index}>{Array.from(line).map(letter => <button type="button" key={letter} className={keyboardMarks[letter] ? `is-${keyboardMarks[letter]}` : ""} onClick={() => append(letter)}>{letter}</button>)}</div>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => Array.from(current).slice(0, -1).join(""))}>⌫</button></div>}
       <p id={`${inputId}-note`} className={notice ? "hane-note is-alert" : "hane-note"}>{notice || (isWord ? (locale === "en" ? `Today’s topic: ${wordLevel.categoryEn}. ${wordLevel.lesson}` : `Bugünün konusu: ${wordLevel.category}. ${wordLevel.lesson}`) : numberLevel.lesson)}</p>
     </section>
   </div>;

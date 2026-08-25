@@ -1,6 +1,7 @@
 import type { GameId } from "./catalog";
 
 export type Point = { x: number; y: number };
+export type Direction = "N" | "E" | "S" | "W";
 
 function rng(seed: number) {
   let value = (seed >>> 0) || 1;
@@ -76,8 +77,53 @@ const HANE_WORD_SOLUTIONS: HaneWordEntry[] = [
   { word: "tatlı", category: "Gündelik", categoryEn: "Everyday" }, { word: "sayfa", category: "Gündelik", categoryEn: "Everyday" },
 ];
 const HANE_WORD_EXTRA_GUESSES = ["resim", "süreç", "sesli", "izler", "bölüm", "plaka", "merak", "oymak", "güneş"];
+
+// 5 harf dışındaki uzunluklar için ayrı havuzlar — kelime uzunluğu artık güne (seed'e) göre
+// değişiyor, her uzunluğun kendi geçerli kelime listesi olması gerekiyor.
+const HANE_WORD_POOL_4: HaneWordEntry[] = [
+  { word: "araç", category: "Yol", categoryEn: "Journey" }, { word: "izin", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "konu", category: "Bilgi", categoryEn: "Knowledge" }, { word: "süre", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "oyun", category: "Kültür", categoryEn: "Culture" }, { word: "akıl", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "şans", category: "Gündelik", categoryEn: "Everyday" }, { word: "kira", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "peri", category: "Kültür", categoryEn: "Culture" }, { word: "kule", category: "Keşif", categoryEn: "Discovery" },
+  { word: "nota", category: "Kültür", categoryEn: "Culture" }, { word: "kupa", category: "Kültür", categoryEn: "Culture" },
+];
+const HANE_WORD_POOL_6: HaneWordEntry[] = [
+  { word: "kelime", category: "Bilgi", categoryEn: "Knowledge" }, { word: "hayvan", category: "Doğa", categoryEn: "Nature" },
+  { word: "kumsal", category: "Doğa", categoryEn: "Nature" }, { word: "market", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "yaprak", category: "Doğa", categoryEn: "Nature" }, { word: "kaptan", category: "Yol", categoryEn: "Journey" },
+  { word: "yıldız", category: "Keşif", categoryEn: "Discovery" }, { word: "merkez", category: "Yol", categoryEn: "Journey" },
+  { word: "dükkan", category: "Gündelik", categoryEn: "Everyday" }, { word: "kanepe", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "otobüs", category: "Yol", categoryEn: "Journey" }, { word: "sinema", category: "Kültür", categoryEn: "Culture" },
+  { word: "yağmur", category: "Doğa", categoryEn: "Nature" }, { word: "gazete", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "terazi", category: "Atölye", categoryEn: "Workshop" }, { word: "sözlük", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "defter", category: "Atölye", categoryEn: "Workshop" },
+];
+const HANE_WORD_POOL_7: HaneWordEntry[] = [
+  { word: "kelebek", category: "Doğa", categoryEn: "Nature" }, { word: "pencere", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "şemsiye", category: "Gündelik", categoryEn: "Everyday" }, { word: "gökyüzü", category: "Doğa", categoryEn: "Nature" },
+  { word: "telefon", category: "Gündelik", categoryEn: "Everyday" }, { word: "bilezik", category: "Kültür", categoryEn: "Culture" },
+  { word: "koridor", category: "Keşif", categoryEn: "Discovery" }, { word: "anahtar", category: "Keşif", categoryEn: "Discovery" },
+];
+const HANE_WORD_POOL_8: HaneWordEntry[] = [
+  { word: "kitaplık", category: "Bilgi", categoryEn: "Knowledge" }, { word: "öğretmen", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "kahvaltı", category: "Gündelik", categoryEn: "Everyday" }, { word: "merdiven", category: "Keşif", categoryEn: "Discovery" },
+  { word: "yolculuk", category: "Yol", categoryEn: "Journey" }, { word: "kalemlik", category: "Atölye", categoryEn: "Workshop" },
+  { word: "gazeteci", category: "Kültür", categoryEn: "Culture" }, { word: "toplantı", category: "Kültür", categoryEn: "Culture" },
+];
+const HANE_WORD_LENGTHS = [4, 5, 6, 7, 8] as const;
+const HANE_WORD_POOLS: Record<number, HaneWordEntry[]> = {
+  4: HANE_WORD_POOL_4,
+  5: HANE_WORD_SOLUTIONS,
+  6: HANE_WORD_POOL_6,
+  7: HANE_WORD_POOL_7,
+  8: HANE_WORD_POOL_8,
+};
 const haneLetters = (value: string) => Array.from(value.trim().toLocaleUpperCase("tr-TR"));
-const HANE_WORD_GUESSES = new Set([...HANE_WORD_SOLUTIONS.map(entry => entry.word), ...HANE_WORD_EXTRA_GUESSES].map(word => haneLetters(word).join("")));
+const HANE_WORD_GUESSES = new Set(
+  [...Object.values(HANE_WORD_POOLS).flatMap(pool => pool.map(entry => entry.word)), ...HANE_WORD_EXTRA_GUESSES]
+    .map(word => haneLetters(word).join(""))
+);
 
 export function generateHaneLevel(seed: number, mastery: number): HaneLevel {
   const random = rng(seed ^ Math.imul(mastery + 17, 0x45d9f3b));
@@ -122,9 +168,13 @@ export function compareHaneGuess(target: string, guess: string): HaneFeedback {
 }
 
 export function generateHaneWordLevel(seed: number, mastery: number): HaneWordLevel {
-  const entry = HANE_WORD_SOLUTIONS[indexFor(seed ^ Math.imul(mastery + 31, 0x27d4eb2d), 71 + mastery * 19, HANE_WORD_SOLUTIONS.length)];
+  // Uzunluk sadece güne (ham seed'e) bağlı — mastery'den bağımsız, aynı gün herkes aynı
+  // uzunlukla oynar. Kelime seçimi ayrıca mastery'yi de karıştırır (pratik modda farklılaşsın).
+  const length = HANE_WORD_LENGTHS[indexFor(seed, 991, HANE_WORD_LENGTHS.length)];
+  const pool = HANE_WORD_POOLS[length];
+  const entry = pool[indexFor(seed ^ Math.imul(mastery + 31, 0x27d4eb2d), 71 + mastery * 19, pool.length)];
   return {
-    length: 5,
+    length,
     maxGuesses: Math.max(4, 7 - mastery),
     target: haneLetters(entry.word).join(""),
     category: entry.category,
@@ -173,14 +223,31 @@ export type EchoLevel = {
 };
 
 export function generateEchoLevel(seed: number, mastery: number): EchoLevel {
-  const variation = indexFor(seed, 17, 3);
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const candidate = buildEchoLevelCandidate(seed + attempt * 4111, mastery);
+    if (isEchoLevelSolvable(candidate)) return candidate;
+  }
+  // Güvenlik ağı: yukarıdaki döngü pratikte hep bir denemede başarılı olur (geniş açık ızgara,
+  // cömert gürültü bütçesi); teorik bir tükenme durumunda son denemeyi olduğu gibi döndür.
+  return buildEchoLevelCandidate(seed, mastery);
+}
+
+function buildEchoLevelCandidate(seed: number, mastery: number): EchoLevel {
   const cols = mastery >= 3 ? 21 : 19;
   const rows = mastery >= 3 ? 15 : 13;
   const barriers = [4, 8, 12, 16];
-  const openings = [[2 + variation, rows - 3], [4, rows - 4], [3 + variation, rows - 5], [5, rows - 3]];
+  // Her bariyer için bağımsız, seed'e bağlı iki açıklık (kenarlara çok yakın olmasın, birbirinden farklı olsun)
+  const openingAt = (barrierIndex: number, slot: number) => 2 + indexFor(seed, 401 + barrierIndex * 53 + slot * 11, rows - 4);
+  const openings = barriers.map((_, barrierIndex) => {
+    const first = openingAt(barrierIndex, 0);
+    const second = ((openingAt(barrierIndex, 1) + 1) % (rows - 4)) + 2; // first'ten garanti farklı
+    return [first, second];
+  });
   const walls = barriers.flatMap((x, barrierIndex) => Array.from({ length: rows }, (_, y) => ({ x, y })).filter(point => !openings[barrierIndex].includes(point.y)));
   const listenerRoute = [{ x: 9, y: 1 }, { x: 10, y: 1 }, { x: 10, y: 2 }, { x: 9, y: 2 }];
-  const checkpoints = [{ x: 2, y: rows - 3 }, { x: 6, y: 3 + variation }, { x: 10, y: rows - 3 }];
+  const checkpointY = (salt: number) => 1 + indexFor(seed, salt, rows - 2);
+  const checkpoints = [{ x: 2, y: checkpointY(457) }, { x: 6, y: checkpointY(461) }, { x: 10, y: checkpointY(463) }];
+  const fractureAt = (salt: number) => ({ x: [2, 6, 10, 14, 18][indexFor(seed, salt, 5)], y: 1 + indexFor(seed, salt + 5, rows - 2) });
   return {
     cols,
     rows,
@@ -189,7 +256,7 @@ export function generateEchoLevel(seed: number, mastery: number): EchoLevel {
     checkpoints,
     listenerRoute,
     walls,
-    fractures: [{ x: 6, y: rows - 5 }, { x: 14, y: rows - 4 }, ...(mastery >= 3 ? [{ x: 10, y: 6 }, { x: 18, y: 4 }] : [])],
+    fractures: [fractureAt(509), fractureAt(521), ...(mastery >= 3 ? [fractureAt(541), fractureAt(557)] : [])],
     viewport: { cols: 9, rows: 7 },
     pulseBudget: clamp(7 - mastery, 3, 6),
     noiseLimit: 44 + mastery * 4,
@@ -221,30 +288,49 @@ export function isEchoLevelSolvable(level: EchoLevel) {
 
 export type KnotLevel = { rotations: number[]; bonusIndex: number; heatLimit: number; lesson: string };
 
+/**
+ * Tahtanın gerçek karo geometrisi — GameStudio.tsx'teki `KnotGame`'in `baseTiles`'ı ile
+ * BİREBİR AYNI olmalı (tek doğruluk kaynağı burası; UI bu diziyi buradan içe aktarır).
+ * Her karonun `base` yön dizisi rot=0'daki boru yönlerini, r*4+c indeksi karo konumunu verir.
+ */
+export const KNOT_TILE_SHAPES: Direction[][] = [
+  ["E"], ["W", "E", "S"], ["W", "S"], ["W", "S"],
+  ["N", "E"], ["N", "S"], ["N", "S"], ["N", "W", "S"],
+  ["N", "E"], ["N", "E"], ["N", "E"], ["W"],
+  ["N", "E", "S"], ["N", "W"], ["N", "S"], ["N", "W", "S"],
+];
+export const KNOT_SOURCE_INDEX = 0;
+export const KNOT_TARGET_INDEX = 11;
+export const KNOT_TARGET_PATH = [0, 1, 2, 6, 10, 11];
+export const KNOT_BONUS_INDEX = 5;
+export const KNOT_BONUS_PATH = [1, 5];
+
 export function generateKnotLevel(seed: number, mastery: number): KnotLevel {
   const rotations = Array.from({ length: 16 }, () => 0);
   const coreScramble = [1, 2, 5, 6, 10];
   const sideCandidates = [3, 4, 7, 8, 9, 12, 13, 14, 15];
   for (const index of coreScramble) rotations[index] = 3;
-  const extraCount = Math.min(3, Math.max(0, mastery - 1));
+  // sideCandidates hiçbir zaman targetPath/bonusPath ile kesişmez (bkz. yukarıdaki diziler) —
+  // bu yüzden burayı karıştırmak çözülebilirliği ASLA etkilemez, yalnız görsel çeşitlilik katar.
+  // mastery ne olursa olsun en az 1 yan karo seed'e göre seçilsin (mastery=1'de önceden 0'dı).
+  const extraCount = clamp(mastery, 1, 3);
   for (let offset = 0; offset < extraCount; offset += 1) rotations[sideCandidates[indexFor(seed, 211 + offset * 13, sideCandidates.length)]] = 3;
   return {
     rotations,
-    bonusIndex: mastery >= 2 ? 5 : -1,
+    bonusIndex: mastery >= 2 ? KNOT_BONUS_INDEX : -1,
     heatLimit: 7 + mastery * 2,
     lesson: mastery >= 3 ? "Hedefe giden yolu kur; sonra fazla akışı bonus düğüme taşı." : "Her dönüş, akışın nereye kaçtığını değiştirir.",
   };
 }
 
 export function isKnotLevelSolvable(level: KnotLevel) {
-  const targetPath = [0, 1, 2, 6, 10, 11];
-  const bonusPath = level.bonusIndex >= 0 ? [1, 5] : [];
-  const requiredRotations = Array.from(new Set([...targetPath, ...bonusPath]));
+  const bonusPath = level.bonusIndex >= 0 ? KNOT_BONUS_PATH : [];
+  const requiredRotations = Array.from(new Set([...KNOT_TARGET_PATH, ...bonusPath]));
   const requiredTurns = requiredRotations.reduce((total, index) => total + ((4 - level.rotations[index]) % 4), 0);
   return level.rotations.length === 16
     && level.rotations.every(rotation => rotation >= 0 && rotation <= 3)
-    && targetPath.every(index => Number.isInteger(level.rotations[index]))
-    && (level.bonusIndex < 0 || level.bonusIndex === 5)
+    && KNOT_TARGET_PATH.every(index => Number.isInteger(level.rotations[index]))
+    && (level.bonusIndex < 0 || level.bonusIndex === KNOT_BONUS_INDEX)
     && requiredTurns <= level.heatLimit;
 }
 
@@ -306,7 +392,7 @@ export type ShadowLevel = { size: number; pads: Point[]; exit: Point; inverseTil
 
 export function generateShadowLevel(seed: number, mastery: number): ShadowLevel {
   const size = mastery >= 3 ? 6 : 5;
-  const side = indexFor(seed, 79, 2) === 0 ? 1 : size - 2;
+  const side = 1 + indexFor(seed, 79, size - 2);
   return {
     size,
     pads: [{ x: side, y: 1 }, { x: side, y: size - 2 }],
@@ -368,6 +454,9 @@ export type VakaClue = {
 
 export type VakaCase = {
   id: string;
+  /** Vakanın açılışında gösterilen olay özeti (mağdur/mekân/zaman) — oyuncu şüpheli kartlarını görmeden önce ne olduğunu bilir. */
+  briefing: string;
+  briefingEn: string;
   suspects: Suspect[];
   clues: VakaClue[];
   culpritId: SuspectId;
@@ -380,6 +469,13 @@ export type VakaCase = {
 export type VakaVerdict = "correct" | "wrong-suspect" | "no-contradiction";
 
 const VAKA_NAMES = ["K. Demir", "A. Sarı", "M. Ekin", "R. Toprak", "S. Yıldız", "N. Aksoy", "B. Kaya", "E. Çelik"];
+const VAKA_INCIDENTS = [
+  { tr: "kasadan bir yüzük çalındı", en: "a ring was stolen from the safe" },
+  { tr: "arşivdeki imzalı bir belge tahrif edildi", en: "a signed document in the archive was forged" },
+  { tr: "vitrin camı kırılıp içindeki saat alındı", en: "the display case was broken and the watch inside was taken" },
+  { tr: "kilitli çekmeceden nakit para kayboldu", en: "cash went missing from a locked drawer" },
+  { tr: "duvardaki tablo yerinden sökülüp götürüldü", en: "a painting was taken off the wall" },
+];
 const VAKA_LOCATIONS = ["atölye", "depo", "sahne arkası", "arşiv odası", "bahçe", "kütüphane", "mutfak"];
 const VAKA_TIMES = ["18:00", "18:20", "18:40", "19:00", "19:20", "19:40"];
 const VAKA_OBJECTS = ["ıslak boya lekesi", "kırık düğme", "toz izi", "özel bir anahtar", "imzalı bir not", "yırtık bir kumaş parçası"];
@@ -463,6 +559,9 @@ function buildCandidateCase(localSeed: number, caseIndex: number, diff: ReturnTy
   const culpritId = suspects[culpritIndex].id;
   const culprit = suspects[culpritIndex];
   const culpritClaim = claims[culpritIndex];
+  const incident = VAKA_INCIDENTS[indexFor(localSeed, 5, VAKA_INCIDENTS.length)];
+  const briefing = `${scene.location}'da, ${scene.timeslot} civarında ${incident.tr}. O sırada binada ${suspects.length} kişi vardı; her birinin bir ifadesi var, ama yalnız biri yalan söylüyor.`;
+  const briefingEn = `At the ${scene.location}, around ${scene.timeslot}, ${incident.en}. ${suspects.length} people were in the building at the time; each gave a statement, but only one of them is lying.`;
 
   // Ana çelişki kanıtı + (yüksek mastery'de) failin kendi özniteliklerinden türeyen bağımsız
   // ikinci bir çelişki noktası — alibi.holes[] deseni: fail birden fazla bağımsız kanıtla suçlanabilir.
@@ -505,6 +604,8 @@ function buildCandidateCase(localSeed: number, caseIndex: number, diff: ReturnTy
 
   return {
     id: `${localSeed}:${caseIndex}`,
+    briefing,
+    briefingEn,
     suspects,
     clues,
     culpritId,

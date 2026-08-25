@@ -58,8 +58,18 @@ export default function VakaBoard({ vakaCase, locale, soundOn, caseIndex, onSolv
     }
   };
 
+  const suspectNameById = (id?: string) => id ? vakaCase.suspects.find(suspect => suspect.id === id)?.name : undefined;
+  const sortedClues = phase === "select-clue"
+    ? [...vakaCase.clues].sort((a, b) => {
+        const aRelevant = a.contradicts === accusedSuspectId || a.clears === accusedSuspectId ? 0 : 1;
+        const bRelevant = b.contradicts === accusedSuspectId || b.clears === accusedSuspectId ? 0 : 1;
+        return aRelevant - bRelevant;
+      })
+    : vakaCase.clues;
+
   return (
     <div className="marker-desk vaka-desk">
+      <p className="vaka-briefing">{locale === "en" ? vakaCase.briefingEn : vakaCase.briefing}</p>
       <div className="marker-rule vaka-summary">
         <span>{locale === "en" ? "CASE FILE" : "VAKA DOSYASI"}</span>
         <h2>{accused ? `${accused.name}: ${accused.statement}` : (locale === "en" ? "Who gave this statement?" : "Bu ifadeyi kim verdi?")}</h2>
@@ -86,17 +96,27 @@ export default function VakaBoard({ vakaCase, locale, soundOn, caseIndex, onSolv
         </div>
       ) : (
         <div className="vaka-clue-rack">
-          {vakaCase.clues.map(clue => {
+          {sortedClues.map(clue => {
             const isRevealed = revealedClueIds.has(clue.id);
+            const targetId = clue.contradicts ?? clue.clears;
+            const targetName = suspectNameById(targetId);
+            const relevant = targetId === accusedSuspectId;
             return (
               <button
                 key={clue.id}
                 type="button"
-                className={`vaka-clue-card ${isRevealed ? "is-revealed" : "is-hidden"} ${resolved && clue.contradicts === accusedSuspectId ? "is-correct" : ""}`}
+                className={`vaka-clue-card ${isRevealed ? "is-revealed" : "is-hidden"} ${isRevealed && relevant ? "is-relevant" : ""} ${resolved && clue.contradicts === accusedSuspectId ? "is-correct" : ""}`}
                 onClick={() => isRevealed && presentClue(clue.id)}
                 disabled={!isRevealed || resolved}
               >
                 <b>{isRevealed ? clue.label : (locale === "en" ? "Locked clue" : "Kapalı kanıt")}</b>
+                {isRevealed && targetName && (
+                  <em className="vaka-clue-target">
+                    {clue.contradicts
+                      ? (locale === "en" ? `About ${targetName}` : `${targetName} ile ilgili`)
+                      : (locale === "en" ? `Clears ${targetName}` : `${targetName}'yi temizler`)}
+                  </em>
+                )}
                 <span>{isRevealed ? clue.detail : (locale === "en" ? "Request another clue to open this card." : "Açmak için bir ipucu daha iste.")}</span>
               </button>
             );
