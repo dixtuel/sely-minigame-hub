@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareHaneGuess, compareHaneWordGuess, generateCutLevel, generateEchoLevel, generateHaneLevel, generateHaneWordLevel, generateKnotLevel, generateMarkerCases, generateShadowLevel, generateSparkLevel, generateSparkWorldSegment, isCutLevelSolvable, isEchoLevelSolvable, isHaneGuessValid, isHaneWordGuessValid, isKnotLevelSolvable, isShadowLevelSolvable, isSparkLevelFair, personalSeed, runInstanceKey, validateDailySeed } from "./levelGenerators";
+import { compareHaneGuess, compareHaneWordGuess, evaluateVakaAttempt, generateCutLevel, generateEchoLevel, generateHaneLevel, generateHaneWordLevel, generateKnotLevel, generateShadowLevel, generateSparkLevel, generateSparkWorldSegment, generateVakaCases, isCutLevelSolvable, isEchoLevelSolvable, isHaneGuessValid, isHaneWordGuessValid, isKnotLevelSolvable, isShadowLevelSolvable, isSparkLevelFair, isVakaCaseSolvable, personalSeed, runInstanceKey, solveVakaCase, validateDailySeed } from "./levelGenerators";
 
 describe("mini-game level generators", () => {
   it("keeps each daily generator deterministic and structurally valid", () => {
@@ -8,10 +8,10 @@ describe("mini-game level generators", () => {
     expect(generateKnotLevel(seed, 2).rotations).toHaveLength(16);
     expect(generateCutLevel(seed, 2).shapes.filter(shape => shape.target)).toHaveLength(4);
     expect(generateShadowLevel(seed, 2).pads).toHaveLength(2);
-    expect(generateMarkerCases(seed, 2).every(item => item.options[item.correct])).toBe(true);
+    expect(generateVakaCases(seed, 2).every(isVakaCaseSolvable)).toBe(true);
     expect(generateHaneLevel(seed, 2)).toEqual(generateHaneLevel(seed, 2));
     expect(generateSparkLevel(seed, 2)).toEqual(generateSparkLevel(seed, 2));
-    expect(["echo", "knot", "cut", "shadow", "marker", "hane", "spark"].every(game => validateDailySeed(seed, game as any))).toBe(true);
+    expect(["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"].every(game => validateDailySeed(seed, game as any))).toBe(true);
   });
 
   it("changes a personal practice seed with mastery or attempt without changing the daily seed contract", () => {
@@ -82,6 +82,76 @@ describe("mini-game level generators", () => {
     expect(isHaneGuessValid("0234", novice)).toBe(false);
     expect(compareHaneGuess("1212", "1111")).toEqual({ locks: 2, traces: 0 });
     expect(compareHaneGuess("1212", "2121")).toEqual({ locks: 0, traces: 4 });
+  });
+
+  it("guarantees exactly one contradicting suspect and a fully cleared innocent set for every vaka case", () => {
+    for (const seed of [14151, 76321, 99183]) {
+      for (const mastery of [0, 2, 4]) {
+        const cases = generateVakaCases(seed, mastery);
+        expect(cases).toHaveLength(3 + mastery);
+        for (const vakaCase of cases) {
+          expect(isVakaCaseSolvable(vakaCase)).toBe(true);
+          const contradicting = vakaCase.clues.filter(clue => clue.contradicts === vakaCase.culpritId);
+          expect(contradicting.length).toBeGreaterThanOrEqual(1); // mastery 3-4'te alibi.holes[] deseni birden fazla bağımsız çelişki üretir
+          const rivals = vakaCase.suspects.filter(suspect => suspect.id !== vakaCase.culpritId);
+          expect(rivals.every(suspect => vakaCase.clues.filter(clue => clue.contradicts === suspect.id).length < contradicting.length)).toBe(true);
+          const innocents = vakaCase.suspects.filter(suspect => suspect.id !== vakaCase.culpritId);
+          expect(innocents.every(suspect => vakaCase.clues.some(clue => clue.clears === suspect.id))).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("keeps every vaka red herring neutral (no contradicts or clears)", () => {
+    const cases = generateVakaCases(55555, 4);
+    const allHerrings = cases.flatMap(vakaCase => vakaCase.clues.filter(clue => clue.isRedHerring));
+    expect(allHerrings.length).toBeGreaterThan(0);
+    for (const herring of allHerrings) {
+      expect(herring.contradicts).toBeUndefined();
+      expect(herring.clears).toBeUndefined();
+    }
+  });
+
+  it("classifies accusation+clue combinations into correct, wrong-suspect, or no-contradiction", () => {
+    const vakaCase = generateVakaCases(2024, 1)[0];
+    const correctClue = vakaCase.clues.find(clue => clue.contradicts === vakaCase.culpritId)!;
+    expect(evaluateVakaAttempt(vakaCase, vakaCase.culpritId, correctClue.id)).toBe("correct");
+
+    const innocent = vakaCase.suspects.find(suspect => suspect.id !== vakaCase.culpritId)!;
+    expect(evaluateVakaAttempt(vakaCase, innocent.id, correctClue.id)).toBe("no-contradiction");
+
+    const clearingClue = vakaCase.clues.find(clue => clue.clears === innocent.id)!;
+    expect(evaluateVakaAttempt(vakaCase, innocent.id, clearingClue.id)).toBe("wrong-suspect");
+  });
+
+  it("independently derives the culprit from the evidence graph alone (score-based solver)", () => {
+    for (const seed of [14151, 76321, 99183]) {
+      for (const mastery of [0, 3, 4]) {
+        const cases = generateVakaCases(seed, mastery);
+        for (const vakaCase of cases) {
+          expect(solveVakaCase(vakaCase)).toBe(vakaCase.culpritId);
+        }
+      }
+    }
+    // mastery 3+ üretir en az bir vakada birden fazla bağımsız çelişki kanıtı (alibi.holes[] deseni)
+    const highMasteryCases = [14151, 76321, 99183].flatMap(seed => generateVakaCases(seed, 4));
+    expect(highMasteryCases.some(vakaCase => vakaCase.clues.filter(clue => clue.contradicts === vakaCase.culpritId).length > 1)).toBe(true);
+  });
+
+  it("returns null from the solver for an ambiguous evidence graph (tied contradiction scores)", () => {
+    const suspects = [{ id: "s0", name: "A", statement: "" }, { id: "s1", name: "B", statement: "" }];
+    const clues = [
+      { id: "c0", label: "", detail: "", contradicts: "s0", isRedHerring: false },
+      { id: "c1", label: "", detail: "", contradicts: "s1", isRedHerring: false },
+    ];
+    expect(solveVakaCase({ suspects, clues })).toBeNull();
+  });
+
+  it("never needs the retry fallback across 100 consecutive seeds", () => {
+    for (let seed = 1; seed <= 100; seed += 1) {
+      const cases = generateVakaCases(seed, 3);
+      for (const vakaCase of cases) expect(isVakaCaseSolvable(vakaCase)).toBe(true);
+    }
   });
 
   it("builds a deterministic Turkish word record and consumes repeated letters only once", () => {

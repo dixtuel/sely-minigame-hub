@@ -1,4 +1,4 @@
-export type GameId = "echo" | "knot" | "cut" | "shadow" | "marker" | "hane" | "spark";
+export type GameId = "echo" | "knot" | "cut" | "shadow" | "vaka" | "hane" | "spark";
 
 export type GameMeta = {
   id: GameId;
@@ -68,17 +68,17 @@ export const GAME_CATALOG: GameMeta[] = [
     playTime: "2 dk",
   },
   {
-    id: "marker",
+    id: "vaka",
     number: "05",
-    title: "İşaretçi",
-    eyebrow: "İpucu / Seçim",
+    title: "Vaka",
+    eyebrow: "Dedektiflik / Çıkarım",
     accent: "#E5B341",
     ink: "#1B1A1B",
     poster: "/manus-storage/isaretci-poster_681e174b.png",
-    motto: "İşareti değil, davranışı izle.",
-    mechanic: "Kısa ipuçlarından doğru hedefi işaretle; güven zincirini koru.",
+    motto: "Sözü değil, kanıtı sun.",
+    mechanic: "Şüpheliyi işaretle, sonra ifadesiyle çelişen kanıtı sun; yanlış kanıt vakayı açık bırakır.",
     controls: "Tıkla veya dokun",
-    playTime: "2–4 dk",
+    playTime: "3–5 dk",
   },
   {
     id: "spark",
@@ -113,7 +113,7 @@ const ENGLISH_GAMES: Record<GameId, Pick<GameMeta, "title" | "eyebrow" | "motto"
   knot: { title: "Knot", eyebrow: "Flow / Puzzle", motto: "Tie one knot; change the whole current.", mechanic: "Rotate the tiles and build one clean flow from the source to the target.", controls: "Click or Enter", playTime: "1–3 min" },
   cut: { title: "Cutout", eyebrow: "Cut / Rhythm", motto: "Give something up to make space.", mechanic: "Cut moving shapes with one line; build a large chain with little energy.", controls: "Drag and release", playTime: "90 sec" },
   shadow: { title: "Shadow Share", eyebrow: "Time / Match", motto: "A step in the past opens a door now.", mechanic: "Align your delayed shadow on two pads, then take the exit.", controls: "Arrow keys / direction pad", playTime: "2 min" },
-  marker: { title: "Marker", eyebrow: "Clue / Choice", motto: "Watch the behaviour, not the mark.", mechanic: "Mark the correct target from short clues; protect the chain of trust.", controls: "Click or tap", playTime: "2–4 min" },
+  vaka: { title: "Case", eyebrow: "Detective / Deduction", motto: "Present the evidence, not the word.", mechanic: "Accuse a suspect, then present the clue that contradicts their statement; the wrong clue leaves the case open.", controls: "Click or tap", playTime: "3–5 min" },
   hane: { title: "Hane", eyebrow: "Record / Inference", motto: "Count the evidence; choose the record type.", mechanic: "Choose a number or word record; use the receipt marks to reduce possibilities on every line.", controls: "Keyboard or tap", playTime: "2–4 min" },
   spark: { title: "Spark", eyebrow: "Rhythm / Escape", motto: "Read the gaps, not the wind.", mechanic: "Guide the paper glider through repeating print corridors, clear thresholds on time, and build a safe stamp rhythm.", controls: "← → steer · ↑ thrust · ↓ brake / tap", playTime: "Endless route" },
 };

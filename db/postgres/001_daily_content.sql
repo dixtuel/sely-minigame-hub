@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS sely_daily_content (
   content_date date NOT NULL,
-  game_id varchar(16) NOT NULL CHECK (game_id IN ('echo', 'knot', 'cut', 'shadow', 'marker')),
+  game_id varchar(16) NOT NULL CHECK (game_id IN ('echo', 'knot', 'cut', 'shadow', 'vaka', 'hane', 'spark')),
   seed integer NOT NULL,
   difficulty smallint NOT NULL CHECK (difficulty BETWEEN 1 AND 10),
   ruleset_version varchar(12) NOT NULL,

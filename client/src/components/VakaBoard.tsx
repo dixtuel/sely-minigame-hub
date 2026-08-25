@@ -1,0 +1,108 @@
+import { useState } from "react";
+import { evaluateVakaAttempt, type VakaCase, type VakaVerdict } from "@/lib/levelGenerators";
+import type { SiteLocale } from "@/lib/i18n";
+import { playAccuse, playContradiction, playHit } from "@/lib/sfx";
+
+type Phase = "select-suspect" | "select-clue";
+
+const REJECTION_PENALTY = 20;
+
+function verdictMessage(verdict: VakaVerdict, locale: SiteLocale) {
+  if (verdict === "no-contradiction") return locale === "en" ? "This clue does not connect to this suspect." : "Bu kanıt bu şüpheliyi bağlamıyor.";
+  return locale === "en" ? "This clue clears the suspect instead of accusing them." : "Bu kanıt şüpheliyi temizliyor, suçlamıyor.";
+}
+
+export default function VakaBoard({ vakaCase, locale, soundOn, caseIndex, onSolved }: { vakaCase: VakaCase; locale: SiteLocale; soundOn: boolean; caseIndex: number; onSolved: (earnedScore: number) => void }) {
+  const [phase, setPhase] = useState<Phase>("select-suspect");
+  const [accusedSuspectId, setAccusedSuspectId] = useState<string | null>(null);
+  const [rejection, setRejection] = useState<string | null>(null);
+  const [revealedClueIds, setRevealedClueIds] = useState<Set<string>>(() => new Set(vakaCase.clues.slice(0, vakaCase.revealCount).map(clue => clue.id)));
+  const [penalty, setPenalty] = useState(0);
+  const [resolved, setResolved] = useState(false);
+
+  const accused = vakaCase.suspects.find(suspect => suspect.id === accusedSuspectId) ?? null;
+
+  const accuse = (suspectId: string) => {
+    if (resolved) return;
+    playAccuse(soundOn);
+    setAccusedSuspectId(suspectId);
+    setRejection(null);
+    setPhase("select-clue");
+  };
+
+  const backToSuspects = () => {
+    setPhase("select-suspect");
+    setAccusedSuspectId(null);
+    setRejection(null);
+  };
+
+  const requestClue = () => {
+    const hidden = vakaCase.clues.find(clue => !revealedClueIds.has(clue.id));
+    if (!hidden) return;
+    setRevealedClueIds(previous => new Set(previous).add(hidden.id));
+    setPenalty(value => value + vakaCase.clueCost);
+  };
+
+  const presentClue = (clueId: string) => {
+    if (resolved || !accusedSuspectId) return;
+    const verdict = evaluateVakaAttempt(vakaCase, accusedSuspectId, clueId);
+    if (verdict === "correct") {
+      playContradiction(soundOn);
+      setResolved(true);
+      const earned = Math.max(0, 180 + caseIndex * 35 - penalty);
+      window.setTimeout(() => onSolved(earned), 720);
+    } else {
+      playHit(soundOn);
+      setRejection(verdictMessage(verdict, locale));
+      setPenalty(value => value + REJECTION_PENALTY);
+    }
+  };
+
+  return (
+    <div className="marker-desk vaka-desk">
+      <div className="marker-rule vaka-summary">
+        <span>{locale === "en" ? "CASE FILE" : "VAKA DOSYASI"}</span>
+        <h2>{accused ? `${accused.name}: ${accused.statement}` : (locale === "en" ? "Who gave this statement?" : "Bu ifadeyi kim verdi?")}</h2>
+        {rejection && <p className="marker-clue vaka-rejection">{rejection}</p>}
+        {phase === "select-clue" && (
+          <div className="vaka-desk-actions">
+            <button type="button" className="quiet-button" onClick={backToSuspects}>{locale === "en" ? "Withdraw accusation" : "Suçlamayı geri çek"}</button>
+            <button type="button" className="quiet-button marker-clue-button" onClick={requestClue} disabled={revealedClueIds.size >= vakaCase.clues.length}>
+              {locale === "en" ? "Request another clue" : "Bir ipucu daha iste"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {phase === "select-suspect" ? (
+        <div className="marker-options vaka-suspect-row">
+          {vakaCase.suspects.map(suspect => (
+            <button key={suspect.id} type="button" className="marker-card" onClick={() => accuse(suspect.id)}>
+              <b>{suspect.name}</b>
+              <span>{suspect.statement}</span>
+              <i>{locale === "en" ? "Accuse" : "Suçla"}</i>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="vaka-clue-rack">
+          {vakaCase.clues.map(clue => {
+            const isRevealed = revealedClueIds.has(clue.id);
+            return (
+              <button
+                key={clue.id}
+                type="button"
+                className={`vaka-clue-card ${isRevealed ? "is-revealed" : "is-hidden"} ${resolved && clue.contradicts === accusedSuspectId ? "is-correct" : ""}`}
+                onClick={() => isRevealed && presentClue(clue.id)}
+                disabled={!isRevealed || resolved}
+              >
+                <b>{isRevealed ? clue.label : (locale === "en" ? "Locked clue" : "Kapalı kanıt")}</b>
+                <span>{isRevealed ? clue.detail : (locale === "en" ? "Request another clue to open this card." : "Açmak için bir ipucu daha iste.")}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

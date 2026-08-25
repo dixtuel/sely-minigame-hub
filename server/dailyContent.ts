@@ -3,9 +3,9 @@ import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { createClient, type Client } from "@libsql/client";
 import { Pool } from "pg";
 
-export const DAILY_GAMES = ["echo", "knot", "cut", "shadow", "marker", "hane", "spark"] as const;
+export const DAILY_GAMES = ["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"] as const;
 export type DailyGameId = (typeof DAILY_GAMES)[number];
-const RULESET_VERSION = "4";
+const RULESET_VERSION = "5";
 
 export type DailyGamePack = {
   gameId: DailyGameId;

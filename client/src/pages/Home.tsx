@@ -11,7 +11,7 @@ const SCORE_KEY = "sely-scorebook-v1";
 type ScoreBook = Record<GameId, number>;
 type RunSource = "daily" | "personal";
 type SelectedRun = { game: GameMeta; source: RunSource; attempt: number; autoStart?: boolean; demo?: "spark" | "spark-fail" | "cut-fail" };
-const blankScores: ScoreBook = { echo: 0, knot: 0, cut: 0, shadow: 0, marker: 0, hane: 0, spark: 0 };
+const blankScores: ScoreBook = { echo: 0, knot: 0, cut: 0, shadow: 0, vaka: 0, hane: 0, spark: 0 };
 
 export default function Home({ locale = "tr", directGameId }: { locale?: SiteLocale; directGameId?: string }) {
   const words = copy[locale];

@@ -59,3 +59,14 @@ export function playFail(enabled: boolean) {
   if (!enabled) return;
   tone(220, .45, "sawtooth", .16, 0, 60);
 }
+
+export function playAccuse(enabled: boolean) {
+  if (!enabled) return;
+  tone(340, .1, "square", .14);
+}
+
+export function playContradiction(enabled: boolean) {
+  if (!enabled) return;
+  tone(880, .05, "triangle", .12);
+  tone(1320, .08, "triangle", .1, .05);
+}

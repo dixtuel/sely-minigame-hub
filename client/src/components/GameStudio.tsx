@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowLeft as ArrowLeftIcon, ArrowRight, ArrowUp, RotateCcw, Volume2, X } from "lucide-react";
 import SparkCanvasGame from "@/components/SparkCanvasGame";
+import VakaBoard from "@/components/VakaBoard";
 import type { GameId, GameMeta } from "@/lib/catalog";
 import type { SiteLocale } from "@/lib/i18n";
 import {
@@ -9,7 +10,7 @@ import {
   generateHaneLevel,
   generateHaneWordLevel,
   generateKnotLevel,
-  generateMarkerCases,
+  generateVakaCases,
   generateShadowLevel,
   generateSparkLevel,
   generateSparkWorldSegment,
@@ -49,7 +50,7 @@ export function resultActionsFor(outcome: ResultOutcome, failureCount: number) {
 }
 
 function scoreFor(id: GameId, raw: number) {
-  const multiplier: Record<GameId, number> = { echo: 1, knot: 2, cut: 1, shadow: 2, marker: 3, hane: 2, spark: 1 };
+  const multiplier: Record<GameId, number> = { echo: 1, knot: 2, cut: 1, shadow: 2, vaka: 3, hane: 2, spark: 1 };
   return Math.max(0, Math.round(raw * multiplier[id]));
 }
 
@@ -146,7 +147,7 @@ function GameRenderer({ game, locale, dailySeed, mastery, demo, soundOn, onFinis
   if (game.id === "shadow") return <ShadowGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "hane") return <HaneGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "spark") return <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} soundOn={soundOn} onFinish={onFinish} />;
-  return <MarkerGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
+  return <VakaGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />;
 }
 
 function EchoRoomGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; seed: number; mastery: number; onFinish: (result: GameResult) => void }) {
@@ -413,26 +414,29 @@ function ShadowGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; s
   </div>;
 }
 
-function MarkerGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; seed: number; mastery: number; onFinish: (result: GameResult) => void }) {
-  const cases = useMemo(() => generateMarkerCases(seed, mastery), [seed, mastery]);
+function VakaGame({ locale, seed, mastery, soundOn, onFinish }: { locale: SiteLocale; seed: number; mastery: number; soundOn: boolean; onFinish: (result: GameResult) => void }) {
+  const cases = useMemo(() => generateVakaCases(seed, mastery), [seed, mastery]);
   const finish = useFinishOnce(onFinish);
-  const [index, setIndex] = useState(0); const [score, setScore] = useState(0); const [picked, setPicked] = useState<number | null>(null); const [clue, setClue] = useState(false); const [correctCount, setCorrectCount] = useState(0);
+  const [index, setIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
   const current = cases[index];
-  const choose = (choice: number) => {
-    if (picked !== null) return;
-    setPicked(choice); const correct = choice === current.correct; const nextScore = score + (correct ? 180 + index * 35 : 0);
-    if (correct) setCorrectCount(value => value + 1);
-    window.setTimeout(() => {
-      if (index === cases.length - 1) finish({ outcome: correct ? "success" : "failure", score: nextScore, label: correct ? "Dosya kapandı" : "Vaka bitti", detail: `${cases.length} vakada ${correctCount + (correct ? 1 : 0)} doğru işaret yaptın; güven zincirin kayda geçti.` });
-      else { setIndex(value => value + 1); setScore(nextScore); setPicked(null); setClue(false); }
-    }, 660);
-  };
-  const requestClue = () => { if (clue || picked !== null) return; setClue(true); setScore(value => Math.max(0, value - current.clueCost)); };
 
-  return <div className="marker-game game-surface">
-    <div className="game-hud"><span>VAKA <b>{index + 1}/{cases.length}</b></span><span>GÜVEN <b>{score}</b></span><span>KANITI İZLE</span></div>
-    <div className="marker-desk"><div className="marker-rule"><span>VAKANIN KOŞULU</span><h2>{current.rules[0]}</h2>{clue && <p className="marker-clue">{current.rules[1] || current.hint}</p>}<button className="quiet-button marker-clue-button" onClick={requestClue} disabled={clue || picked !== null}>{clue ? "Ek iz açık" : "Bir ipucu daha iste"}</button></div><div className="marker-options">{current.options.map((option, optionIndex) => <button key={`${option}-${optionIndex}`} onClick={() => choose(optionIndex)} className={`marker-card ${picked === optionIndex ? (optionIndex === current.correct ? "is-correct" : "is-wrong") : ""}`}><b>{String.fromCharCode(65 + optionIndex)}</b><span>{option}</span><i>İşaretle</i></button>)}</div></div>
-    <p className="game-tip">Rastgele tahmin etme: her seçenekte hangi koşulun bozulduğunu bul. Ek iz, güven puanından küçük bir bedel alır.</p>
+  const onSolved = (earned: number) => {
+    const nextScore = score + earned;
+    if (index === cases.length - 1) {
+      finish({ outcome: "success", score: nextScore, label: "Dosya kapandı", detail: `${cases.length} vakada ${correctCount + 1} doğru itiraf aldın; güven zincirin kayda geçti.` });
+    } else {
+      setIndex(value => value + 1);
+      setScore(nextScore);
+      setCorrectCount(value => value + 1);
+    }
+  };
+
+  return <div className="vaka-game game-surface">
+    <div className="game-hud"><span>VAKA <b>{index + 1}/{cases.length}</b></span><span>GÜVEN <b>{score}</b></span><span>KANITI SUN</span></div>
+    <VakaBoard key={current.id} vakaCase={current} locale={locale} soundOn={soundOn} caseIndex={index} onSolved={onSolved} />
+    <p className="game-tip">Önce ifadeyi veren şüpheliyi işaretle, sonra elindeki kanıtlardan onu çelişkiye düşüreni sun. Yanlış kanıt vakayı açık bırakır, güven puanından küçük bir bedel alır.</p>
   </div>;
 }
 

@@ -8,7 +8,7 @@ describe("daily content generator", () => {
     expect(first.games).toHaveLength(7);
     expect(first.games.map(game => game.seed)).toEqual(second.games.map(game => game.seed));
     expect(first.games.every(game => game.checksum.length === 16)).toBe(true);
-    expect(first.games.every(game => game.rulesetVersion === "4" && game.params.v === 4)).toBe(true);
+    expect(first.games.every(game => game.rulesetVersion === "5" && game.params.v === 5)).toBe(true);
     expect(first.games.every(game => game.difficulty >= 1 && game.difficulty <= 4)).toBe(true);
   });
 
