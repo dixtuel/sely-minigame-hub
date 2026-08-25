@@ -27,6 +27,10 @@ function spawnBurst(world: World, x: number, y: number, count: number, color: st
 
 const worldWord = (locale: SiteLocale, tr: string, en: string) => locale === "en" ? en : tr;
 const clamp = (value: number, lower: number, upper: number) => Math.max(lower, Math.min(upper, value));
+// Yolun ekran genişliğinin ne kadarını kapladığı — küçüldükçe şeritler daha dar/dikey bir
+// alanda toplanır, sağda solda daha çok boşluk kalır ("araba/yol çok geniş" geri bildirimi
+// üzerine .42'den düşürüldü). Tek kaynak: render'daki TÜM ekran-x hesapları buradan okur.
+const ROAD_SCREEN_SPAN = .3;
 
 /** Şerit i'nin merkez x'i (-1..1 aralığında) ve yarı-genişliği — üstten görünümde tek
  * doğruluk kaynağı: hem render hem çarpışma buradan okur. */
@@ -78,8 +82,8 @@ const TRAFFIC_VARIANTS = ["/manus-storage/spark-car-blue.png", "/manus-storage/s
 // bağımsız kalır (o sınır şeridin TAMAMI), bu yalnız görsel boyut. Değerler kasıtlı olarak
 // küçük tutuluyor — şeridin tamamını dolduran dev sprite'lar hem çirkin duruyor hem de yolu
 // okumayı zorlaştırıyordu ("araba kocaman, engeller kocaman" geri bildirimi üzerine küçültüldü).
-const ENTITY_VISUAL_WIDTH: Record<EntityKind, number> = { traffic: .5, barrel: .28, cone: .24, barrier: .62, rock: .32, tires: .3, pickup: .26 };
-const PLAYER_VISUAL_WIDTH = .48;
+const ENTITY_VISUAL_WIDTH: Record<EntityKind, number> = { traffic: .36, barrel: .2, cone: .17, barrier: .46, rock: .23, tires: .21, pickup: .19 };
+const PLAYER_VISUAL_WIDTH = .34;
 
 function loadSprite(src: string): HTMLImageElement {
   const image = new Image();
@@ -117,7 +121,7 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
   context.fillRect(0, 0, width, height);
   context.fillStyle = "#3a3e42";
   const bounds = sparkLaneBounds(laneCount);
-  context.fillRect(width * (.5 + (bounds[0].center - bounds[0].half) * .42), 0, width * ((bounds[laneCount - 1].center + bounds[laneCount - 1].half) - (bounds[0].center - bounds[0].half)) * .42, height);
+  context.fillRect(width * (.5 + (bounds[0].center - bounds[0].half) * ROAD_SCREEN_SPAN), 0, width * ((bounds[laneCount - 1].center + bounds[laneCount - 1].half) - (bounds[0].center - bounds[0].half)) * ROAD_SCREEN_SPAN, height);
 
   // Şerit ayırıcı kesikli çizgiler — kaydırma efekti player.distance'a bağlı.
   context.strokeStyle = "rgba(245,236,212,.55)";
@@ -125,7 +129,7 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
   context.setLineDash([26, 22]);
   context.lineDashOffset = -(player.distance * 34) % 48;
   for (let lane = 1; lane < laneCount; lane += 1) {
-    const x = width * (.5 + (bounds[lane].center - bounds[lane].half + .01) * .42);
+    const x = width * (.5 + (bounds[lane].center - bounds[lane].half + .01) * ROAD_SCREEN_SPAN);
     context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
   }
   context.setLineDash([]);
@@ -137,7 +141,7 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
 
   const pixelsPerUnit = height * .052;
   const playerScreenY = sparkPlayerScreenY(height, speedRatio);
-  const laneScreenX = (lane: number) => width * (.5 + bounds[lane].center * .42);
+  const laneScreenX = (lane: number) => width * (.5 + bounds[lane].center * ROAD_SCREEN_SPAN);
 
   const visible = entities.filter(entity => !entity.resolved && entity.z > player.distance - 3 && entity.z < player.distance + 22).sort((a, b) => b.z - a.z);
   for (const entity of visible) {
@@ -146,7 +150,7 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
     const screenX = laneScreenX(entity.lane);
     const spriteKey = entity.kind === "traffic" ? trafficVariantFor(entity.id) : SPRITE_SOURCES[entity.kind];
     const sprite = sprites.get(spriteKey);
-    const laneWidthPx = width * (bounds[entity.lane].half * 2) * .42;
+    const laneWidthPx = width * (bounds[entity.lane].half * 2) * ROAD_SCREEN_SPAN;
     const drawWidth = laneWidthPx * ENTITY_VISUAL_WIDTH[entity.kind];
     if (sprite?.complete && sprite.naturalWidth > 0) {
       const drawHeight = drawWidth * (sprite.naturalHeight / sprite.naturalWidth);
@@ -176,7 +180,7 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
     context.restore();
   }
 
-  const playerScreenX = laneScreenX(0) + (player.x - bounds[0].center) * (width * .42);
+  const playerScreenX = laneScreenX(0) + (player.x - bounds[0].center) * (width * ROAD_SCREEN_SPAN);
   const playerSprite = sprites.get("/manus-storage/spark-car-player.png");
   if (player.speed > 9) {
     context.save();
@@ -194,7 +198,7 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
   context.shadowColor = "rgba(0,0,0,.35)";
   context.shadowBlur = 6;
   context.shadowOffsetY = 3;
-  const laneWidthPx = width * (bounds[0].half * 2) * .42;
+  const laneWidthPx = width * (bounds[0].half * 2) * ROAD_SCREEN_SPAN;
   const playerWidth = laneWidthPx * PLAYER_VISUAL_WIDTH;
   if (playerSprite?.complete && playerSprite.naturalWidth > 0) {
     const playerHeight = playerWidth * (playerSprite.naturalHeight / playerSprite.naturalWidth);
@@ -334,8 +338,8 @@ export default function SparkCanvasGame({ locale, seed, mastery, demo, soundOn =
       world.player.hitCooldown = Math.max(0, world.player.hitCooldown - dt);
 
       const speedRatio = sparkSpeedRatio(world.player.speed, level.baseSpeed, level.maxSpeed);
-      const laneScreenX = (lane: number) => world.width * (.5 + bounds[lane].center * .42);
-      const playerScreenX = laneScreenX(0) + (world.player.x - bounds[0].center) * (world.width * .42);
+      const laneScreenX = (lane: number) => world.width * (.5 + bounds[lane].center * ROAD_SCREEN_SPAN);
+      const playerScreenX = laneScreenX(0) + (world.player.x - bounds[0].center) * (world.width * ROAD_SCREEN_SPAN);
       const playerScreenY = sparkPlayerScreenY(world.height, speedRatio);
 
       for (const entity of world.entities) {
