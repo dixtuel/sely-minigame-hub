@@ -190,6 +190,24 @@ describe("mini-game level generators", () => {
     expect(highMasteryCases.some(vakaCase => vakaCase.clues.filter(clue => clue.contradicts === vakaCase.culpritId).length > 1)).toBe(true);
   });
 
+  it("does not hand the culprit's contradicting clue to the player for free at case start", () => {
+    // Suçlayıcı kanıt ("smoking gun") diğer kanıtlarla tam karışmalı — sabit olarak dizinin
+    // başında durup revealCount sayesinde OTOMATİK açık gelmemeli, yoksa oyuncu hiç araştırma
+    // yapmadan (ilk ekranda) doğrudan cevabı görür.
+    let alwaysPreRevealed = true;
+    for (let seed = 1; seed <= 200; seed += 1) {
+      for (const mastery of [0, 1, 2, 3, 4]) {
+        const cases = generateVakaCases(seed, mastery);
+        for (const vakaCase of cases) {
+          const initiallyRevealed = new Set(vakaCase.clues.slice(0, vakaCase.revealCount).map(clue => clue.id));
+          const smokingGunRevealed = vakaCase.clues.some(clue => clue.contradicts === vakaCase.culpritId && initiallyRevealed.has(clue.id));
+          if (!smokingGunRevealed) alwaysPreRevealed = false;
+        }
+      }
+    }
+    expect(alwaysPreRevealed).toBe(false);
+  });
+
   it("returns null from the solver for an ambiguous evidence graph (tied contradiction scores)", () => {
     const suspects = [{ id: "s0", name: "A", statement: "" }, { id: "s1", name: "B", statement: "" }];
     const clues = [

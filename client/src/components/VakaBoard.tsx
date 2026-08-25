@@ -110,7 +110,10 @@ export default function VakaBoard({ vakaCase, locale, soundOn, caseIndex, onSolv
                 disabled={!isRevealed || resolved}
               >
                 <b>{isRevealed ? clue.label : (locale === "en" ? "Locked clue" : "Kapalı kanıt")}</b>
-                {isRevealed && targetName && (
+                {/* Hedef rozeti YALNIZ o an suçlanan şüpheliyle ilgiliyse gösterilir — aksi halde
+                    her kanıtın "About X" etiketi, hangi kanıtın failin kanıtı olduğunu suçlama
+                    yapılmadan ÖNCE bile ifşa ederdi ve araştırmayı anlamsızlaştırırdı. */}
+                {isRevealed && targetName && relevant && (
                   <em className="vaka-clue-target">
                     {clue.contradicts
                       ? (locale === "en" ? `About ${targetName}` : `${targetName} ile ilgili`)

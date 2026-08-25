@@ -746,10 +746,12 @@ function buildCandidateCase(localSeed: number, caseIndex: number, diff: ReturnTy
     isRedHerring: true,
   }));
 
-  const clueOrder = [...clearingClues.map((_, i) => i), ...Array.from({ length: diff.redHerrings }, (_, i) => diff.suspectCount - 1 + i)];
-  const shuffledOrder = [...clueOrder].sort((a, b) => indexFor(localSeed, 131 + a, 997) - indexFor(localSeed, 131 + b, 997));
-  const rest = [...clearingClues, ...herrings];
-  const clues = [...contradictingClues, ...shuffledOrder.map(index => rest[index])];
+  // ÖNEMLİ: suçlayıcı (contradicting) kanıt burada diğerleriyle TAM KARIŞTIRILIR — sabit olarak
+  // en başa konmaz. Aksi halde revealCount>=1 olduğu için "akıllı kanıt" her zaman oyunun daha
+  // ilk anından itibaren açık gösterilirdi ve oyuncunun hiçbir araştırma yapmasına gerek kalmazdı.
+  const all = [...contradictingClues, ...clearingClues, ...herrings];
+  const shuffledIndices = all.map((_, i) => i).sort((a, b) => indexFor(localSeed, 131 + a, 997) - indexFor(localSeed, 131 + b, 997));
+  const clues = shuffledIndices.map(index => all[index]);
 
   return {
     id: `${localSeed}:${caseIndex}`,
