@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { generateSparkLevel, generateSparkWorldSegment, type SparkEventType } from "@/lib/levelGenerators";
+import { generateSparkLevel, generateSparkWorldSegment, sparkEscalationFor, type SparkEventType } from "@/lib/levelGenerators";
 import type { SiteLocale } from "@/lib/i18n";
+import { playComplete, playFail, playHit, playStamp } from "@/lib/sfx";
 
 type Outcome = "success" | "failure";
 type SparkResult = { score: number; label: string; detail: string; outcome: Outcome };
@@ -8,8 +9,20 @@ type EntityKind = SparkEventType;
 type Entity = { id: string; kind: EntityKind; x: number; z: number; size: number; resolved: boolean };
 type SceneryKind = "tower" | "roller" | "paper" | "lamp";
 export type SparkScenery = { id: string; kind: SceneryKind; x: number; z: number; size: number };
-type Player = { x: number; vx: number; distance: number; speed: number; focus: number; stamps: number; clean: number; combo: number; hitCooldown: number };
-type World = { player: Player; entities: Entity[]; scenery: SparkScenery[]; generatedSegments: Set<number>; generatedScenerySegments: Set<number>; width: number; height: number; startedAt: number; lastAt: number; ended: boolean };
+type Player = { x: number; vx: number; distance: number; speed: number; focus: number; stamps: number; clean: number; combo: number; maxCombo: number; hitCooldown: number };
+type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; size: number };
+type World = { player: Player; entities: Entity[]; scenery: SparkScenery[]; particles: Particle[]; shake: number; flash: number; hitStopFrames: number; generatedSegments: Set<number>; generatedScenerySegments: Set<number>; width: number; height: number; startedAt: number; lastAt: number; ended: boolean };
+
+function spawnBurst(world: World, x: number, y: number, count: number, color: string, spread: number, speed: number) {
+  for (let index = 0; index < count; index += 1) {
+    const angle = (index / count) * Math.PI * 2 + Math.random() * .6;
+    const velocity = speed * (.5 + Math.random() * .7);
+    world.particles.push({
+      x, y, vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity - speed * .2,
+      life: .38 + Math.random() * .26, maxLife: .6, color, size: 2 + Math.random() * spread,
+    });
+  }
+}
 
 const SEGMENT_DISTANCE = 54;
 const WORLD_AHEAD = 34;
@@ -54,15 +67,31 @@ export function sceneryForSparkSegment(seed: number, segmentIndex: number): Spar
   });
 }
 
+const skyGradientCache = new Map<number, CanvasGradient>();
+function skyGradientFor(context: CanvasRenderingContext2D, height: number) {
+  const key = Math.round(height);
+  let gradient = skyGradientCache.get(key);
+  if (!gradient) {
+    gradient = context.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, "#122543");
+    gradient.addColorStop(.42, "#455a8e");
+    gradient.addColorStop(.43, "#e05b4b");
+    gradient.addColorStop(.44, "#182945");
+    gradient.addColorStop(1, "#0d1a31");
+    if (skyGradientCache.size > 6) skyGradientCache.clear();
+    skyGradientCache.set(key, gradient);
+  }
+  return gradient;
+}
+
 function drawScene(context: CanvasRenderingContext2D, world: World, locale: SiteLocale, backdrop: HTMLImageElement | null) {
   const { width, height, player, entities, scenery } = world;
-  const gradient = context.createLinearGradient(0, 0, 0, height);
-  gradient.addColorStop(0, "#122543");
-  gradient.addColorStop(.42, "#455a8e");
-  gradient.addColorStop(.43, "#e05b4b");
-  gradient.addColorStop(.44, "#182945");
-  gradient.addColorStop(1, "#0d1a31");
-  context.fillStyle = gradient;
+  context.save();
+  if (world.shake > .002) {
+    const mag = world.shake * 7;
+    context.translate((Math.random() - .5) * mag, (Math.random() - .5) * mag);
+  }
+  context.fillStyle = skyGradientFor(context, height);
   context.fillRect(0, 0, width, height);
 
   if (backdrop?.complete && backdrop.naturalWidth > 0) {
@@ -135,54 +164,106 @@ function drawScene(context: CanvasRenderingContext2D, world: World, locale: Site
     context.translate(screen.x, screen.y);
     context.scale(screen.scale, screen.scale);
     if (entity.kind === "stamp") {
+      const pulse = 1 + Math.sin(world.lastAt * .006 + entity.z) * .06;
+      context.scale(pulse, pulse);
+      context.shadowColor = "rgba(228,181,69,.65)";
+      context.shadowBlur = 14;
       context.rotate(Math.PI / 4);
       context.fillStyle = "#e4b545";
       context.fillRect(-10, -10, 20, 20);
+      context.shadowBlur = 0;
       context.strokeStyle = "#111827";
       context.lineWidth = 3;
       context.strokeRect(-10, -10, 20, 20);
     } else if (entity.kind === "barrier") {
-      context.fillStyle = "#172842";
+      const barrierGradient = context.createLinearGradient(0, -10, 0, 10);
+      barrierGradient.addColorStop(0, "#213458");
+      barrierGradient.addColorStop(1, "#0f1c33");
+      context.fillStyle = barrierGradient;
       context.fillRect(-34, -10, 68, 20);
       context.strokeStyle = "#f5ecd4";
       context.lineWidth = 3;
       context.strokeRect(-34, -10, 68, 20);
+      context.fillStyle = "rgba(245,236,212,.5)";
+      context.fillRect(-34, -10, 68, 3);
     } else if (entity.kind === "gate") {
-      context.fillStyle = "#547d64";
+      const gateGradient = context.createLinearGradient(-22, 0, 22, 0);
+      gateGradient.addColorStop(0, "#547d64");
+      gateGradient.addColorStop(1, "#3d5e49");
+      context.fillStyle = gateGradient;
       context.fillRect(-22, -32, 12, 64);
       context.fillRect(10, -32, 12, 64);
       context.fillStyle = "#f5ecd4";
       context.fillRect(-22, -32, 44, 7);
     } else {
-      context.fillStyle = "#7e3f6d";
+      const dropGradient = context.createRadialGradient(-4, -5, 2, 0, 0, 18);
+      dropGradient.addColorStop(0, "#9c5c8c");
+      dropGradient.addColorStop(1, "#601c50");
+      context.fillStyle = dropGradient;
       context.beginPath(); context.arc(0, 0, 17, 0, Math.PI * 2); context.fill();
       context.strokeStyle = "#f5ecd4"; context.lineWidth = 3; context.stroke();
     }
     context.restore();
   }
 
+  for (const particle of world.particles) {
+    const alpha = clamp(particle.life / particle.maxLife, 0, 1);
+    context.save();
+    context.globalAlpha = alpha;
+    context.fillStyle = particle.color;
+    context.beginPath();
+    context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  }
+
   const playerX = width * .5 + player.x * width * .32;
   const playerY = height * .84;
+  if (player.speed > 8) {
+    context.save();
+    context.globalAlpha = .5 + Math.sin(world.lastAt * .03) * .15;
+    const flameGradient = context.createRadialGradient(playerX - 30, playerY, 1, playerX - 30, playerY, 16);
+    flameGradient.addColorStop(0, "#f8d77a");
+    flameGradient.addColorStop(1, "rgba(240,93,71,0)");
+    context.fillStyle = flameGradient;
+    context.beginPath(); context.arc(playerX - 26, playerY, 15, 0, Math.PI * 2); context.fill();
+    context.restore();
+  }
   context.save();
   context.translate(playerX, playerY);
   context.rotate(clamp(player.vx * .38, -.24, .24));
+  context.shadowColor = "rgba(0,0,0,.35)";
+  context.shadowBlur = 6;
+  context.shadowOffsetY = 3;
   context.fillStyle = "#f05d47";
   context.beginPath(); context.moveTo(30, 0); context.lineTo(-20, -17); context.lineTo(-11, 0); context.lineTo(-20, 17); context.closePath(); context.fill();
+  context.shadowBlur = 0; context.shadowOffsetY = 0;
   context.fillStyle = "#e4b545";
   context.fillRect(-32, -5, 19, 10);
   context.fillStyle = "#f5ecd4";
   context.fillRect(2, -7, 12, 14);
   context.strokeStyle = "#111827"; context.lineWidth = 3; context.stroke();
   context.restore();
+  context.restore();
+
+  if (world.flash > .002) {
+    context.save();
+    context.globalAlpha = world.flash;
+    context.fillStyle = "#e9563f";
+    context.fillRect(0, 0, width, height);
+    context.restore();
+  }
 }
 
-export default function SparkCanvasGame({ locale, seed, mastery, demo, onFinish }: { locale: SiteLocale; seed: number; mastery: number; demo?: "success" | "fail"; onFinish: (result: SparkResult) => void }) {
+export default function SparkCanvasGame({ locale, seed, mastery, demo, soundOn = true, onFinish }: { locale: SiteLocale; seed: number; mastery: number; demo?: "success" | "fail"; soundOn?: boolean; onFinish: (result: SparkResult) => void }) {
   const level = useMemo(() => generateSparkLevel(seed, mastery), [seed, mastery]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const backdropRef = useRef<HTMLImageElement | null>(null);
   const inputRef = useRef({ left: false, right: false, thrust: false, brake: false });
   const doneRef = useRef(false);
-  const [hud, setHud] = useState({ distance: 0, focus: level.focus, stamps: 0, clean: 0, speed: 0, sheet: 1, notice: level.lesson });
+  const soundOnRef = useRef(soundOn);
+  soundOnRef.current = soundOn;
+  const [hud, setHud] = useState({ distance: 0, focus: level.focus, stamps: 0, clean: 0, combo: 0, speed: 0, sheet: 1, notice: level.lesson });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -196,8 +277,8 @@ export default function SparkCanvasGame({ locale, seed, mastery, demo, onFinish 
     backdrop.onload = () => { backdropRef.current = backdrop; };
     const baseSpeed = (6.8 + mastery * .42) * (reducedMotion ? .72 : 1);
     const world: World = {
-      player: { x: 0, vx: 0, distance: 0, speed: baseSpeed, focus: level.focus, stamps: 0, clean: 0, combo: 0, hitCooldown: 0 },
-      entities: [], scenery: [], generatedSegments: new Set<number>(), generatedScenerySegments: new Set<number>(), width: 1, height: 1, startedAt: performance.now(), lastAt: performance.now(), ended: false,
+      player: { x: 0, vx: 0, distance: 0, speed: baseSpeed, focus: level.focus, stamps: 0, clean: 0, combo: 0, maxCombo: 0, hitCooldown: 0 },
+      entities: [], scenery: [], particles: [], shake: 0, flash: 0, hitStopFrames: 0, generatedSegments: new Set<number>(), generatedScenerySegments: new Set<number>(), width: 1, height: 1, startedAt: performance.now(), lastAt: performance.now(), ended: false,
     };
     let frame = 0;
     let lastHudAt = 0;
@@ -266,8 +347,20 @@ export default function SparkCanvasGame({ locale, seed, mastery, demo, onFinish 
     window.addEventListener("keyup", keyup, { passive: false });
     const tick = (now: number) => {
       if (world.ended) return;
-      const dt = clamp((now - world.lastAt) / 1000, 0, .034);
+      const rawDt = clamp((now - world.lastAt) / 1000, 0, .034);
+      const hitStopping = world.hitStopFrames > 0;
+      if (hitStopping) world.hitStopFrames -= 1;
+      const dt = hitStopping ? rawDt * .12 : rawDt;
       world.lastAt = now;
+      world.shake = Math.max(0, world.shake - rawDt * 3.4);
+      world.flash = Math.max(0, world.flash - rawDt * 2.6);
+      for (const particle of world.particles) {
+        particle.x += particle.vx * rawDt;
+        particle.y += particle.vy * rawDt;
+        particle.vy += 240 * rawDt;
+        particle.life -= rawDt;
+      }
+      world.particles = world.particles.filter(particle => particle.life > 0);
       streamWorld();
       const input = inputRef.current;
       const upcomingThreats = world.entities.filter(entity => entity.kind !== "stamp" && !entity.resolved && entity.z > world.player.distance - .4 && entity.z - world.player.distance < 9);
@@ -280,17 +373,27 @@ export default function SparkCanvasGame({ locale, seed, mastery, demo, onFinish 
       world.player.vx *= Math.pow(.0008, dt);
       world.player.vx = clamp(world.player.vx, -1.6, 1.6);
       world.player.x = clamp(world.player.x + world.player.vx * dt, -.92, .92);
-      const speedTarget = clamp(baseSpeed + (input.thrust ? 3.4 : 0) - (input.brake ? 3.2 : 0), 3.5, 12.5);
+      const escalation = sparkEscalationFor(Math.floor(world.player.distance / SEGMENT_DISTANCE));
+      const speedTarget = clamp(baseSpeed * Math.min(escalation, 1.6) + (input.thrust ? 3.4 : 0) - (input.brake ? 3.2 : 0), 3.5, 14.5);
       world.player.speed += (speedTarget - world.player.speed) * Math.min(1, dt * 4.8);
       world.player.distance += world.player.speed * dt;
       world.player.hitCooldown = Math.max(0, world.player.hitCooldown - dt);
+
+      const playerScreenX = world.width * .5 + world.player.x * world.width * .32;
+      const playerScreenY = world.height * .84;
 
       for (const entity of world.entities) {
         if (entity.resolved || entity.z > world.player.distance + .9) continue;
         const collision = sparkWorldCollision(world.player.x, world.player.distance, entity);
         if (entity.kind === "stamp") {
-          if (collision) { entity.resolved = true; world.player.stamps += 1; world.player.combo = Math.min(9, world.player.combo + 1); }
-          else if (entity.z < world.player.distance - .9) { entity.resolved = true; world.player.combo = 0; }
+          if (collision) {
+            entity.resolved = true;
+            world.player.stamps += 1;
+            world.player.combo = Math.min(9, world.player.combo + 1);
+            world.player.maxCombo = Math.max(world.player.maxCombo, world.player.combo);
+            playStamp(soundOnRef.current, world.player.combo);
+            spawnBurst(world, playerScreenX - 10, playerScreenY - 14, 8, "#e4b545", 2, 120);
+          } else if (entity.z < world.player.distance - .9) { entity.resolved = true; world.player.combo = 0; }
           continue;
         }
         if (collision && world.player.hitCooldown <= 0) {
@@ -298,8 +401,14 @@ export default function SparkCanvasGame({ locale, seed, mastery, demo, onFinish 
           world.player.hitCooldown = 1;
           world.player.focus -= 1;
           world.player.combo = 0;
+          world.shake = 1;
+          world.flash = .38;
+          world.hitStopFrames = 4;
+          playHit(soundOnRef.current);
+          spawnBurst(world, playerScreenX, playerScreenY, 12, "#172842", 3, 170);
           if (world.player.focus <= 0) {
-            finish({ outcome: "failure", score: Math.round(world.player.distance * 19 + world.player.stamps * 130 + world.player.clean * 28), label: worldWord(locale, "Hat çizgiyi kesti", "The line was cut"), detail: worldWord(locale, "Ekrandaki tehdit ile dünya çarpışması artık aynı konumda. Sol/sağ ile açık hattı bul; yukarı itki, aşağı fren uygular.", "The threat and collision now share one position. Steer left/right toward an open line; up applies thrust and down brakes.") });
+            playFail(soundOnRef.current);
+            finish({ outcome: "failure", score: Math.round(world.player.distance * 19 + world.player.stamps * 130 + world.player.clean * 28 + world.player.maxCombo * 40), label: worldWord(locale, "Hat çizgiyi kesti", "The line was cut"), detail: worldWord(locale, "Ekrandaki tehdit ile dünya çarpışması artık aynı konumda. Sol/sağ ile açık hattı bul; yukarı itki, aşağı fren uygular.", "The threat and collision now share one position. Steer left/right toward an open line; up applies thrust and down brakes.") });
             return;
           }
         } else if (entity.z < world.player.distance - .9) {
@@ -308,13 +417,14 @@ export default function SparkCanvasGame({ locale, seed, mastery, demo, onFinish 
         }
       }
       if (demo === "success" && world.player.distance >= SEGMENT_DISTANCE * 2) {
-        finish({ outcome: "success", score: Math.round(world.player.distance * 19 + world.player.stamps * 130 + world.player.clean * 28 + world.player.focus * 90), label: worldWord(locale, "İki baskı hattı aşıldı", "Two press lines cleared"), detail: worldWord(locale, `${world.player.stamps} damga ve ${world.player.clean} yakın geçişle dünya hattını tamamladın.`, `You completed the world line with ${world.player.stamps} stamps and ${world.player.clean} close passes.`) });
+        playComplete(soundOnRef.current);
+        finish({ outcome: "success", score: Math.round(world.player.distance * 19 + world.player.stamps * 130 + world.player.clean * 28 + world.player.focus * 90 + world.player.maxCombo * 40), label: worldWord(locale, "İki baskı hattı aşıldı", "Two press lines cleared"), detail: worldWord(locale, `${world.player.stamps} damga ve ${world.player.clean} yakın geçişle dünya hattını tamamladın.`, `You completed the world line with ${world.player.stamps} stamps and ${world.player.clean} close passes.`) });
         return;
       }
       drawScene(context, world, locale, backdropRef.current);
       if (now - lastHudAt > 100) {
         lastHudAt = now;
-        setHud({ distance: Math.floor(world.player.distance), focus: world.player.focus, stamps: world.player.stamps, clean: world.player.clean, speed: Number(world.player.speed.toFixed(1)), sheet: Math.floor(world.player.distance / SEGMENT_DISTANCE) + 1, notice: worldWord(locale, "Hat dokusu ileriden hazırlanır; sol/sağ ile açık hattı ara.", "The pressline is prepared ahead; steer left/right toward an open lane.") });
+        setHud({ distance: Math.floor(world.player.distance), focus: world.player.focus, stamps: world.player.stamps, clean: world.player.clean, combo: world.player.combo, speed: Number(world.player.speed.toFixed(1)), sheet: Math.floor(world.player.distance / SEGMENT_DISTANCE) + 1, notice: worldWord(locale, "Hat dokusu ileriden hazırlanır; sol/sağ ile açık hattı ara.", "The pressline is prepared ahead; steer left/right toward an open lane.") });
       }
       frame = window.requestAnimationFrame(tick);
     };
@@ -330,7 +440,7 @@ export default function SparkCanvasGame({ locale, seed, mastery, demo, onFinish 
     { key: "right" as const, label: worldWord(locale, "Sağ", "Right"), glyph: "→" },
   ];
   return <div className="spark-canvas-game">
-    <div className="spark-canvas-hud" aria-live="polite"><span>{worldWord(locale, "MESAFE", "DISTANCE")} <b>{hud.distance}m</b></span><span>{worldWord(locale, "ODAK", "FOCUS")} <b>{hud.focus}/{level.focus}</b></span><span>{worldWord(locale, "DAMGA", "STAMP")} <b>{hud.stamps}</b></span><span>{worldWord(locale, "HIZ", "SPEED")} <b>{hud.speed}</b></span><span>{worldWord(locale, "HAT", "SHEET")} <b>{String(hud.sheet).padStart(2, "0")}</b></span></div>
+    <div className="spark-canvas-hud" aria-live="polite"><span>{worldWord(locale, "MESAFE", "DISTANCE")} <b>{hud.distance}m</b></span><span>{worldWord(locale, "ODAK", "FOCUS")} <b>{hud.focus}/{level.focus}</b></span><span>{worldWord(locale, "DAMGA", "STAMP")} <b>{hud.stamps}</b></span><span>{worldWord(locale, "ZİNCİR", "COMBO")} <b>×{hud.combo}</b></span><span>{worldWord(locale, "HIZ", "SPEED")} <b>{hud.speed}</b></span><span>{worldWord(locale, "HAT", "SHEET")} <b>{String(hud.sheet).padStart(2, "0")}</b></span></div>
     <canvas ref={canvasRef} className="spark-canvas" tabIndex={0} aria-label={worldWord(locale, "Kıvılcım baskı hattı. Sol ve sağ ile yönlen, yukarıyla itki ver, aşağıyla frenle.", "Spark press line. Steer with left and right, thrust with up, brake with down.")} />
     <p className="spark-canvas-tip">{hud.notice}</p>
     <div className="spark-canvas-controls" aria-label={worldWord(locale, "Kıvılcım dokunmatik kontrolleri", "Spark touch controls")}>{controls.map(control => <button type="button" key={control.key} onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); hold(control.key, true); }} onPointerUp={() => hold(control.key, false)} onPointerCancel={() => hold(control.key, false)} onPointerLeave={() => hold(control.key, false)} aria-label={control.label}><b>{control.glyph}</b><span>{control.label}</span></button>)}</div>

@@ -415,17 +415,28 @@ export function generateSparkLevel(seed: number, mastery: number): SparkLevel {
   return { chapterDuration, speed, focus, events, lesson: mastery >= 3 ? "Her baskı sayfası yeniden döner: boşluğu önce gör, damgayı yalnız güvenli çizgide al." : "Koridor döngüsel akar: engeli erken oku, sonra serbest boşluğa süzül." };
 }
 
+export function sparkEscalationFor(segmentIndex: number) {
+  return Number(clamp(1 + Math.max(0, segmentIndex) * .06, 1, 2.4).toFixed(3));
+}
+
 export function generateSparkWorldSegment(level: SparkLevel, index: number): SparkWorldSegment {
   const wind = Number(((((index * 7 + level.events.length) % 5) - 2) * .035).toFixed(3));
-  return {
-    index,
-    wind,
-    events: level.events.map(event => {
-      const oscillation = (((index + event.id * 3) % 7) - 3) * .035;
-      const drift = Number(clamp(event.drift + wind + oscillation, .08, .92).toFixed(2));
-      return { ...event, drift };
-    }),
-  };
+  const baseEvents = level.events.map(event => {
+    const oscillation = (((index + event.id * 3) % 7) - 3) * .035;
+    const drift = Number(clamp(event.drift + wind + oscillation, .08, .92).toFixed(2));
+    return { ...event, drift };
+  });
+  // Mesafeye göre gerçek zorluk artışı: derindeki bölümlere deterministik ekstra tehlike enjekte edilir
+  // (isSparkLevelFair yalnız temel generateSparkLevel çıktısını doğrular, bu ek akış ondan bağımsızdır).
+  const escalation = sparkEscalationFor(index);
+  const extraCount = Math.floor((escalation - 1) * 5);
+  const extraEvents: SparkEvent[] = Array.from({ length: extraCount }, (_, slot) => {
+    const t = ((index * 13 + slot * 37) % 97) / 97;
+    const at = Number((level.chapterDuration * (.18 + t * .64)).toFixed(2));
+    const drift = Number(clamp(.14 + ((index * 7 + slot * 19) % 71) / 71 * .72, .1, .9).toFixed(2));
+    return { id: 900 + slot, at, drift, type: slot % 2 === 0 ? "barrier" : "gate" };
+  });
+  return { index, wind, events: [...baseEvents, ...extraEvents] };
 }
 
 export function isSparkLevelFair(level: SparkLevel) {

@@ -115,7 +115,7 @@ export default function GameStudio({ game, locale = "tr", runSource = "daily", a
           </div>
         ) : (
           <div className={`game-stage ${sparkActive ? "game-stage-spark" : ""}`}>
-            <GameRenderer key={runKey} game={game} locale={locale} dailySeed={dailySeed} mastery={runMastery} demo={demo} onFinish={finish} />
+            <GameRenderer key={runKey} game={game} locale={locale} dailySeed={dailySeed} mastery={runMastery} demo={demo} soundOn={soundOn} onFinish={finish} />
             {result && (
               <div className="result-panel" role="dialog" aria-modal="true" aria-label={locale === "en" ? "Run result" : "Tur sonucu"}>
                 <button className="result-close" onClick={() => setResult(null)} aria-label={locale === "en" ? "Close result" : "Sonucu kapat"}><X size={18} /></button>
@@ -139,13 +139,13 @@ export default function GameStudio({ game, locale = "tr", runSource = "daily", a
   );
 }
 
-function GameRenderer({ game, locale, dailySeed, mastery, demo, onFinish }: { game: GameMeta; locale: SiteLocale; dailySeed: number; mastery: number; demo?: "spark" | "spark-fail" | "cut-fail"; onFinish: (result: GameResult) => void }) {
+function GameRenderer({ game, locale, dailySeed, mastery, demo, soundOn, onFinish }: { game: GameMeta; locale: SiteLocale; dailySeed: number; mastery: number; demo?: "spark" | "spark-fail" | "cut-fail"; soundOn: boolean; onFinish: (result: GameResult) => void }) {
   if (game.id === "echo") return <EchoRoomGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "knot") return <KnotGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "cut") return <CutGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "cut-fail"} onFinish={onFinish} />;
   if (game.id === "shadow") return <ShadowGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "hane") return <HaneGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
-  if (game.id === "spark") return <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} onFinish={onFinish} />;
+  if (game.id === "spark") return <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} soundOn={soundOn} onFinish={onFinish} />;
   return <MarkerGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
 }
 
