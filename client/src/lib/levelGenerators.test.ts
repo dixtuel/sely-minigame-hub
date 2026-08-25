@@ -63,6 +63,21 @@ describe("mini-game level generators", () => {
     expect(targetSets.size).toBeGreaterThan(1); // hedefler artık her zaman ilk N şekil değil
   });
 
+  it("varies Shadow Share's pad/exit layout far beyond the old 3-4 possible boards, and keeps every level genuinely solvable", () => {
+    const padLayouts = new Set<string>();
+    const exits = new Set<string>();
+    for (let seed = 1; seed <= 60; seed += 3) {
+      for (const mastery of [0, 2, 4]) {
+        const level = generateShadowLevel(seed, mastery);
+        expect(isShadowLevelSolvable(level)).toBe(true);
+        padLayouts.add(JSON.stringify(level.pads));
+        exits.add(JSON.stringify(level.exit));
+      }
+    }
+    expect(padLayouts.size).toBeGreaterThan(4); // eskiden pratikte yalnız 3-4 tahta vardı
+    expect(exits.size).toBeGreaterThan(1); // eskiden çıkış hep sabit sağ-alt köşeydi
+  });
+
   it("keeps Echo Room and Shadow Share solvable across many seeds and masteries (stress test)", () => {
     for (let seed = 1; seed <= 60; seed += 7) {
       for (const mastery of [0, 2, 4]) {

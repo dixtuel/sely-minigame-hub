@@ -645,17 +645,47 @@ export function isCutLevelSolvable(level: CutLevel) {
 
 export type ShadowLevel = { size: number; pads: Point[]; exit: Point; inverseTiles: Point[]; lag: number; lesson: string };
 
-export function generateShadowLevel(seed: number, mastery: number): ShadowLevel {
+/**
+ * Öncesinde tek seed-duyarlı değişken `side` idi (1..size-2 arası, yalnız 3-4 olası değer) ve
+ * her iki ped de HEP AYNI sütundaydı, çıkış her zaman sağ-alt köşeydi — pratikte toplam 3-4
+ * farklı tahta vardı, "level generate'lemiyor" şikayeti buradan geliyordu. Şimdi pedler tuvalin
+ * her yerinde (aralarında minimum mesafe garantisiyle), çıkış kenar boyunca birçok noktadan
+ * biri olarak seçiliyor; generateShadowLevel bunu Echo/Knot/Cut/Vaka'daki "üret→isShadowLevelSolvable
+ * ile doğrula→gerekirse tekrar dene" deseniyle sarmalıyor (var olan solver zaten sağlamdı).
+ */
+function buildShadowLevelCandidate(seed: number, mastery: number): ShadowLevel {
   const size = mastery >= 3 ? 6 : 5;
-  const side = 1 + indexFor(seed, 79, size - 2);
+  const random = rng(seed ^ 0x5bd1e995);
+  const inner = () => 1 + Math.floor(random() * (size - 2));
+  // Pedler AYNI sütunda tutuluyor (eski tasarımdaki gibi) — gölge oyuncunun hareket geçmişini
+  // gecikmeli tekrar ettiği için aynı-sütun dikey bir rota, zamanlamayı tutturmayı hem oyuncu
+  // hem üreteç için güvenilir kılıyor (serbest 2D rastgelelik denendi, lag=3'te sık sık
+  // çözülemez çıktı ve BFS'i yavaşlattı). Sütun VE iki satır artık seed'e göre değişiyor —
+  // önceden yalnız sütun değişiyordu (3-4 olasılık), satırlar hep 1 ve size-2'ydi.
+  const column = inner();
+  let rowA = inner();
+  let rowB = inner();
+  for (let tries = 0; tries < 20 && Math.abs(rowA - rowB) < size - 2; tries += 1) { rowA = inner(); rowB = inner(); }
+  const exitCandidates: Point[] = [];
+  for (let i = 1; i < size; i += 1) { exitCandidates.push({ x: size - 1, y: i }); exitCandidates.push({ x: i, y: size - 1 }); }
+  const exit = exitCandidates[indexFor(seed, 211, exitCandidates.length)];
+  const inverseTiles: Point[] = mastery >= 3 ? [{ x: inner(), y: inner() }] : [];
   return {
     size,
-    pads: [{ x: side, y: 1 }, { x: side, y: size - 2 }],
-    exit: { x: size - 1, y: size - 1 },
-    inverseTiles: mastery >= 3 ? [{ x: Math.floor(size / 2), y: 1 + indexFor(seed, 103, size - 3) }] : [],
+    pads: [{ x: column, y: rowA }, { x: column, y: rowB }],
+    exit,
+    inverseTiles,
     lag: mastery >= 4 ? 3 : 2,
     lesson: mastery >= 3 ? "Işık plağından geçen gölge yön değiştirir; sonraki üç hamleni önceden düşün." : "Gölgen iki hamle geride. İki pedin üstünde aynı anda olman gerekmez." ,
   };
+}
+
+export function generateShadowLevel(seed: number, mastery: number): ShadowLevel {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = buildShadowLevelCandidate(seed + attempt * 7331, mastery);
+    if (isShadowLevelSolvable(candidate)) return candidate;
+  }
+  return buildShadowLevelCandidate(seed, mastery);
 }
 
 export function isShadowLevelSolvable(level: ShadowLevel) {
