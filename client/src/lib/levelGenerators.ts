@@ -263,6 +263,44 @@ export function generateEchoLevel(seed: number, mastery: number): EchoLevel {
   return buildEchoLevelCandidate(seed, mastery);
 }
 
+/**
+ * Tam-doğru rotanın (0 hata, hiç geri dönmeden, hedefe en az gürültüyle ulaşan yol) gerçek
+ * gürültü maliyetini Dijkstra ile bulur — isEchoLevelSolvable'daki düz BFS yalnız "ulaşılabilir mi"
+ * sorusuna cevap verir, en düşük maliyetli yolu GARANTİ etmez (kuyruk gürültüye göre sıralı değil).
+ * Bulunamazsa (teorik olarak yol yoksa) Infinity döner.
+ */
+function echoMinimalNoise(level: Omit<EchoLevel, "noiseLimit">): number {
+  type State = { point: Point; hasKey: boolean; checkpointMask: number };
+  const stateKey = (s: State) => `${s.point.x}-${s.point.y}-${s.hasKey ? 1 : 0}-${s.checkpointMask}`;
+  const listener = level.listenerRoute[0];
+  const targetMask = (1 << level.checkpoints.length) - 1;
+  const start: State = { point: { x: 0, y: 0 }, hasKey: !level.key, checkpointMask: 0 };
+  const dist = new Map<string, number>([[stateKey(start), 0]]);
+  let frontier: { state: State; noise: number }[] = [{ state: start, noise: 0 }];
+  while (frontier.length) {
+    frontier.sort((a, b) => a.noise - b.noise);
+    const { state: current, noise } = frontier.shift()!;
+    if (dist.get(stateKey(current)) !== noise) continue; // eskimiş kayıt, daha iyisi zaten bulundu
+    if (current.hasKey && current.checkpointMask === targetMask && current.point.x === level.exit.x && current.point.y === level.exit.y) return noise;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const point = { x: current.point.x + dx, y: current.point.y + dy };
+      if (point.x < 0 || point.y < 0 || point.x >= level.cols || point.y >= level.rows) continue;
+      if (level.walls.some(wall => wall.x === point.x && wall.y === point.y)) continue;
+      if (point.x === listener.x && point.y === listener.y) continue;
+      const stepNoise = 1 + (level.fractures.some(fracture => fracture.x === point.x && fracture.y === point.y) ? 2 : 0);
+      const nextNoise = noise + stepNoise;
+      const hasKey = current.hasKey || Boolean(level.key && point.x === level.key.x && point.y === level.key.y);
+      const checkpointIndex = level.checkpoints.findIndex(checkpoint => checkpoint.x === point.x && checkpoint.y === point.y);
+      const checkpointMask = checkpointIndex >= 0 ? current.checkpointMask | (1 << checkpointIndex) : current.checkpointMask;
+      const next: State = { point, hasKey, checkpointMask };
+      const key = stateKey(next);
+      const known = dist.get(key);
+      if (known === undefined || nextNoise < known) { dist.set(key, nextNoise); frontier.push({ state: next, noise: nextNoise }); }
+    }
+  }
+  return Infinity;
+}
+
 function buildEchoLevelCandidate(seed: number, mastery: number): EchoLevel {
   const cols = mastery >= 3 ? 21 : 19;
   const rows = mastery >= 3 ? 15 : 13;
@@ -279,7 +317,7 @@ function buildEchoLevelCandidate(seed: number, mastery: number): EchoLevel {
   const checkpointY = (salt: number) => 1 + indexFor(seed, salt, rows - 2);
   const checkpoints = [{ x: 2, y: checkpointY(457) }, { x: 6, y: checkpointY(461) }, { x: 10, y: checkpointY(463) }];
   const fractureAt = (salt: number) => ({ x: [2, 6, 10, 14, 18][indexFor(seed, salt, 5)], y: 1 + indexFor(seed, salt + 5, rows - 2) });
-  return {
+  const shape: Omit<EchoLevel, "noiseLimit"> = {
     cols,
     rows,
     key: mastery >= 2 ? { x: 14, y: 5 } : null,
@@ -290,12 +328,13 @@ function buildEchoLevelCandidate(seed: number, mastery: number): EchoLevel {
     fractures: [fractureAt(509), fractureAt(521), ...(mastery >= 3 ? [fractureAt(541), fractureAt(557)] : [])],
     viewport: { cols: 9, rows: 7 },
     pulseBudget: clamp(7 - mastery, 3, 6),
-    // Ses hakkı artık odanın büyüklüğüne (cols+rows) göre türetiliyor — sabit bir mastery
-    // katsayısı yerine, oda ne kadar büyükse o kadar dolaşma payı veriyor (19x13 odada
-    // eski sabit değerlerle birebir örtüşür: 32*1.375=44; 21x15'te oda büyüdüğü için pay da büyür).
-    noiseLimit: Math.round((cols + rows) * 1.375) + mastery * 4,
     lesson: mastery >= 3 ? "İzleri oda oda kaydet; kırılgan zeminin gürültüsünü dinleyicinin devriyesinden uzakta yönet." : "Harita aklında kalır. Uzun koridor karardığında yankıyı, kırılgan zemin gelmeden önce kullan.",
   };
+  // Ses hakkı artık odanın büyüklüğüne DEĞİL, doğrudan bu haritanın 0-hatalı en kısa (en az
+  // gürültülü) çözüm rotasının gerçek maliyetine eşit — fazladan pay YOK, tam rota ne kadar
+  // gürültü yapıyorsa bütçe de o kadar.
+  const noiseLimit = echoMinimalNoise(shape);
+  return { ...shape, noiseLimit: Number.isFinite(noiseLimit) ? noiseLimit : 0 };
 }
 
 export function isEchoLevelSolvable(level: EchoLevel) {
