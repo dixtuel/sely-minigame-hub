@@ -45,7 +45,8 @@ export type HaneLevel = {
   lesson: string;
 };
 
-export type HaneFeedback = { locks: number; traces: number };
+export type HaneNumberMark = "exact" | "present" | "absent";
+export type HaneFeedback = { marks: HaneNumberMark[]; exact: number; present: number };
 export type HaneMode = "number" | "word";
 export type HaneWordMark = "exact" | "present" | "absent";
 export type HaneWordFeedback = { marks: HaneWordMark[]; exact: number; present: number };
@@ -120,10 +121,33 @@ const HANE_WORD_POOLS: Record<number, HaneWordEntry[]> = {
   8: HANE_WORD_POOL_8,
 };
 const haneLetters = (value: string) => Array.from(value.trim().toLocaleUpperCase("tr-TR"));
-const HANE_WORD_GUESSES = new Set(
-  [...Object.values(HANE_WORD_POOLS).flatMap(pool => pool.map(entry => entry.word)), ...HANE_WORD_EXTRA_GUESSES]
-    .map(word => haneLetters(word).join(""))
-);
+// Tahmin doğrulaması artık kapalı bir küçük listeyle değil, TDK kökenli geniş bir
+// sözlükle yapılıyor (gerçek Wordle'ların solutions/allowed-guesses ayrımıyla aynı
+// mantık — bkz. scripts/build-hane-word-lists.mjs) — oyuncu, o günün uzunluğunda
+// GEÇERLİ herhangi bir Türkçe kelimeyi tahmin olarak girebilir. Cevap havuzu
+// (HANE_WORD_POOLS) küçük/küratörlü kalmaya devam eder, yalnız kendi kelimelerinin
+// de kabul edilmesini garanti etmek için tahmin kümesine birleştirilir.
+// Liste dosyası (~300KB) DİNAMİK import edilir — Hane'yi hiç açmayan ziyaretçinin
+// ana JS paketini şişirmesin diye (bkz. build sonrası gzip farkı: statik import
+// ana chunk'ı ~104KB gzip büyütüyordu).
+const HANE_WORD_GUESS_SET_CACHE: Record<number, Set<string>> = {};
+let haneWordGuessListsPromise: Promise<Record<number, string[]>> | null = null;
+
+function extraGuessesFor(length: number) {
+  return [
+    ...HANE_WORD_POOLS[length].map(entry => haneLetters(entry.word).join("")),
+    ...HANE_WORD_EXTRA_GUESSES.filter(word => haneLetters(word).length === length).map(word => haneLetters(word).join("")),
+  ];
+}
+
+async function haneWordGuessSetFor(length: number): Promise<Set<string>> {
+  if (HANE_WORD_GUESS_SET_CACHE[length]) return HANE_WORD_GUESS_SET_CACHE[length];
+  if (!haneWordGuessListsPromise) haneWordGuessListsPromise = import("./haneWordLists").then(module => module.HANE_WORD_GUESS_LISTS);
+  const lists = await haneWordGuessListsPromise;
+  const set = new Set([...(lists[length] ?? []), ...extraGuessesFor(length)]);
+  HANE_WORD_GUESS_SET_CACHE[length] = set;
+  return set;
+}
 
 export function generateHaneLevel(seed: number, mastery: number): HaneLevel {
   const random = rng(seed ^ Math.imul(mastery + 17, 0x45d9f3b));
@@ -141,7 +165,7 @@ export function generateHaneLevel(seed: number, mastery: number): HaneLevel {
     maxGuesses: Math.max(4, 7 - mastery),
     target: values.join(""),
     allowsRepeats,
-    lesson: allowsRepeats ? "Kilit doğru hane ve doğru sırayı; iz doğru haneyi ama başka sırayı gösterir. Aynı hane birden fazla kez sayılabilir." : "Kilit doğru hane ve doğru sırayı; iz doğru haneyi ama başka sırayı gösterir. Günün kaydında haneler tekrar etmez.",
+    lesson: allowsRepeats ? "Yerinde işareti doğru hane ve doğru sırayı; izde işareti doğru haneyi ama başka sırayı gösterir. Aynı hane birden fazla kez sayılabilir." : "Yerinde işareti doğru hane ve doğru sırayı; izde işareti doğru haneyi ama başka sırayı gösterir. Günün kaydında haneler tekrar etmez.",
   };
 }
 
@@ -149,22 +173,27 @@ export function isHaneGuessValid(guess: string, level: Pick<HaneLevel, "digits">
   return new RegExp(`^[1-9][0-9]{${level.digits - 1}}$`).test(guess);
 }
 
-export function compareHaneGuess(target: string, guess: string): HaneFeedback {
+/** Sayı modu artık kelime modundakiyle AYNI konum-bazlı gösterim kullanır — hane
+ * bazında hangi rakamın doğru/yanlış olduğu (yalnız toplam kilit/iz sayısı değil)
+ * net görünür. Algoritma compareHaneWordGuess ile birebir aynı iki-geçişli,
+ * tekrarlı-rakam-güvenli mantık. */
+export function compareHaneNumberGuess(target: string, guess: string): HaneFeedback {
   const targetDigits = target.split("");
   const guessDigits = guess.split("");
-  let locks = 0;
+  const marks: HaneNumberMark[] = Array.from({ length: targetDigits.length }, () => "absent");
   const remainingTarget: string[] = [];
-  const remainingGuess: string[] = [];
+  const pending: number[] = [];
+  let exact = 0;
   for (let index = 0; index < targetDigits.length; index += 1) {
-    if (targetDigits[index] === guessDigits[index]) locks += 1;
-    else { remainingTarget.push(targetDigits[index]); remainingGuess.push(guessDigits[index]); }
+    if (targetDigits[index] === guessDigits[index]) { marks[index] = "exact"; exact += 1; }
+    else { remainingTarget.push(targetDigits[index]); pending.push(index); }
   }
-  let traces = 0;
-  for (const digit of remainingGuess) {
-    const location = remainingTarget.indexOf(digit);
-    if (location >= 0) { traces += 1; remainingTarget.splice(location, 1); }
+  let present = 0;
+  for (const index of pending) {
+    const location = remainingTarget.indexOf(guessDigits[index]);
+    if (location >= 0) { marks[index] = "present"; present += 1; remainingTarget.splice(location, 1); }
   }
-  return { locks, traces };
+  return { marks, exact, present };
 }
 
 export function generateHaneWordLevel(seed: number, mastery: number): HaneWordLevel {
@@ -183,9 +212,11 @@ export function generateHaneWordLevel(seed: number, mastery: number): HaneWordLe
   };
 }
 
-export function isHaneWordGuessValid(guess: string, level: Pick<HaneWordLevel, "length">) {
+export async function isHaneWordGuessValid(guess: string, level: Pick<HaneWordLevel, "length">) {
   const normalized = haneLetters(guess);
-  return normalized.length === level.length && HANE_WORD_GUESSES.has(normalized.join(""));
+  if (normalized.length !== level.length) return false;
+  const set = await haneWordGuessSetFor(level.length);
+  return set.has(normalized.join(""));
 }
 
 export function compareHaneWordGuess(target: string, guess: string): HaneWordFeedback {
