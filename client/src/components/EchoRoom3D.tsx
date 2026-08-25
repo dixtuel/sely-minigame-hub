@@ -57,7 +57,10 @@ function FollowCamera({ target }: { target: [number, number, number] }) {
   const desired = useRef(new THREE.Vector3(...target));
   useFrame(({ camera }, delta) => {
     desired.current.set(target[0], 0, target[2]);
-    const camTarget = new THREE.Vector3(target[0], 6.5, target[2] + 6.5);
+    // Oyuncunun her zaman geldiği köşenin (0,0) tersi yönünde, yükseltilmiş çapraz bir
+    // "gerçek oyun" kamerası — tek eksenli bir "arkadan takip" yerine, karakter hangi
+    // koridora girerse girsin sabit ve okunur bir 3/4 açı veriyor.
+    const camTarget = new THREE.Vector3(target[0] - 5.5, 8, target[2] + 5.5);
     const t = 1 - Math.pow(0.0008, delta);
     camera.position.lerp(camTarget, t);
     camera.lookAt(desired.current.x, 0.6, desired.current.z);
@@ -111,11 +114,11 @@ function RoomGeometry({ level, visible, shadows }: { level: EchoLevel; visible: 
     <>
       <instancedMesh ref={floorRef} args={[undefined, undefined, Math.max(1, level.cols * level.rows)]} receiveShadow={shadows}>
         <boxGeometry args={[CELL * 0.96, 0.1, CELL * 0.96]} />
-        <meshStandardMaterial color="#1c1430" roughness={0.95} />
+        <meshStandardMaterial color="#3a3160" roughness={0.9} />
       </instancedMesh>
       <instancedMesh ref={wallRef} args={[undefined, undefined, Math.max(1, level.cols * level.rows)]} receiveShadow={shadows} castShadow={shadows}>
         <boxGeometry args={[CELL * 0.96, 1.9, CELL * 0.96]} />
-        <meshStandardMaterial color="#10111e" roughness={0.85} />
+        <meshStandardMaterial color="#241f42" roughness={0.8} />
       </instancedMesh>
     </>
   );
@@ -135,11 +138,12 @@ function Scene({ level, state, listener, shadows }: { level: EchoLevel; state: E
   const listenerWorld = toWorld(listener);
   return (
     <>
-      <fog attach="fog" args={["#050509", 4, 15]} />
-      <ambientLight intensity={0.35} color="#2c2440" />
+      <fog attach="fog" args={["#050509", 7, 20]} />
+      <hemisphereLight args={["#8f86c9", "#0c0a17", 0.55]} />
+      <ambientLight intensity={0.4} color="#4a4080" />
       <FollowCamera target={playerWorld} />
       <group position={playerWorld}>
-        <pointLight intensity={shadows ? 6 : 4} distance={9} color="#e5b341" castShadow={shadows} shadow-mapSize={[512, 512]} position={[0, 2.2, 0]} />
+        <pointLight intensity={shadows ? 16 : 12} distance={13} decay={1.6} color="#e5b341" castShadow={shadows} shadow-mapSize={[512, 512]} position={[0, 2.6, 0]} />
       </group>
       <RoomGeometry level={level} visible={state.visible} shadows={shadows} />
       {level.checkpoints.map((checkpoint, index) => (
