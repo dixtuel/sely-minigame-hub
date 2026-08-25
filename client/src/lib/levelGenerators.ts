@@ -269,7 +269,7 @@ export function generateEchoLevel(seed: number, mastery: number): EchoLevel {
  * sorusuna cevap verir, en düşük maliyetli yolu GARANTİ etmez (kuyruk gürültüye göre sıralı değil).
  * Bulunamazsa (teorik olarak yol yoksa) Infinity döner.
  */
-function echoMinimalNoise(level: Omit<EchoLevel, "noiseLimit">): number {
+export function echoMinimalNoise(level: Omit<EchoLevel, "noiseLimit">): number {
   type State = { point: Point; hasKey: boolean; checkpointMask: number };
   const stateKey = (s: State) => `${s.point.x}-${s.point.y}-${s.hasKey ? 1 : 0}-${s.checkpointMask}`;
   const listener = level.listenerRoute[0];
@@ -330,11 +330,13 @@ function buildEchoLevelCandidate(seed: number, mastery: number): EchoLevel {
     pulseBudget: clamp(7 - mastery, 3, 6),
     lesson: mastery >= 3 ? "İzleri oda oda kaydet; kırılgan zeminin gürültüsünü dinleyicinin devriyesinden uzakta yönet." : "Harita aklında kalır. Uzun koridor karardığında yankıyı, kırılgan zemin gelmeden önce kullan.",
   };
-  // Ses hakkı artık odanın büyüklüğüne DEĞİL, doğrudan bu haritanın 0-hatalı en kısa (en az
-  // gürültülü) çözüm rotasının gerçek maliyetine eşit — fazladan pay YOK, tam rota ne kadar
-  // gürültü yapıyorsa bütçe de o kadar.
-  const noiseLimit = echoMinimalNoise(shape);
-  return { ...shape, noiseLimit: Number.isFinite(noiseLimit) ? noiseLimit : 0 };
+  // Ses hakkı, bu haritanın 0-hatalı en kısa (en az gürültülü) çözüm rotasının gerçek
+  // maliyetinden türetiliyor — ama tam o sayı değil, üzerine küçük bir hata payı ekleniyor
+  // (rotanın %20'si, en az 4 en çok 14 gürültü) ki bir-iki yanlış adım oyunu bitirmesin.
+  const minimalNoise = echoMinimalNoise(shape);
+  const margin = clamp(Math.round(minimalNoise * 0.2), 4, 14);
+  const noiseLimit = Number.isFinite(minimalNoise) ? minimalNoise + margin : margin;
+  return { ...shape, noiseLimit };
 }
 
 export function isEchoLevelSolvable(level: EchoLevel) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareHaneNumberGuess, compareHaneWordGuess, evaluateVakaAttempt, generateCutLevel, generateEchoLevel, generateHaneLevel, generateHaneWordLevel, generateKnotLevel, generateShadowLevel, generateSparkLevel, generateSparkWorldSegment, generateVakaCases, isCutLevelSolvable, isEchoLevelSolvable, isHaneGuessValid, isHaneWordGuessValid, isKnotLevelSolvable, isShadowLevelSolvable, isSparkLevelFair, isVakaCaseSolvable, personalSeed, runInstanceKey, solveVakaCase, validateDailySeed } from "./levelGenerators";
+import { compareHaneNumberGuess, compareHaneWordGuess, echoMinimalNoise, evaluateVakaAttempt, generateCutLevel, generateEchoLevel, generateHaneLevel, generateHaneWordLevel, generateKnotLevel, generateShadowLevel, generateSparkLevel, generateSparkWorldSegment, generateVakaCases, isCutLevelSolvable, isEchoLevelSolvable, isHaneGuessValid, isHaneWordGuessValid, isKnotLevelSolvable, isShadowLevelSolvable, isSparkLevelFair, isVakaCaseSolvable, personalSeed, runInstanceKey, solveVakaCase, validateDailySeed } from "./levelGenerators";
 
 describe("mini-game level generators", () => {
   it("keeps each daily generator deterministic and structurally valid", () => {
@@ -80,14 +80,19 @@ describe("mini-game level generators", () => {
     expect(isEchoLevelSolvable(level)).toBe(true);
   });
 
-  it("gives Echo Room's sound budget exactly the cost of the perfect (0-mistake) route — no slack", () => {
+  it("gives Echo Room's sound budget a small margin above the perfect (0-mistake) route's real cost", () => {
     for (const seed of [14151, 76321, 99183, 207771]) {
       for (const mastery of [0, 1, 2, 3, 4]) {
         const level = generateEchoLevel(seed, mastery);
         expect(isEchoLevelSolvable(level)).toBe(true);
-        // Bir tık daha az bütçeyle artık çözülemiyor olmalı — yani pay TAM sıfır, tam doğru
-        // rotanın maliyeti kadar veriliyor, fazlası yok.
-        expect(isEchoLevelSolvable({ ...level, noiseLimit: level.noiseLimit - 1 })).toBe(false);
+        const minimal = echoMinimalNoise(level);
+        const margin = level.noiseLimit - minimal;
+        // Bütçe tam rota maliyetinden büyük olmalı (bir-iki yanlış adıma yer bırakan bir pay
+        // var) ama abartılı cömert de olmamalı — %20'lik, 4-14 gürültü arası sınırlı bir pay.
+        expect(margin).toBeGreaterThanOrEqual(4);
+        expect(margin).toBeLessThanOrEqual(14);
+        // Bir tık daha az bütçeyle hâlâ çözülebilir olmalı (payın gerçekten var olduğunu kanıtlar).
+        expect(isEchoLevelSolvable({ ...level, noiseLimit: level.noiseLimit - 1 })).toBe(true);
       }
     }
   });
