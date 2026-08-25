@@ -1,14 +1,26 @@
-.echo-frame { width: min(760px, 100%); margin-top: 40px; border: 1px solid rgba(246,240,227,.58); background: #10111e; box-shadow: 7px 7px 0 rgba(229,179,65,.35); overflow: hidden; }
+.echo-frame { width: min(760px, 100%); margin-top: 40px; border: 1px solid rgba(246,240,227,.58); background: #050509; box-shadow: 7px 7px 0 rgba(229,179,65,.35); overflow: hidden; }
 .echo-camera-label { min-height: 34px; padding: 0 11px; border-bottom: 1px solid rgba(246,240,227,.28); display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(246,240,227,.88); font: 9px var(--font-mono); letter-spacing: .06em; }
 .echo-camera-label b { color: var(--mustard); font-size: 9px; }
 .echo-frame .echo-grid { width: 100%; margin-top: 0; border: 0; box-shadow: inset 0 0 0 5px rgba(229,179,65,.07); }
-.echo-frame .echo-cell { min-height: 40px; aspect-ratio: 1.42; }
-.echo-cell.is-wall { background: #222746; }
-.echo-cell.is-wall.is-visible { background: #58576a; }
-.echo-cell.is-fracture.is-visible { background: #3c2d54; }
-.echo-wall, .echo-fracture { position: absolute; inset: 0; display: grid; place-items: center; font: 15px var(--font-mono); }
-.echo-wall { color: rgba(246,240,227,.82); }
-.echo-fracture { color: var(--mustard); }
+.echo-frame .echo-cell { min-height: 40px; aspect-ratio: 1.42; background-color: #050509; background-image: none; }
+
+/* Görünmeyen hücreler tamamen karanlık kalır — fog-of-war "gerçek karanlık oda" hissini
+   sprite'lar üzerine bir karartma katmanıyla değil, doğrudan boş/siyah zemin göstererek verir. */
+.echo-frame .echo-cell.is-visible { background-image: url("/manus-storage/echo-floor.png"); background-size: 100% 100%; image-rendering: pixelated; background-color: #1c1430; }
+.echo-frame .echo-cell.is-visible:nth-child(5n) { background-image: url("/manus-storage/echo-floor-alt.png"); }
+.echo-frame .echo-cell.is-wall.is-visible { background-image: url("/manus-storage/echo-wall.png"); background-color: #10111e; }
+.echo-frame .echo-cell.is-goal.is-visible { background-image: url("/manus-storage/echo-door.png"), url("/manus-storage/echo-floor.png"); background-size: 100% 100%; }
+.echo-frame .echo-cell.is-checkpoint.is-visible { box-shadow: inset 0 0 0 2px rgba(229,179,65,.55); }
+.echo-frame .echo-cell.is-trap.is-visible { box-shadow: inset 0 0 0 2px rgba(101,65,105,.7); }
+.echo-frame .echo-cell.is-fracture.is-visible { box-shadow: inset 0 0 0 2px rgba(229,179,65,.4); }
+
+.echo-wall, .echo-fracture, .echo-door, .echo-trap, .echo-key, .echo-mark { image-rendering: pixelated; }
+.echo-wall { background-image: url("/manus-storage/echo-wall.png"); background-size: 78% auto; background-position: center; background-repeat: no-repeat; font-size: 0; }
+.echo-fracture { background-image: url("/manus-storage/echo-fracture.png"); background-size: 68% auto; background-position: center; background-repeat: no-repeat; font-size: 0; }
+.echo-door { background-image: url("/manus-storage/echo-door.png"); background-size: 82% auto; background-position: center; background-repeat: no-repeat; font-size: 0; }
+.echo-trap { background-image: url("/manus-storage/echo-listener.png"); background-size: 78% auto; background-position: center; background-repeat: no-repeat; font-size: 0; }
+.echo-key { background-image: url("/manus-storage/echo-key.png"); background-size: 68% auto; background-position: center; background-repeat: no-repeat; font-size: 0; }
+.echo-mark { background-image: url("/manus-storage/echo-mark.png"); background-size: 62% auto; background-position: center; background-repeat: no-repeat; font-size: 0; }
 .echo-frame + .echo-controls { width: min(760px, 100%); }
 @media (max-width: 800px) {
   .echo-game .game-hud { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 0; padding: 8px 13px; gap: 6px 12px; }
@@ -17,5 +29,4 @@
   .echo-frame { width: min(100%, 440px); margin-top: 39px; box-shadow: 4px 4px 0 rgba(229,179,65,.35); }
   .echo-camera-label { min-height: 31px; font-size: 8px; }
   .echo-frame .echo-cell { min-height: 32px; aspect-ratio: 1.34; }
-  .echo-wall, .echo-fracture { font-size: 12px; }
 }

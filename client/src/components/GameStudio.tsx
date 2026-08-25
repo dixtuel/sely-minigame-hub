@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowLeft as ArrowLeftIcon, ArrowRight, ArrowUp, RotateCcw, Volume2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowLeft as ArrowLeftIcon, ArrowRight, ArrowUp, Maximize, Minimize, RotateCcw, Volume2, X } from "lucide-react";
 import SparkCanvasGame from "@/components/SparkCanvasGame";
 import VakaBoard from "@/components/VakaBoard";
 import type { GameId, GameMeta } from "@/lib/catalog";
@@ -71,6 +71,17 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
   const displayMastery = runMasteryFor(highScore, dailyDifficulty);
   const [runMastery, setRunMastery] = useState(() => displayMastery);
   const sparkActive = game.id === "spark" && started;
+  const shellRef = useRef<HTMLElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    const handler = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    shellRef.current?.requestFullscreen?.();
+  };
 
   const restart = () => {
     setResult(null);
@@ -92,13 +103,14 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
   }, [game.id, onScore]);
 
   return (
-    <main className={`studio-shell ${sparkActive ? "studio-shell-spark" : ""}`} lang={locale} style={{ "--game-accent": game.accent, "--game-ink": game.ink } as React.CSSProperties}>
+    <main ref={shellRef} className={`studio-shell ${sparkActive ? "studio-shell-spark" : ""}`} lang={locale} style={{ "--game-accent": game.accent, "--game-ink": game.ink } as React.CSSProperties}>
       <header className="studio-topbar">
         <button className="back-button" onClick={onBack} aria-label={locale === "en" ? "Return to game catalogue" : "Oyun kataloğuna dön"}><ArrowLeft size={18} /> {locale === "en" ? "Catalogue" : "Katalog"}</button>
         <div className="studio-title"><span>{game.number}</span><strong>{game.title}</strong><em>{game.eyebrow}</em></div>
         <div className="studio-actions">
           <span className="best-score">{locale === "en" ? "BEST" : "EN İYİ"} <b>{highScore.toLocaleString(locale === "en" ? "en-US" : "tr-TR")}</b></span>
           <button className="icon-button" onClick={onToggleSound} aria-label={soundOn ? (locale === "en" ? "Mute sound" : "Sesi kapat") : (locale === "en" ? "Enable sound" : "Sesi aç")}><Volume2 size={18} className={soundOn ? "" : "sound-muted"} /></button>
+          <button className="icon-button" onClick={toggleFullscreen} aria-label={isFullscreen ? (locale === "en" ? "Exit fullscreen" : "Tam ekrandan çık") : (locale === "en" ? "Enter fullscreen" : "Tam ekrana al")}>{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}</button>
         </div>
       </header>
 
