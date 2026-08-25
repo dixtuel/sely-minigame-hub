@@ -10,11 +10,6 @@ import {
   generateHaneLevel,
   generateHaneWordLevel,
   generateKnotLevel,
-  KNOT_BONUS_PATH,
-  KNOT_SOURCE_INDEX,
-  KNOT_TARGET_INDEX,
-  KNOT_TARGET_PATH,
-  KNOT_TILE_SHAPES,
   type Direction,
   generateVakaCases,
   generateShadowLevel,
@@ -252,19 +247,19 @@ const step: Record<Direction, [number, number]> = { N: [-1, 0], E: [0, 1], S: [1
 const opposite: Record<Direction, Direction> = { N: "S", E: "W", S: "N", W: "E" };
 const rotateDirs = (dirs: Direction[], rot: number) => dirs.map(dir => directionOrder[(directionOrder.indexOf(dir) + rot) % 4]);
 const tileKey = (r: number, c: number) => `${r}-${c}`;
-const KNOT_CRITICAL_INDEXES = new Set([...KNOT_TARGET_PATH, ...KNOT_BONUS_PATH]);
 
 function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; seed: number; mastery: number; onFinish: (result: GameResult) => void }) {
   const level = useMemo(() => generateKnotLevel(seed, mastery), [seed, mastery]);
   const finish = useFinishOnce(onFinish);
-  const baseTiles = useMemo<Tile[]>(() => KNOT_TILE_SHAPES.map((base, index) => ({
+  const knotCriticalIndexes = useMemo(() => new Set([...level.targetPath, ...level.bonusPath]), [level.targetPath, level.bonusPath]);
+  const baseTiles = useMemo<Tile[]>(() => level.tileShapes.map((base, index) => ({
     r: Math.floor(index / 4),
     c: index % 4,
     base,
-    rot: index === KNOT_SOURCE_INDEX || index === KNOT_TARGET_INDEX ? 0 : level.rotations[index],
-    locked: index === KNOT_SOURCE_INDEX || index === KNOT_TARGET_INDEX,
-    label: index === KNOT_SOURCE_INDEX ? "S" : index === KNOT_TARGET_INDEX ? "H" : undefined,
-  })), [level.rotations]);
+    rot: index === level.sourceIndex || index === level.targetIndex ? 0 : level.rotations[index],
+    locked: index === level.sourceIndex || index === level.targetIndex,
+    label: index === level.sourceIndex ? "S" : index === level.targetIndex ? "H" : undefined,
+  })), [level]);
   const [tiles, setTiles] = useState(baseTiles);
   const [turns, setTurns] = useState(0);
   const [lastRotated, setLastRotated] = useState<number | null>(null);
@@ -283,7 +278,7 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     return visited;
   }, [tiles]);
 
-  const targetConnected = connected.has(tileKey(Math.floor(KNOT_TARGET_INDEX / 4), KNOT_TARGET_INDEX % 4));
+  const targetConnected = connected.has(tileKey(Math.floor(level.targetIndex / 4), level.targetIndex % 4));
   const bonusConnected = level.bonusIndex >= 0 && connected.has(tileKey(Math.floor(level.bonusIndex / 4), level.bonusIndex % 4));
   const sealFlow = () => {
     if (!targetConnected) return;
@@ -310,7 +305,7 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     <div className="knot-board" role="grid" aria-label="Düğüm bağlantı tahtası">
       {tiles.map((tile, index) => {
         const active = connected.has(tileKey(tile.r, tile.c)); const dirs = rotateDirs(tile.base, tile.rot); const bonus = level.bonusIndex === index;
-        const critical = KNOT_CRITICAL_INDEXES.has(index) && !tile.locked;
+        const critical = knotCriticalIndexes.has(index) && !tile.locked;
         return <button key={tileKey(tile.r, tile.c)} onClick={() => rotate(index)} className={`knot-tile ${active ? "is-active" : ""} ${tile.locked ? "is-locked" : ""} ${bonus ? "is-bonus" : ""} ${critical ? "is-critical" : ""}`} aria-label={`Bağlantı karosu ${tile.r + 1}-${tile.c + 1}`}>
           <span className="knot-core">{tile.label || (bonus ? "✦" : "")}</span>{dirs.map(dir => <i key={dir} className={`knot-line line-${dir}`} />)}
         </button>;

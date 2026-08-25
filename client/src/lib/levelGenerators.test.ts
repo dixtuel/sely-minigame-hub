@@ -61,9 +61,15 @@ describe("mini-game level generators", () => {
       for (const mastery of [1, 2, 3, 4]) {
         const level = generateKnotLevel(seed, mastery);
         expect(isKnotLevelSolvable(level)).toBe(true);
-        if (mastery >= 2) expect(level.bonusIndex).toBe(5);
+        if (mastery >= 2) expect(level.bonusIndex).toBeGreaterThanOrEqual(0);
       }
     }
+  });
+
+  it("varies Knot's actual route (not just decoy rotations) across seeds", () => {
+    const paths = new Set<string>();
+    for (let seed = 1; seed <= 60; seed += 5) paths.add(JSON.stringify(generateKnotLevel(seed, 2).targetPath));
+    expect(paths.size).toBeGreaterThan(1);
   });
 
   it("keeps Echo Room’s longer three-mark route solvable within its sound budget", () => {
@@ -79,7 +85,7 @@ describe("mini-game level generators", () => {
       for (const mastery of [1, 2, 3, 4]) {
         const level = generateKnotLevel(seed, mastery);
         expect(isKnotLevelSolvable(level)).toBe(true);
-        if (mastery >= 2) expect(level.bonusIndex).toBe(5);
+        if (mastery >= 2) expect(level.bonusIndex).toBeGreaterThanOrEqual(0);
       }
     }
   });
