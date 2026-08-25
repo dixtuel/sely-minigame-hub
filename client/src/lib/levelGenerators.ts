@@ -290,7 +290,10 @@ function buildEchoLevelCandidate(seed: number, mastery: number): EchoLevel {
     fractures: [fractureAt(509), fractureAt(521), ...(mastery >= 3 ? [fractureAt(541), fractureAt(557)] : [])],
     viewport: { cols: 9, rows: 7 },
     pulseBudget: clamp(7 - mastery, 3, 6),
-    noiseLimit: 44 + mastery * 4,
+    // Ses hakkı artık odanın büyüklüğüne (cols+rows) göre türetiliyor — sabit bir mastery
+    // katsayısı yerine, oda ne kadar büyükse o kadar dolaşma payı veriyor (19x13 odada
+    // eski sabit değerlerle birebir örtüşür: 32*1.375=44; 21x15'te oda büyüdüğü için pay da büyür).
+    noiseLimit: Math.round((cols + rows) * 1.375) + mastery * 4,
     lesson: mastery >= 3 ? "İzleri oda oda kaydet; kırılgan zeminin gürültüsünü dinleyicinin devriyesinden uzakta yönet." : "Harita aklında kalır. Uzun koridor karardığında yankıyı, kırılgan zemin gelmeden önce kullan.",
   };
 }

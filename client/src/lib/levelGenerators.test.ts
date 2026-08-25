@@ -80,6 +80,15 @@ describe("mini-game level generators", () => {
     expect(isEchoLevelSolvable(level)).toBe(true);
   });
 
+  it("scales Echo Room's sound budget with the actual room size, not a flat mastery bump", () => {
+    const small = generateEchoLevel(14151, 1); // 19x13 oda
+    const big = generateEchoLevel(14151, 3); // 21x15 oda
+    expect(small.cols + small.rows).toBeLessThan(big.cols + big.rows);
+    expect(big.noiseLimit).toBeGreaterThan(small.noiseLimit);
+    // Aynı mastery'de oda büyüklüğü sabit olduğundan, noiseLimit yalnızca cols+rows'tan türemeli.
+    expect(generateEchoLevel(14151, 1).noiseLimit).toBe(generateEchoLevel(99183, 1).noiseLimit);
+  });
+
   it("keeps Knot’s optional bonus on an affordable branch of the target flow", () => {
     for (const seed of [14151, 76321, 99183, 207771]) {
       for (const mastery of [1, 2, 3, 4]) {
