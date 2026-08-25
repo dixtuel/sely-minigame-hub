@@ -1,0 +1,37 @@
+.game-stage-spark .spark-world {
+  height: min(68vh, 740px);
+  min-height: 460px;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(16, 29, 56, .12), rgba(16, 29, 56, .35)),
+    url("/manus-storage/kivilcim-drift-corridor-bg_5cb00443.png") center / cover;
+}
+
+.spark-world::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(245, 236, 212, .05) 0 39%, rgba(15, 28, 57, .2) 39% 100%);
+}
+
+.spark-sky { position: absolute; inset: 0 0 47%; background: linear-gradient(180deg, #172842 0%, #293b75 60%, #ad5d55 100%); overflow: hidden; }
+.spark-sky i { position: absolute; height: 1px; background: rgba(246,240,227,.65); transform: rotate(-8deg); }
+.spark-sky i:nth-child(1) { width: 34%; top: 19%; left: 5%; }.spark-sky i:nth-child(2) { width: 21%; top: 39%; right: 9%; }.spark-sky i:nth-child(3) { width: 16%; top: 23%; right: 31%; }
+.spark-sky b { position: absolute; right: 26px; top: 20px; color: rgba(246,240,227,.8); font: 10px var(--font-mono); letter-spacing: .16em; }
+.spark-world-sun { position: absolute; z-index: 0; width: clamp(88px, 14vw, 180px); aspect-ratio: 1; border-radius: 50%; top: 11%; left: 51%; transform: translateX(-50%); background: repeating-linear-gradient(to bottom, var(--mustard) 0 13px, transparent 13px 17px); box-shadow: 0 0 0 8px rgba(229,179,65,.08); }
+.spark-world-horizon { position: absolute; z-index: 1; top: 45%; left: 0; right: 0; height: 3px; background: var(--paper); box-shadow: 0 9px 0 rgba(246,240,227,.25); }
+.spark-world-grid { position: absolute; z-index: 0; inset: 44% -15% -30%; transform-origin: 50% 0; transform: perspective(720px) rotateX(58deg); background-image: linear-gradient(rgba(246,240,227,.48) 1px, transparent 1px), linear-gradient(90deg, rgba(246,240,227,.42) 1px, transparent 1px); background-size: 100% 34px, 92px 100%; opacity: .8; }
+.spark-world-grid::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(23,40,66,.75), transparent 34% 66%, rgba(23,40,66,.75)); }
+.spark-world-grid i { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(229,179,65,.75); transform-origin: 50% 0; }.spark-world-grid i:nth-child(1) { left: 50%; }.spark-world-grid i:nth-child(2) { left: 50%; transform: rotate(-17deg); }.spark-world-grid i:nth-child(3) { left: 50%; transform: rotate(17deg); }.spark-world-grid i:nth-child(4) { left: 50%; transform: rotate(-32deg); }.spark-world-grid i:nth-child(5) { left: 50%; transform: rotate(32deg); }.spark-world-grid i:nth-child(6) { left: 50%; transform: rotate(-48deg); }.spark-world-grid i:nth-child(7) { left: 50%; transform: rotate(48deg); }.spark-world-grid i:nth-child(8) { display:none; }
+.spark-world-silhouette { position: absolute; z-index: 1; bottom: 21%; width: 26%; height: 26%; background: #16233d; clip-path: polygon(0 100%, 0 38%, 13% 38%, 13% 13%, 23% 13%, 23% 48%, 39% 48%, 39% 0, 51% 0, 51% 41%, 67% 41%, 67% 20%, 79% 20%, 79% 58%, 100% 58%, 100% 100%); opacity: .9; }.silhouette-left { left: 0; }.silhouette-right { right: 0; transform: scaleX(-1); }
+.spark-world-ribbons { position: absolute; z-index: 2; inset: 48% 0 auto; height: 95px; overflow: hidden; }.spark-world-ribbons i { position: absolute; width: 72%; height: 19px; border: 2px solid var(--coral); transform: skewX(-35deg); opacity: .88; }.spark-world-ribbons i:nth-child(1) { top: 7px; left: -14%; }.spark-world-ribbons i:nth-child(2) { top: 38px; left: 31%; border-color: var(--mustard); }.spark-world-ribbons i:nth-child(3) { top: 69px; left: -21%; border-color: var(--paper); opacity: .55; }
+.spark-world-sign { position: absolute; z-index: 4; right: 22px; top: 46%; display: grid; grid-template-columns: repeat(4, 1fr); background: rgba(23,40,66,.88); border: 1px solid rgba(246,240,227,.75); color: var(--paper); font: 10px var(--font-mono); }.spark-world-sign span { padding: 7px 8px; border-right: 1px solid rgba(246,240,227,.36); }.spark-world-sign span:last-child { border-right:0; color: var(--mustard); }
+.spark-world .spark-player { z-index: 7; left: 42%; top: var(--drift-top); width: clamp(64px,8vw,104px); height: clamp(38px,4vw,58px); border: 2px solid var(--ink); background: var(--coral); transform: translateY(-50%) skewX(-25deg); box-shadow: 9px 9px 0 var(--ink), -17px 5px 0 var(--mustard); transition: top 100ms var(--ease-out), transform 130ms var(--ease-out); }.spark-world .spark-player i { width: 19%; height: 32%; top: 29%; right: 15%; background: var(--paper); }.spark-world .spark-player b { left: -28%; top: 46%; width: 34%; height: 4px; background: var(--mustard); }.spark-world .spark-player em { position: absolute; left: -53%; top: 18%; width: 34%; height: 66%; clip-path: polygon(100% 0,100% 100%,0 50%); background: var(--coral); opacity: .74; }.spark-world .spark-player.is-boosting { transform: translateY(-50%) skewX(-25deg) scale(1.15); box-shadow: 13px 8px 0 var(--mustard), 23px 8px 0 var(--coral), -26px 5px 0 var(--paper); }
+.spark-world .spark-event { z-index: 5; top: var(--drift-top); left: var(--distance); transform: translate(-50%, -50%) scale(calc(.36 + var(--depth) * 1.22)); transform-origin: center; opacity: calc(.25 + var(--depth) * .75); transition: none; filter: drop-shadow(5px 6px 0 rgba(23,40,66,.72)); }.spark-world .event-stamp { color: var(--mustard); text-shadow: 2px 2px 0 var(--ink); }.spark-world .event-barrier { height: 19px; width: 72px; background: var(--ink); border-color: var(--paper); }.spark-world .event-drop { width: 35px; height: 35px; background: var(--plum); }.spark-world .event-gate { width: 30px; height: 78px; background: var(--green); }
+.spark-world .spark-drift-ruler { z-index: 5; inset: 52% auto 13% 14px; color: rgba(246,240,227,.76); text-shadow: 1px 1px #172842; }
+
+@media (max-width: 800px) {
+  .game-stage-spark .spark-world { min-height: 480px; height: calc(100dvh - 175px); }.spark-sky b { font-size: 8px; right: 11px; top: 13px; }.spark-world-silhouette { width: 33%; bottom: 23%; }.spark-world-sign { right: 10px; }.spark-world-sign span { padding: 5px; }.spark-world .spark-player { left: 34%; }.spark-world .spark-event { filter: drop-shadow(3px 4px 0 rgba(23,40,66,.72)); }.spark-world .spark-drift-ruler { left: 7px; font-size: 7px; }
+}
