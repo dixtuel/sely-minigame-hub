@@ -1,0 +1,17 @@
+.spark-canvas-game { width: min(1100px, 100%); margin: 0 auto; display: grid; gap: 10px; }
+.spark-canvas-hud { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: var(--ink); border: 1px solid var(--ink); }
+.spark-canvas-hud span { min-width: 0; padding: 10px 12px; background: var(--paper); color: var(--ink); font: 10px var(--font-mono); letter-spacing: .1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spark-canvas-hud b { display: block; margin-top: 4px; font-size: 13px; letter-spacing: 0; }
+.spark-canvas { width: 100%; height: min(66vh, 690px); min-height: 430px; display: block; background: #122543; border: 1px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); touch-action: none; outline: none; }
+.spark-canvas:focus-visible { outline: 3px solid var(--mustard); outline-offset: 4px; }
+.spark-canvas-tip { margin: 0; color: var(--ink); font: 12px var(--font-mono); }
+.spark-canvas-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.spark-canvas-controls button { min-height: 52px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); display: flex; align-items: center; justify-content: center; gap: 8px; font: 11px var(--font-mono); letter-spacing: .06em; }
+.spark-canvas-controls button:active { transform: translate(2px, 2px); box-shadow: none; background: var(--mustard); }
+.spark-canvas-controls b { font-size: 19px; }
+.game-stage-spark .spark-canvas-game { min-height: 100dvh; width: min(1420px, 100%); padding: 98px clamp(18px, 4vw, 72px) 70px; align-content: center; }
+.game-stage-spark .spark-canvas-hud { box-shadow: 5px 5px 0 var(--coral); }
+.game-stage-spark .spark-canvas-tip { color: rgba(246, 240, 227, .9); }
+.game-stage-spark .spark-canvas-controls { width: min(620px, 100%); }
+@media (max-width: 720px) { .spark-canvas-hud { grid-template-columns: repeat(3, minmax(0, 1fr)); }.spark-canvas { min-height: 440px; height: calc(100dvh - 244px); box-shadow: 4px 4px 0 var(--ink); }.spark-canvas-controls button { min-height: 58px; flex-direction: column; gap: 1px; }.spark-canvas-controls b { line-height: 1; } }
+@media (max-width: 720px) { .game-stage-spark .spark-canvas-game { height: calc(100dvh - 73px); min-height: 0; padding: 30px 14px 28px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 6px; align-content: stretch; }.game-stage-spark .spark-canvas { height: 100% !important; min-height: 0; align-self: stretch; }.game-stage-spark .spark-canvas-tip { font-size: 10px; }.game-stage-spark .spark-canvas-controls { width: 100%; }.game-stage-spark .spark-canvas-controls button { min-height: 58px; } }

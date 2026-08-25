@@ -90,20 +90,20 @@ export const GAME_CATALOG: GameMeta[] = [
     poster: "/manus-storage/kivilcim-poster-v2_5ac4584b.png",
     motto: "Rüzgârı değil, aralığı oku.",
     mechanic: "Bölümler halinde akan baskı koridorunda planörü yönlendir, eşikleri aş ve güvenli damga ritmini kur.",
-    controls: "← → + Space / dokun",
+    controls: "← → yön · ↑ itki · ↓ fren / dokun",
     playTime: "Sonsuz rota",
   },
   {
     id: "hane",
     number: "06",
     title: "Hane",
-    eyebrow: "Sayı / Çıkarım",
+    eyebrow: "Kayıt / Çıkarım",
     accent: "#E5B341",
     ink: "#293B75",
     poster: "/manus-storage/hane-number-logic-poster_9656a8a5.png",
-    motto: "Sırayı değil, kanıtı say.",
-    mechanic: "Kayıt numarasını tahmin et; kilit ve iz toplamlarıyla her satırda seçenekleri azalt.",
-    controls: "Sayı tuşları veya dokun",
+    motto: "Kanıtı say; kayıt türünü sen seç.",
+    mechanic: "Sayı veya sözcük kaydını seç; fişlerdeki işaretlerle her satırda seçenekleri azalt.",
+    controls: "Klavye veya dokun",
     playTime: "2–4 dk",
   },
 ];
@@ -114,8 +114,8 @@ const ENGLISH_GAMES: Record<GameId, Pick<GameMeta, "title" | "eyebrow" | "motto"
   cut: { title: "Cutout", eyebrow: "Cut / Rhythm", motto: "Give something up to make space.", mechanic: "Cut moving shapes with one line; build a large chain with little energy.", controls: "Drag and release", playTime: "90 sec" },
   shadow: { title: "Shadow Share", eyebrow: "Time / Match", motto: "A step in the past opens a door now.", mechanic: "Align your delayed shadow on two pads, then take the exit.", controls: "Arrow keys / direction pad", playTime: "2 min" },
   marker: { title: "Marker", eyebrow: "Clue / Choice", motto: "Watch the behaviour, not the mark.", mechanic: "Mark the correct target from short clues; protect the chain of trust.", controls: "Click or tap", playTime: "2–4 min" },
-  hane: { title: "Digit", eyebrow: "Number / Inference", motto: "Count the evidence, not the order.", mechanic: "Find the record number; use lock and trace totals to reduce the possibilities on every line.", controls: "Number keys or tap", playTime: "2–4 min" },
-  spark: { title: "Spark", eyebrow: "Rhythm / Escape", motto: "Read the gaps, not the wind.", mechanic: "Guide the paper glider through repeating print corridors, clear thresholds on time, and build a safe stamp rhythm.", controls: "← → + Space / tap", playTime: "Endless route" },
+  hane: { title: "Hane", eyebrow: "Record / Inference", motto: "Count the evidence; choose the record type.", mechanic: "Choose a number or word record; use the receipt marks to reduce possibilities on every line.", controls: "Keyboard or tap", playTime: "2–4 min" },
+  spark: { title: "Spark", eyebrow: "Rhythm / Escape", motto: "Read the gaps, not the wind.", mechanic: "Guide the paper glider through repeating print corridors, clear thresholds on time, and build a safe stamp rhythm.", controls: "← → steer · ↑ thrust · ↓ brake / tap", playTime: "Endless route" },
 };
 
 export function getGameCatalog(locale: "tr" | "en") {

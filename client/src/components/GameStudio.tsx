@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowLeft as ArrowLeftIcon, ArrowRight, ArrowUp, RotateCcw, Volume2, X } from "lucide-react";
+import SparkCanvasGame from "@/components/SparkCanvasGame";
 import type { GameId, GameMeta } from "@/lib/catalog";
 import type { SiteLocale } from "@/lib/i18n";
 import {
   generateCutLevel,
   generateEchoLevel,
   generateHaneLevel,
+  generateHaneWordLevel,
   generateKnotLevel,
   generateMarkerCases,
   generateShadowLevel,
@@ -13,9 +15,12 @@ import {
   generateSparkWorldSegment,
   masteryBand,
   compareHaneGuess,
+  compareHaneWordGuess,
   isHaneGuessValid,
+  isHaneWordGuessValid,
   pointKey,
   type Point,
+  type SparkEvent,
 } from "@/lib/levelGenerators";
 
 type GameStudioProps = {
@@ -23,7 +28,7 @@ type GameStudioProps = {
   locale?: SiteLocale;
   runSource?: "daily" | "personal";
   autoStart?: boolean;
-  demo?: "spark" | "cut-fail";
+  demo?: "spark" | "spark-fail" | "cut-fail";
   dailySeed?: number;
   dailyDifficulty?: number;
   highScore: number;
@@ -134,13 +139,13 @@ export default function GameStudio({ game, locale = "tr", runSource = "daily", a
   );
 }
 
-function GameRenderer({ game, locale, dailySeed, mastery, demo, onFinish }: { game: GameMeta; locale: SiteLocale; dailySeed: number; mastery: number; demo?: "spark" | "cut-fail"; onFinish: (result: GameResult) => void }) {
+function GameRenderer({ game, locale, dailySeed, mastery, demo, onFinish }: { game: GameMeta; locale: SiteLocale; dailySeed: number; mastery: number; demo?: "spark" | "spark-fail" | "cut-fail"; onFinish: (result: GameResult) => void }) {
   if (game.id === "echo") return <EchoRoomGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "knot") return <KnotGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "cut") return <CutGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "cut-fail"} onFinish={onFinish} />;
   if (game.id === "shadow") return <ShadowGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "hane") return <HaneGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
-  if (game.id === "spark") return <SparkGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark"} onFinish={onFinish} />;
+  if (game.id === "spark") return <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} onFinish={onFinish} />;
   return <MarkerGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
 }
 
@@ -165,22 +170,27 @@ function EchoRoomGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale;
   const move = useCallback((dx: number, dy: number) => {
     setState(previous => {
       const player = { x: Math.min(level.cols - 1, Math.max(0, previous.player.x + dx)), y: Math.min(level.rows - 1, Math.max(0, previous.player.y + dy)) };
-      if (player.x === previous.player.x && player.y === previous.player.y) return previous;
-      const listener = level.listenerRoute[previous.listenerStep % level.listenerRoute.length];
+      const blocked = level.walls.some(wall => wall.x === player.x && wall.y === player.y);
+      if ((player.x === previous.player.x && player.y === previous.player.y) || blocked) return previous;
+      const moves = previous.moves + 1;
+      const listenerStep = (previous.listenerStep + (moves % 2 === 0 ? 1 : 0)) % level.listenerRoute.length;
+      const listener = level.listenerRoute[listenerStep];
       const checkpointIndex = level.checkpoints.findIndex(checkpoint => checkpoint.x === player.x && checkpoint.y === player.y);
+      const fractureNoise = level.fractures.some(fracture => fracture.x === player.x && fracture.y === player.y) ? 2 : 0;
       const next = {
         ...previous,
         player,
-        moves: previous.moves + 1,
-        noise: previous.noise + 1,
+        moves,
+        listenerStep,
+        noise: previous.noise + 1 + fractureNoise,
         keyTaken: previous.keyTaken || Boolean(level.key && player.x === level.key.x && player.y === level.key.y),
         checkpointMask: checkpointIndex >= 0 ? previous.checkpointMask | (1 << checkpointIndex) : previous.checkpointMask,
         visible: reveal(previous.visible, player, 1),
       };
-      if (player.x === listener.x && player.y === listener.y) finish({ outcome: "failure", score: Math.max(40, next.moves * 12), label: local(locale, "Dinleyici seni duydu", "The listener heard you"), detail: local(locale, "Aynı koridora girmeden önce yankının gösterdiği ritmi izlemeliydin.", "Follow the rhythm revealed by the echo before entering the same corridor.") });
+      if (player.x === listener.x && player.y === listener.y) finish({ outcome: "failure", score: Math.max(40, next.moves * 12), label: local(locale, "Dinleyici seni duydu", "The listener heard you"), detail: local(locale, "Devriyenin bir sonraki dönüşünü okumadan aynı koridora girdin.", "You entered the same corridor before reading the patrol’s next turn.") });
       if (next.noise > level.noiseLimit) finish({ outcome: "failure", score: Math.max(30, next.moves * 8), label: local(locale, "Oda çok gürültülü", "The room is too loud"), detail: local(locale, "Daha sakin bir rota, daha yüksek bir puan ve güvenli çıkış getirirdi.", "A quieter route would have earned a better score and a safe exit.") });
       const allCheckpoints = next.checkpointMask === (1 << level.checkpoints.length) - 1;
-      if (player.x === level.exit.x && player.y === level.exit.y && next.keyTaken && allCheckpoints) finish({ outcome: "success", score: Math.max(180, 1_360 - next.moves * 12 - next.noise * 18 + next.pulses * 65), label: local(locale, "Oda sustu", "The room fell quiet"), detail: local(locale, `${next.pulses} yankıyı saklayıp üç izi, mührü ve çıkışı buldun.`, `You found all three marks, the seal and the exit with ${next.pulses} echoes still held back.`) });
+      if (player.x === level.exit.x && player.y === level.exit.y && next.keyTaken && allCheckpoints) finish({ outcome: "success", score: Math.max(180, 1_560 - next.moves * 12 - next.noise * 18 + next.pulses * 65), label: local(locale, "Oda sustu", "The room fell quiet"), detail: local(locale, `${next.pulses} yankıyı saklayıp üç izi, mührü ve çıkışı buldun.`, `You found all three marks, the seal and the exit with ${next.pulses} echoes still held back.`) });
       return next;
     });
   }, [finish, level]);
@@ -209,19 +219,22 @@ function EchoRoomGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale;
 
   const listener = level.listenerRoute[state.listenerStep % level.listenerRoute.length];
   const marksFound = level.checkpoints.filter((_, index) => Boolean(state.checkpointMask & (1 << index))).length;
+  const viewCols = Math.min(level.viewport.cols, level.cols); const viewRows = Math.min(level.viewport.rows, level.rows);
+  const cameraX = Math.max(0, Math.min(level.cols - viewCols, state.player.x - Math.floor(viewCols / 2)));
+  const cameraY = Math.max(0, Math.min(level.rows - viewRows, state.player.y - Math.floor(viewRows / 2)));
   return <div className="echo-game game-surface">
-    <div className="game-hud"><span>{local(locale, "YANKI", "ECHO")} <b>{state.pulses}</b></span><span>{local(locale, "SES", "SOUND")} <b>{state.noise}/{level.noiseLimit}</b></span><span>{local(locale, "İZ", "MARKS")} <b>{marksFound}/{level.checkpoints.length}</b></span><span>{state.keyTaken ? local(locale, "ÇIKIŞI BUL", "FIND THE EXIT") : local(locale, "MÜHRÜ AÇ", "UNSEAL THE WAY")}</span></div>
-    <div className="echo-grid" style={{ gridTemplateColumns: `repeat(${level.cols}, 1fr)` }} aria-label={local(locale, "Yankı odası oyun alanı", "Echo Room game board")}>
-      {Array.from({ length: level.rows * level.cols }, (_, index) => {
-        const x = index % level.cols; const y = Math.floor(index / level.cols); const visible = state.visible.has(`${x}-${y}`);
+    <div className="game-hud"><span>{local(locale, "YANKI", "ECHO")} <b>{state.pulses}</b></span><span>{local(locale, "SES", "SOUND")} <b>{state.noise}/{level.noiseLimit}</b></span><span>{local(locale, "İZ", "MARKS")} <b>{marksFound}/{level.checkpoints.length}</b></span><span>{local(locale, "HAFIZA", "MEMORY")} <b>{state.visible.size}</b></span></div>
+    <div className="echo-frame"><div className="echo-camera-label"><span>{local(locale, "ODA", "ROOM")} {cameraX + 1}–{cameraX + viewCols} / {cameraY + 1}–{cameraY + viewRows}</span><b>{state.keyTaken ? local(locale, "ÇIKIŞI BUL", "FIND THE EXIT") : local(locale, "MÜHRÜ AÇ", "UNSEAL THE WAY")}</b></div><div className="echo-grid" style={{ gridTemplateColumns: `repeat(${viewCols}, 1fr)` }} aria-label={local(locale, "Yankı odası oyun alanı", "Echo Room game board")}>
+      {Array.from({ length: viewRows * viewCols }, (_, index) => {
+        const x = cameraX + (index % viewCols); const y = cameraY + Math.floor(index / viewCols); const visible = state.visible.has(`${x}-${y}`);
         const isPlayer = state.player.x === x && state.player.y === y; const isExit = level.exit.x === x && level.exit.y === y;
         const checkpointIndex = level.checkpoints.findIndex(checkpoint => checkpoint.x === x && checkpoint.y === y); const isCheckpoint = checkpointIndex >= 0; const checkpointTaken = isCheckpoint && Boolean(state.checkpointMask & (1 << checkpointIndex));
-        const isKey = Boolean(level.key && level.key.x === x && level.key.y === y && !state.keyTaken); const isListener = listener.x === x && listener.y === y;
-        return <div key={`${x}-${y}`} className={`echo-cell ${visible ? "is-visible" : ""} ${isExit ? "is-goal" : ""} ${isCheckpoint ? "is-checkpoint" : ""} ${isListener && visible ? "is-trap" : ""}`}>
-          {isPlayer && <span className="echo-player" />}{visible && isExit && <span className="echo-door">⇢</span>}{visible && isKey && <span className="echo-key">✦</span>}{visible && isCheckpoint && !checkpointTaken && <span className="echo-mark">▣</span>}{visible && isListener && <span className="echo-trap">◌</span>}
+        const isKey = Boolean(level.key && level.key.x === x && level.key.y === y && !state.keyTaken); const isListener = listener.x === x && listener.y === y; const isWall = level.walls.some(wall => wall.x === x && wall.y === y); const isFracture = level.fractures.some(fracture => fracture.x === x && fracture.y === y);
+        return <div key={`${x}-${y}`} className={`echo-cell ${visible ? "is-visible" : ""} ${isExit ? "is-goal" : ""} ${isCheckpoint ? "is-checkpoint" : ""} ${isListener && visible ? "is-trap" : ""} ${isWall && visible ? "is-wall" : ""} ${isFracture && visible ? "is-fracture" : ""}`}>
+          {isPlayer && <span className="echo-player" />}{visible && isWall && <span className="echo-wall">▤</span>}{visible && isExit && <span className="echo-door">⇢</span>}{visible && isKey && <span className="echo-key">✦</span>}{visible && isCheckpoint && !checkpointTaken && <span className="echo-mark">▣</span>}{visible && isListener && <span className="echo-trap">◌</span>}{visible && isFracture && <span className="echo-fracture">⌁</span>}
         </div>;
       })}
-    </div>
+    </div></div>
     <div className="echo-controls"><button onClick={pulse} disabled={state.pulses === 0}>{local(locale, "Yankı gönder", "Send echo")} <span>Space</span></button><DirectionPad locale={locale} onMove={move} /></div>
     <p className="game-tip">{locale === "en" ? "Keep the echo for the moments when the room truly needs to be heard." : level.lesson}</p>
   </div>;
@@ -261,12 +274,12 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     return visited;
   }, [tiles]);
 
-  useEffect(() => {
-    if (connected.has("2-3")) {
-      const bonus = level.bonusIndex >= 0 && connected.has(tileKey(Math.floor(level.bonusIndex / 4), level.bonusIndex % 4));
-      finish({ outcome: "success", score: Math.max(180, 860 - turns * 44 + (bonus ? 180 : 0)), label: bonus ? "Mühür ve yan akış çözüldü" : "Akış tamamlandı", detail: `${turns} hamlede hedefe ulaşan çizgiyi kurdun${bonus ? "; yan düğüm de beslendi." : "."}` });
-    }
-  }, [connected, finish, level.bonusIndex, turns]);
+  const targetConnected = connected.has("2-3");
+  const bonusConnected = level.bonusIndex >= 0 && connected.has(tileKey(Math.floor(level.bonusIndex / 4), level.bonusIndex % 4));
+  const sealFlow = () => {
+    if (!targetConnected) return;
+    finish({ outcome: "success", score: Math.max(180, 860 - turns * 44 + (bonusConnected ? 180 : 0)), label: bonusConnected ? "Mühür ve yan akış çözüldü" : "Akış tamamlandı", detail: `${turns} hamlede hedefe ulaşan çizgiyi kurdun${bonusConnected ? "; yan düğüm de beslendi." : "."}` });
+  };
 
   const rotate = (index: number) => {
     if (tiles[index].locked) return;
@@ -277,7 +290,7 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
   };
 
   return <div className="knot-game game-surface">
-    <div className="game-hud"><span>DÜĞÜM <b>{turns}/{level.heatLimit}</b></span><span>AKIŞ <b>{connected.size}/16</b></span><span>HEDEFİ BAĞLA</span></div>
+    <div className="game-hud"><span>DÜĞÜM <b>{turns}/{level.heatLimit}</b></span><span>AKIŞ <b>{connected.size}/16</b></span><span>{targetConnected ? (bonusConnected ? "MÜHÜR HAZIR" : "BONUS HAT AÇIK") : "HEDEFİ BAĞLA"}</span></div>
     <div className="knot-board" role="grid" aria-label="Düğüm bağlantı tahtası">
       {tiles.map((tile, index) => {
         const active = connected.has(tileKey(tile.r, tile.c)); const dirs = rotateDirs(tile.base, tile.rot); const bonus = level.bonusIndex === index;
@@ -286,6 +299,7 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
         </button>;
       })}
     </div>
+    {targetConnected && <button className="ink-button knot-seal-button" onClick={sealFlow}>{bonusConnected ? "Akışı mühürle + bonus" : "Akışı mühürle"}</button>}
     <p className="game-tip">{level.lesson}</p>
   </div>;
 }
@@ -423,53 +437,64 @@ function MarkerGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; s
 }
 
 function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; seed: number; mastery: number; onFinish: (result: GameResult) => void }) {
-  const level = useMemo(() => generateHaneLevel(seed, mastery), [seed, mastery]);
+  const numberLevel = useMemo(() => generateHaneLevel(seed, mastery), [seed, mastery]);
+  const wordLevel = useMemo(() => generateHaneWordLevel(seed, mastery), [seed, mastery]);
   const finish = useFinishOnce(onFinish);
+  const [mode, setMode] = useState<"number" | "word">("number");
   const [guess, setGuess] = useState("");
-  const [rows, setRows] = useState<Array<{ guess: string; locks: number; traces: number }>>([]);
+  const [numberRows, setNumberRows] = useState<Array<{ guess: string; locks: number; traces: number }>>([]);
+  const [wordRows, setWordRows] = useState<Array<{ guess: string; marks: Array<"exact" | "present" | "absent"> }>>([]);
   const [notice, setNotice] = useState("");
   const inputId = `hane-entry-${seed}`;
-  const appendDigit = (digit: string) => {
+  const isWord = mode === "word";
+  const activeLength = isWord ? wordLevel.length : numberLevel.digits;
+  const activeRows = isWord ? wordRows : numberRows;
+  const activeMaxGuesses = isWord ? wordLevel.maxGuesses : numberLevel.maxGuesses;
+  const chooseMode = (next: "number" | "word") => { setMode(next); setGuess(""); setNotice(""); };
+  const append = (value: string) => {
     setNotice("");
-    setGuess(current => current.length < level.digits ? `${current}${digit}` : current);
+    setGuess(current => Array.from(current).length < activeLength ? `${current}${value}` : current);
   };
-  const submit = () => {
-    if (!isHaneGuessValid(guess, level)) {
-      setNotice(local(locale, `${level.digits} haneli ve sıfırla başlamayan bir kayıt gir.`, `Enter a ${level.digits}-digit record that does not start with zero.`));
+  const submit = useCallback(() => {
+    if (!isWord) {
+      if (!isHaneGuessValid(guess, numberLevel)) { setNotice(local(locale, `${numberLevel.digits} haneli ve sıfırla başlamayan bir kayıt gir.`, `Enter a ${numberLevel.digits}-digit record that does not start with zero.`)); return; }
+      const feedback = compareHaneGuess(numberLevel.target, guess);
+      const nextRows = [...numberRows, { guess, ...feedback }];
+      setNumberRows(nextRows); setGuess(""); setNotice("");
+      if (feedback.locks === numberLevel.digits) { finish({ outcome: "success", score: 1_100 - nextRows.length * 105 + mastery * 65, label: local(locale, "Kayıt hizalandı", "Record aligned"), detail: local(locale, `${nextRows.length}. fişte kayıt numarasını çözdün.`, `You resolved the record number on receipt ${nextRows.length}.`) }); return; }
+      if (nextRows.length >= numberLevel.maxGuesses) finish({ outcome: "failure", score: Math.max(60, 180 + nextRows.reduce((total, row) => total + row.locks * 32 + row.traces * 14, 0)), label: local(locale, "Kayıt kapanmadı", "Record remained open"), detail: local(locale, "Kilit ve iz toplamlarını birlikte oku; aynı hane hedefte yalnız bulunduğu kadar sayılır.", "Read lock and trace totals together; a digit can be counted only as often as it exists in the target.") });
       return;
     }
-    const feedback = compareHaneGuess(level.target, guess);
-    const nextRows = [...rows, { guess, ...feedback }];
-    setRows(nextRows);
-    setGuess("");
-    setNotice("");
-    if (feedback.locks === level.digits) {
-      finish({ outcome: "success", score: 1_100 - nextRows.length * 105 + mastery * 65, label: local(locale, "Kayıt hizalandı", "Record aligned"), detail: local(locale, `${nextRows.length}. fişte kayıt numarasını çözdün.`, `You resolved the record number on receipt ${nextRows.length}.`) });
-      return;
-    }
-    if (nextRows.length >= level.maxGuesses) {
-      finish({ outcome: "failure", score: Math.max(60, 180 + nextRows.reduce((total, row) => total + row.locks * 32 + row.traces * 14, 0)), label: local(locale, "Kayıt kapanmadı", "Record remained open"), detail: local(locale, "Kilit ve iz toplamlarını birlikte oku; aynı hane hedefte yalnız bulunduğu kadar sayılır.", "Read lock and trace totals together; a digit can be counted only as often as it exists in the target.") });
-    }
-  };
-  const status = `${rows.length}/${level.maxGuesses}`;
+    if (!isHaneWordGuessValid(guess, wordLevel)) { setNotice(local(locale, "Beş harfli, kayıt bankasında bulunan bir sözcük gir.", "Enter a five-letter word from the record bank.")); return; }
+    const normalizedGuess = Array.from(guess.toLocaleUpperCase("tr-TR")).join("");
+    const feedback = compareHaneWordGuess(wordLevel.target, normalizedGuess);
+    const nextRows = [...wordRows, { guess: normalizedGuess, marks: feedback.marks }];
+    setWordRows(nextRows); setGuess(""); setNotice("");
+    if (feedback.exact === wordLevel.length) { finish({ outcome: "success", score: 1_160 - nextRows.length * 105 + mastery * 65, label: local(locale, "Sözcük kayda geçti", "Word entered the record"), detail: local(locale, `${nextRows.length}. fişte gizli sözcüğü çözdün.`, `You resolved the hidden word on receipt ${nextRows.length}.`) }); return; }
+    if (nextRows.length >= wordLevel.maxGuesses) finish({ outcome: "failure", score: Math.max(60, 180 + nextRows.reduce((total, row) => total + row.marks.filter(mark => mark !== "absent").length * 26, 0)), label: local(locale, "Sözcük açık kaldı", "Word record stayed open"), detail: local(locale, "Önce yerinde olanları, sonra izde kalanları birlikte ele. Tekrarlanan harf yalnız hedefte olduğu kadar işaretlenir.", "Eliminate exact marks first, then letters elsewhere. A repeated letter is marked only as often as it exists in the target.") });
+  }, [finish, guess, isWord, locale, mastery, numberLevel, numberRows, wordLevel, wordRows]);
+  useEffect(() => {
+    if (!isWord) return;
+    const keydown = (event: KeyboardEvent) => {
+      if (document.activeElement?.id === inputId) return;
+      if (event.key === "Enter") { event.preventDefault(); submit(); return; }
+      if (event.key === "Backspace") { event.preventDefault(); setGuess(current => Array.from(current).slice(0, -1).join("")); return; }
+      const letter = event.key.toLocaleUpperCase("tr-TR");
+      if (/^[A-ZÇĞİÖŞÜ]$/.test(letter)) { event.preventDefault(); append(letter); }
+    };
+    window.addEventListener("keydown", keydown);
+    return () => window.removeEventListener("keydown", keydown);
+  }, [inputId, isWord, submit]);
+  const wordKeyboard = ["QWERTYUIOPĞÜ", "ASDFGHJKLŞİ", "ZXCVBNMÖÇ"];
   return <div className="hane-game game-surface">
-    <div className="game-hud"><span>{local(locale, "FİŞ", "RECEIPT")} <b>{status}</b></span><span>{local(locale, "HANE", "DIGITS")} <b>{level.digits}</b></span><span>{local(locale, "KURAL", "RULE")} <b>{level.allowsRepeats ? local(locale, "TEKRAR AÇIK", "REPEATS ON") : local(locale, "TEKRAR YOK", "NO REPEATS")}</b></span></div>
-    <section className="hane-desk" aria-label={local(locale, "Hane kayıt fişi", "Digit record receipt")}>
-      <div className="hane-head"><span>SELY / KAYIT MASASI</span><b>{local(locale, "KİLİT + İZ", "LOCK + TRACE")}</b></div>
-      <div className="hane-key"><div><b>◼ {local(locale, "KİLİT", "LOCK")}</b><span>{local(locale, "doğru hane · doğru sıra", "right digit · right place")}</span></div><div><b>◌ {local(locale, "İZ", "TRACE")}</b><span>{local(locale, "doğru hane · başka sıra", "right digit · other place")}</span></div></div>
-      <ol className="hane-rows" aria-live="polite">
-        {Array.from({ length: level.maxGuesses }, (_, index) => {
-          const row = rows[index];
-          return <li key={index} className={row ? "is-filled" : ""}><span className="hane-row-index">{String(index + 1).padStart(2, "0")}</span><strong>{row?.guess || "—".repeat(level.digits)}</strong>{row ? <span className="hane-feedback"><i>◼ {row.locks}</i><i>◌ {row.traces}</i></span> : <span className="hane-feedback is-blank"><i>◼ ·</i><i>◌ ·</i></span>}</li>;
-        })}
-      </ol>
-      <form className="hane-entry" onSubmit={event => { event.preventDefault(); submit(); }}>
-        <label htmlFor={inputId}>{local(locale, "KAYIT GİR", "ENTER RECORD")}</label>
-        <input id={inputId} value={guess} onChange={event => { setNotice(""); setGuess(event.target.value.replace(/\D/g, "").slice(0, level.digits)); }} inputMode="numeric" autoComplete="off" pattern="[0-9]*" aria-describedby={`${inputId}-note`} placeholder={"0".repeat(level.digits)} />
-        <button className="ink-button" type="submit">{local(locale, "Baskıya ver", "Stamp entry")}</button>
-      </form>
-      <div className="hane-keypad" aria-label={local(locale, "Sayı tuşları", "Number keypad")}>{[1,2,3,4,5,6,7,8,9,0].map(value => <button type="button" key={value} onClick={() => appendDigit(String(value))}>{value}</button>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => current.slice(0, -1))}>⌫</button></div>
-      <p id={`${inputId}-note`} className={notice ? "hane-note is-alert" : "hane-note"}>{notice || level.lesson}</p>
+    <div className="game-hud"><span>{local(locale, "FİŞ", "RECEIPT")} <b>{activeRows.length}/{activeMaxGuesses}</b></span><span>{local(locale, "KAYIT", "RECORD")} <b>{isWord ? local(locale, "SÖZCÜK", "WORD") : local(locale, "SAYI", "NUMBER")}</b></span><span>{isWord ? local(locale, "KONU", "TOPIC") : local(locale, "KURAL", "RULE")} <b>{isWord ? (locale === "en" ? wordLevel.categoryEn : wordLevel.category) : (numberLevel.allowsRepeats ? local(locale, "TEKRAR AÇIK", "REPEATS ON") : local(locale, "TEKRAR YOK", "NO REPEATS"))}</b></span></div>
+    <section className="hane-desk" aria-label={local(locale, "Hane kayıt masası", "Hane record desk")}>
+      <div className="hane-head"><span>SELY / KAYIT MASASI</span><b>{isWord ? local(locale, "SÖZCÜK İZİ", "WORD TRACE") : local(locale, "KİLİT + İZ", "LOCK + TRACE")}</b></div>
+      <div className="hane-mode-tabs" role="tablist" aria-label={local(locale, "Hane kayıt türü", "Hane record type")}><button type="button" role="tab" aria-selected={!isWord} className={!isWord ? "is-active" : ""} onClick={() => chooseMode("number")}>{local(locale, "Sayı kaydı", "Number record")}</button><button type="button" role="tab" aria-selected={isWord} className={isWord ? "is-active" : ""} onClick={() => chooseMode("word")}>{local(locale, "Sözcük kaydı", "Word record")}</button></div>
+      {!isWord ? <><div className="hane-key"><div><b>◼ {local(locale, "KİLİT", "LOCK")}</b><span>{local(locale, "doğru hane · doğru sıra", "right digit · right place")}</span></div><div><b>◌ {local(locale, "İZ", "TRACE")}</b><span>{local(locale, "doğru hane · başka sıra", "right digit · other place")}</span></div></div><ol className="hane-rows" aria-live="polite">{Array.from({ length: numberLevel.maxGuesses }, (_, index) => { const row = numberRows[index]; return <li key={index} className={row ? "is-filled" : ""}><span className="hane-row-index">{String(index + 1).padStart(2, "0")}</span><strong>{row?.guess || "—".repeat(numberLevel.digits)}</strong>{row ? <span className="hane-feedback"><i>◼ {row.locks}</i><i>◌ {row.traces}</i></span> : <span className="hane-feedback is-blank"><i>◼ ·</i><i>◌ ·</i></span>}</li>; })}</ol></> : <><div className="hane-key"><div><b>▣ {local(locale, "YERİNDE", "EXACT")}</b><span>{local(locale, "doğru harf · doğru yer", "right letter · right place")}</span></div><div><b>◌ {local(locale, "İZDE", "TRACED")}</b><span>{local(locale, "doğru harf · başka yer", "right letter · other place")}</span></div></div><ol className="hane-word-rows" aria-live="polite">{Array.from({ length: wordLevel.maxGuesses }, (_, index) => { const row = wordRows[index]; return <li key={index}>{Array.from({ length: wordLevel.length }, (_, letterIndex) => <span key={letterIndex} className={row ? `is-${row.marks[letterIndex]}` : ""}>{row?.guess[letterIndex] || ""}</span>)}</li>; })}</ol></>}
+      <form className="hane-entry" onSubmit={event => { event.preventDefault(); submit(); }}><label htmlFor={inputId}>{isWord ? local(locale, "SÖZCÜK YAZ", "ENTER WORD") : local(locale, "KAYIT GİR", "ENTER RECORD")}</label><input id={inputId} value={guess} onChange={event => { setNotice(""); const next = isWord ? Array.from(event.target.value.toLocaleUpperCase("tr-TR")).filter(letter => /^[A-ZÇĞİÖŞÜ]$/.test(letter)).slice(0, wordLevel.length).join("") : event.target.value.replace(/\D/g, "").slice(0, numberLevel.digits); setGuess(next); }} inputMode={isWord ? "text" : "numeric"} autoComplete="off" pattern={isWord ? "[A-Za-zÇĞİÖŞÜçğıöşü]+" : "[0-9]*"} aria-describedby={`${inputId}-note`} placeholder={isWord ? "—".repeat(wordLevel.length) : "0".repeat(numberLevel.digits)} /><button className="ink-button" type="submit">{local(locale, "Baskıya ver", "Stamp entry")}</button></form>
+      {!isWord ? <div className="hane-keypad" aria-label={local(locale, "Sayı tuşları", "Number keypad")}>{[1,2,3,4,5,6,7,8,9,0].map(value => <button type="button" key={value} onClick={() => append(String(value))}>{value}</button>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => current.slice(0, -1))}>⌫</button></div> : <div className="hane-word-keypad" aria-label={local(locale, "Türkçe harf tuşları", "Turkish letter keys")}>{wordKeyboard.map((line, index) => <div key={index}>{Array.from(line).map(letter => <button type="button" key={letter} onClick={() => append(letter)}>{letter}</button>)}</div>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => Array.from(current).slice(0, -1).join(""))}>⌫</button></div>}
+      <p id={`${inputId}-note`} className={notice ? "hane-note is-alert" : "hane-note"}>{notice || (isWord ? (locale === "en" ? `Today’s topic: ${wordLevel.categoryEn}. ${wordLevel.lesson}` : `Bugünün konusu: ${wordLevel.category}. ${wordLevel.lesson}`) : numberLevel.lesson)}</p>
     </section>
   </div>;
 }

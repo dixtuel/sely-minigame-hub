@@ -4,13 +4,13 @@ import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { getGameCatalog, type GameId, type GameMeta } from "@/lib/catalog";
 import { copy, localePath, rememberLocale, type SiteLocale } from "@/lib/i18n";
-import { masteryBand, personalSeed } from "@/lib/levelGenerators";
+import { masteryBand, personalSeed, runInstanceKey } from "@/lib/levelGenerators";
 
 const GameStudio = lazy(() => import("@/components/GameStudio"));
 const SCORE_KEY = "sely-scorebook-v1";
 type ScoreBook = Record<GameId, number>;
 type RunSource = "daily" | "personal";
-type SelectedRun = { game: GameMeta; source: RunSource; attempt: number; autoStart?: boolean; demo?: "spark" | "cut-fail" };
+type SelectedRun = { game: GameMeta; source: RunSource; attempt: number; autoStart?: boolean; demo?: "spark" | "spark-fail" | "cut-fail" };
 const blankScores: ScoreBook = { echo: 0, knot: 0, cut: 0, shadow: 0, marker: 0, hane: 0, spark: 0 };
 
 export default function Home({ locale = "tr", directGameId }: { locale?: SiteLocale; directGameId?: string }) {
@@ -32,7 +32,7 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
     const query = new URLSearchParams(window.location.search);
     const requestedId = directGameId ?? (query.get("play") === "daily" ? query.get("game") : null);
     const game = catalog.find(item => item.id === requestedId);
-    const demo = game?.id === "spark" && query.get("demo") === "1" ? "spark" : game?.id === "cut" && query.get("demo") === "fail" ? "cut-fail" : undefined;
+    const demo = game?.id === "spark" && query.get("demo") === "1" ? "spark" : game?.id === "spark" && query.get("demo") === "fail" ? "spark-fail" : game?.id === "cut" && query.get("demo") === "fail" ? "cut-fail" : undefined;
     if (game) setSelected({ game, source: "daily", attempt: 0, autoStart: true, demo });
   }, [catalog, daily.data, directGameId, selected]);
   const saveScore = (gameId: GameId, score: number) => setScores(previous => {
@@ -59,7 +59,10 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
     setSelected({ ...selected, source: "personal", attempt, autoStart: true, demo: undefined });
   };
 
-  if (selected) return <Suspense fallback={<main className="hub-page game-loading" aria-live="polite">{locale === "en" ? "Opening edition…" : "Baskı açılıyor…"}</main>}><GameStudio game={selected.game} locale={locale} runSource={selected.source} autoStart={selected.autoStart} demo={selected.demo} dailySeed={activeSeed} dailyDifficulty={activeDifficulty} highScore={scores[selected.game.id]} soundOn={soundOn} onToggleSound={() => setSoundOn(value => !value)} onBack={() => { setSelected(null); if (selected.autoStart) navigate(localePath(locale)); }} onNextLevel={continueToNextLevel} onScore={score => saveScore(selected.game.id, score)} /></Suspense>;
+  if (selected) {
+    const runIdentity = runInstanceKey(selected.game.id, selected.source, selected.attempt, activeSeed);
+    return <Suspense fallback={<main className="hub-page game-loading" aria-live="polite">{locale === "en" ? "Opening edition…" : "Baskı açılıyor…"}</main>}><GameStudio key={runIdentity} game={selected.game} locale={locale} runSource={selected.source} autoStart={selected.autoStart} demo={selected.demo} dailySeed={activeSeed} dailyDifficulty={activeDifficulty} highScore={scores[selected.game.id]} soundOn={soundOn} onToggleSound={() => setSoundOn(value => !value)} onBack={() => { setSelected(null); if (selected.autoStart) navigate(localePath(locale)); }} onNextLevel={continueToNextLevel} onScore={score => saveScore(selected.game.id, score)} /></Suspense>;
+  }
 
   return <main className="hub-page" lang={locale}>
     <header className="hub-nav">

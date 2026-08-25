@@ -30,6 +30,10 @@ export function personalSeed(seed: number, gameId: GameId, mastery: number, atte
   return hash >>> 0;
 }
 
+export function runInstanceKey(gameId: GameId, source: "daily" | "personal", attempt: number, seed: number) {
+  return `${gameId}:${source}:${attempt}:${seed}`;
+}
+
 function pointKey(point: Point) { return `${point.x}-${point.y}`; }
 
 export type HaneLevel = {
@@ -41,6 +45,39 @@ export type HaneLevel = {
 };
 
 export type HaneFeedback = { locks: number; traces: number };
+export type HaneMode = "number" | "word";
+export type HaneWordMark = "exact" | "present" | "absent";
+export type HaneWordFeedback = { marks: HaneWordMark[]; exact: number; present: number };
+export type HaneWordLevel = { length: number; maxGuesses: number; target: string; category: string; categoryEn: string; lesson: string };
+
+type HaneWordEntry = { word: string; category: string; categoryEn: string };
+const HANE_WORD_SOLUTIONS: HaneWordEntry[] = [
+  { word: "baskı", category: "Atölye", categoryEn: "Workshop" }, { word: "kağıt", category: "Atölye", categoryEn: "Workshop" },
+  { word: "damga", category: "Atölye", categoryEn: "Workshop" }, { word: "çizgi", category: "Atölye", categoryEn: "Workshop" },
+  { word: "kalem", category: "Atölye", categoryEn: "Workshop" }, { word: "fırça", category: "Atölye", categoryEn: "Workshop" },
+  { word: "bahçe", category: "Doğa", categoryEn: "Nature" }, { word: "çiçek", category: "Doğa", categoryEn: "Nature" },
+  { word: "deniz", category: "Doğa", categoryEn: "Nature" }, { word: "nehir", category: "Doğa", categoryEn: "Nature" },
+  { word: "bulut", category: "Doğa", categoryEn: "Nature" }, { word: "bahar", category: "Doğa", categoryEn: "Nature" },
+  { word: "şafak", category: "Doğa", categoryEn: "Nature" }, { word: "çınar", category: "Doğa", categoryEn: "Nature" },
+  { word: "köprü", category: "Yol", categoryEn: "Journey" }, { word: "durak", category: "Yol", categoryEn: "Journey" },
+  { word: "yolcu", category: "Yol", categoryEn: "Journey" }, { word: "vapur", category: "Yol", categoryEn: "Journey" },
+  { word: "tünel", category: "Yol", categoryEn: "Journey" }, { word: "geçit", category: "Yol", categoryEn: "Journey" },
+  { word: "mühür", category: "Keşif", categoryEn: "Discovery" }, { word: "yankı", category: "Keşif", categoryEn: "Discovery" },
+  { word: "gölge", category: "Keşif", categoryEn: "Discovery" }, { word: "fener", category: "Keşif", categoryEn: "Discovery" },
+  { word: "izlek", category: "Keşif", categoryEn: "Discovery" }, { word: "bilet", category: "Keşif", categoryEn: "Discovery" },
+  { word: "çözüm", category: "Bilgi", categoryEn: "Knowledge" }, { word: "cevap", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "neden", category: "Bilgi", categoryEn: "Knowledge" }, { word: "anlam", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "işlem", category: "Bilgi", categoryEn: "Knowledge" }, { word: "metin", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "bilim", category: "Bilgi", categoryEn: "Knowledge" }, { word: "radyo", category: "Kültür", categoryEn: "Culture" },
+  { word: "müzik", category: "Kültür", categoryEn: "Culture" }, { word: "sahne", category: "Kültür", categoryEn: "Culture" },
+  { word: "takım", category: "Kültür", categoryEn: "Culture" }, { word: "kitap", category: "Kültür", categoryEn: "Culture" },
+  { word: "kahve", category: "Gündelik", categoryEn: "Everyday" }, { word: "limon", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "şeker", category: "Gündelik", categoryEn: "Everyday" }, { word: "ekmek", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "tatlı", category: "Gündelik", categoryEn: "Everyday" }, { word: "sayfa", category: "Gündelik", categoryEn: "Everyday" },
+];
+const HANE_WORD_EXTRA_GUESSES = ["resim", "süreç", "sesli", "izler", "bölüm", "plaka", "merak", "oymak", "güneş"];
+const haneLetters = (value: string) => Array.from(value.trim().toLocaleUpperCase("tr-TR"));
+const HANE_WORD_GUESSES = new Set([...HANE_WORD_SOLUTIONS.map(entry => entry.word), ...HANE_WORD_EXTRA_GUESSES].map(word => haneLetters(word).join("")));
 
 export function generateHaneLevel(seed: number, mastery: number): HaneLevel {
   const random = rng(seed ^ Math.imul(mastery + 17, 0x45d9f3b));
@@ -84,6 +121,42 @@ export function compareHaneGuess(target: string, guess: string): HaneFeedback {
   return { locks, traces };
 }
 
+export function generateHaneWordLevel(seed: number, mastery: number): HaneWordLevel {
+  const entry = HANE_WORD_SOLUTIONS[indexFor(seed ^ Math.imul(mastery + 31, 0x27d4eb2d), 71 + mastery * 19, HANE_WORD_SOLUTIONS.length)];
+  return {
+    length: 5,
+    maxGuesses: Math.max(4, 7 - mastery),
+    target: haneLetters(entry.word).join(""),
+    category: entry.category,
+    categoryEn: entry.categoryEn,
+    lesson: "Her işareti tek başına değil, önceki fişlerle birlikte oku. Aynı harf hedefte bulunduğu kadar iz bırakır.",
+  };
+}
+
+export function isHaneWordGuessValid(guess: string, level: Pick<HaneWordLevel, "length">) {
+  const normalized = haneLetters(guess);
+  return normalized.length === level.length && HANE_WORD_GUESSES.has(normalized.join(""));
+}
+
+export function compareHaneWordGuess(target: string, guess: string): HaneWordFeedback {
+  const targetLetters = haneLetters(target);
+  const guessLetters = haneLetters(guess);
+  const marks: HaneWordMark[] = Array.from({ length: targetLetters.length }, () => "absent");
+  const remainingTarget: string[] = [];
+  const pending: number[] = [];
+  let exact = 0;
+  for (let index = 0; index < targetLetters.length; index += 1) {
+    if (targetLetters[index] === guessLetters[index]) { marks[index] = "exact"; exact += 1; }
+    else { remainingTarget.push(targetLetters[index]); pending.push(index); }
+  }
+  let present = 0;
+  for (const index of pending) {
+    const location = remainingTarget.indexOf(guessLetters[index]);
+    if (location >= 0) { marks[index] = "present"; present += 1; remainingTarget.splice(location, 1); }
+  }
+  return { marks, exact, present };
+}
+
 export type EchoLevel = {
   cols: number;
   rows: number;
@@ -91,6 +164,9 @@ export type EchoLevel = {
   exit: Point;
   checkpoints: Point[];
   listenerRoute: Point[];
+  walls: Point[];
+  fractures: Point[];
+  viewport: { cols: number; rows: number };
   pulseBudget: number;
   noiseLimit: number;
   lesson: string;
@@ -98,27 +174,26 @@ export type EchoLevel = {
 
 export function generateEchoLevel(seed: number, mastery: number): EchoLevel {
   const variation = indexFor(seed, 17, 3);
-  const cols = mastery >= 3 ? 12 : 11;
-  const rows = mastery >= 3 ? 8 : 7;
-  const keyY = rows - 2;
-  const listenerRoute = mastery === 1
-    ? [{ x: 4, y: 1 }, { x: 5, y: 1 }, { x: 5, y: 2 }, { x: 4, y: 2 }]
-    : [{ x: 4, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 }, { x: 7, y: 2 }, { x: 6, y: 3 }, { x: 5, y: 3 }, { x: 4, y: 2 }];
-  const checkpoints = [
-    { x: 2 + variation, y: rows - 1 },
-    { x: Math.floor(cols * .56), y: rows - 1 },
-    { x: cols - 4, y: keyY },
-  ];
+  const cols = mastery >= 3 ? 21 : 19;
+  const rows = mastery >= 3 ? 15 : 13;
+  const barriers = [4, 8, 12, 16];
+  const openings = [[2 + variation, rows - 3], [4, rows - 4], [3 + variation, rows - 5], [5, rows - 3]];
+  const walls = barriers.flatMap((x, barrierIndex) => Array.from({ length: rows }, (_, y) => ({ x, y })).filter(point => !openings[barrierIndex].includes(point.y)));
+  const listenerRoute = [{ x: 9, y: 1 }, { x: 10, y: 1 }, { x: 10, y: 2 }, { x: 9, y: 2 }];
+  const checkpoints = [{ x: 2, y: rows - 3 }, { x: 6, y: 3 + variation }, { x: 10, y: rows - 3 }];
   return {
     cols,
     rows,
-    key: mastery >= 2 ? { x: cols - 4, y: keyY } : null,
-    exit: { x: cols - 1, y: rows - 1 },
+    key: mastery >= 2 ? { x: 14, y: 5 } : null,
+    exit: { x: cols - 1, y: rows - 2 },
     checkpoints,
     listenerRoute,
-    pulseBudget: clamp(6 - mastery, 2, 5),
-    noiseLimit: 24 + mastery * 3,
-    lesson: mastery >= 3 ? "Üç iz plakasını kaydet, mührü al, sonra dinleyicinin merkez koridorunu dolan." : "Önce üç iz plakasını bul; yankıyı yalnız uzun koridor karardığında kullan.",
+    walls,
+    fractures: [{ x: 6, y: rows - 5 }, { x: 14, y: rows - 4 }, ...(mastery >= 3 ? [{ x: 10, y: 6 }, { x: 18, y: 4 }] : [])],
+    viewport: { cols: 9, rows: 7 },
+    pulseBudget: clamp(7 - mastery, 3, 6),
+    noiseLimit: 44 + mastery * 4,
+    lesson: mastery >= 3 ? "İzleri oda oda kaydet; kırılgan zeminin gürültüsünü dinleyicinin devriyesinden uzakta yönet." : "Harita aklında kalır. Uzun koridor karardığında yankıyı, kırılgan zemin gelmeden önce kullan.",
   };
 }
 
@@ -132,8 +207,8 @@ export function isEchoLevelSolvable(level: EchoLevel) {
     if (current.hasKey && current.checkpointMask === (1 << level.checkpoints.length) - 1 && current.point.x === level.exit.x && current.point.y === level.exit.y) return true;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const point = { x: current.point.x + dx, y: current.point.y + dy };
-      if (point.x < 0 || point.y < 0 || point.x >= level.cols || point.y >= level.rows || (point.x === listener.x && point.y === listener.y)) continue;
-      const noise = current.noise + 1; if (noise > level.noiseLimit) continue;
+      if (point.x < 0 || point.y < 0 || point.x >= level.cols || point.y >= level.rows || level.walls.some(wall => wall.x === point.x && wall.y === point.y) || (point.x === listener.x && point.y === listener.y)) continue;
+      const noise = current.noise + 1 + (level.fractures.some(fracture => fracture.x === point.x && fracture.y === point.y) ? 2 : 0); if (noise > level.noiseLimit) continue;
       const hasKey = current.hasKey || Boolean(level.key && point.x === level.key.x && point.y === level.key.y);
       const checkpointIndex = level.checkpoints.findIndex(checkpoint => checkpoint.x === point.x && checkpoint.y === point.y);
       const checkpointMask = checkpointIndex >= 0 ? current.checkpointMask | (1 << checkpointIndex) : current.checkpointMask;
@@ -147,14 +222,30 @@ export function isEchoLevelSolvable(level: EchoLevel) {
 export type KnotLevel = { rotations: number[]; bonusIndex: number; heatLimit: number; lesson: string };
 
 export function generateKnotLevel(seed: number, mastery: number): KnotLevel {
-  const random = rng(seed ^ (mastery * 97));
-  const rotations = Array.from({ length: 16 }, (_, index) => (index === 0 || index === 11 ? 0 : 1 + Math.floor(random() * 3)));
+  const rotations = Array.from({ length: 16 }, () => 0);
+  const coreScramble = [1, 2, 5, 6, 10];
+  const sideCandidates = [3, 4, 7, 8, 9, 12, 13, 14, 15];
+  for (const index of coreScramble) rotations[index] = 3;
+  const extraCount = Math.min(3, Math.max(0, mastery - 1));
+  for (let offset = 0; offset < extraCount; offset += 1) rotations[sideCandidates[indexFor(seed, 211 + offset * 13, sideCandidates.length)]] = 3;
   return {
     rotations,
-    bonusIndex: mastery >= 2 ? 12 + indexFor(seed, 37, 4) : -1,
+    bonusIndex: mastery >= 2 ? 5 : -1,
     heatLimit: 7 + mastery * 2,
     lesson: mastery >= 3 ? "Hedefe giden yolu kur; sonra fazla akışı bonus düğüme taşı." : "Her dönüş, akışın nereye kaçtığını değiştirir.",
   };
+}
+
+export function isKnotLevelSolvable(level: KnotLevel) {
+  const targetPath = [0, 1, 2, 6, 10, 11];
+  const bonusPath = level.bonusIndex >= 0 ? [1, 5] : [];
+  const requiredRotations = Array.from(new Set([...targetPath, ...bonusPath]));
+  const requiredTurns = requiredRotations.reduce((total, index) => total + ((4 - level.rotations[index]) % 4), 0);
+  return level.rotations.length === 16
+    && level.rotations.every(rotation => rotation >= 0 && rotation <= 3)
+    && targetPath.every(index => Number.isInteger(level.rotations[index]))
+    && (level.bonusIndex < 0 || level.bonusIndex === 5)
+    && requiredTurns <= level.heatLimit;
 }
 
 export type CutShapePlan = { id: number; x: number; y: number; size: number; color: string; target: boolean; linked: boolean };
@@ -345,7 +436,7 @@ export function isSparkLevelFair(level: SparkLevel) {
 export function validateDailySeed(seed: number, gameId: GameId) {
   const mastery = 2;
   if (gameId === "echo") return isEchoLevelSolvable(generateEchoLevel(seed, mastery));
-  if (gameId === "knot") return generateKnotLevel(seed, mastery).rotations.length === 16;
+  if (gameId === "knot") return isKnotLevelSolvable(generateKnotLevel(seed, mastery));
   if (gameId === "cut") return isCutLevelSolvable(generateCutLevel(seed, mastery));
   if (gameId === "shadow") return isShadowLevelSolvable(generateShadowLevel(seed, mastery));
   if (gameId === "spark") return isSparkLevelFair(generateSparkLevel(seed, mastery));

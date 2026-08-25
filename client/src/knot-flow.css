@@ -1,0 +1,3 @@
+.knot-seal-button { margin-top: 16px; background: var(--mustard); }
+.knot-seal-button:hover { background: var(--coral); }
+@media (max-width: 800px) { .knot-seal-button { margin-top: 13px; } }

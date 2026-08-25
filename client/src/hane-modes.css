@@ -1,0 +1,26 @@
+.hane-mode-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--ink); }
+.hane-mode-tabs button { min-height: 43px; border: 0; border-right: 1px solid var(--ink); background: #ece8dc; color: rgba(27,26,27,.68); font: 10px var(--font-mono); text-transform: uppercase; letter-spacing: .05em; transition: background 150ms var(--ease-out), color 150ms var(--ease-out); }
+.hane-mode-tabs button:last-child { border-right: 0; }
+.hane-mode-tabs button:hover { background: var(--mustard); color: var(--ink); }
+.hane-mode-tabs button.is-active { background: var(--coral); color: var(--ink); font-weight: 700; }
+.hane-word-rows { list-style: none; padding: 13px 17px 10px; margin: 0; display: grid; gap: 6px; border-bottom: 1px dashed rgba(27,26,27,.35); }
+.hane-word-rows li { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.hane-word-rows li span { aspect-ratio: 1.4; min-height: 37px; border: 1px dashed rgba(27,26,27,.42); background: rgba(246,240,227,.58); display: grid; place-items: center; font: 700 clamp(15px, 3.1vw, 21px) var(--font-mono); letter-spacing: .05em; transition: background 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out); }
+.hane-word-rows li span.is-exact { border-style: solid; border-color: var(--indigo); background: var(--indigo); color: var(--paper); }
+.hane-word-rows li span.is-present { border-style: solid; border-color: #b8831d; background: var(--mustard); color: var(--ink); }
+.hane-word-rows li span.is-absent { border-style: solid; border-color: rgba(27,26,27,.45); background: #d7d3c7; color: rgba(27,26,27,.65); }
+.hane-word-keypad { padding: 14px 16px; display: grid; gap: 5px; border-bottom: 1px solid rgba(27,26,27,.16); }
+.hane-word-keypad > div { display: flex; justify-content: center; gap: 4px; }
+.hane-word-keypad button { flex: 1 1 0; max-width: 40px; min-height: 36px; border: 1px solid var(--ink); background: var(--paper); padding: 3px 0; font: 11px var(--font-mono); transition: background 120ms var(--ease-out), transform 120ms var(--ease-out); }
+.hane-word-keypad button:hover { background: var(--mustard); }
+.hane-word-keypad button:active { transform: scale(.96); }
+.hane-word-keypad .hane-backspace { justify-self: end; width: 76px; max-width: none; color: var(--paper); background: var(--indigo); }
+@media (max-width: 800px) {
+  .hane-mode-tabs button { min-height: 39px; font-size: 9px; }
+  .hane-word-rows { padding: 11px 13px 9px; gap: 5px; }
+  .hane-word-rows li { gap: 5px; }
+  .hane-word-rows li span { min-height: 34px; }
+  .hane-word-keypad { padding: 11px 8px; gap: 4px; }
+  .hane-word-keypad > div { gap: 3px; }
+  .hane-word-keypad button { min-height: 33px; font-size: 9px; }
+}

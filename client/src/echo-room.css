@@ -1,0 +1,21 @@
+.echo-frame { width: min(760px, 100%); margin-top: 40px; border: 1px solid rgba(246,240,227,.58); background: #10111e; box-shadow: 7px 7px 0 rgba(229,179,65,.35); overflow: hidden; }
+.echo-camera-label { min-height: 34px; padding: 0 11px; border-bottom: 1px solid rgba(246,240,227,.28); display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(246,240,227,.88); font: 9px var(--font-mono); letter-spacing: .06em; }
+.echo-camera-label b { color: var(--mustard); font-size: 9px; }
+.echo-frame .echo-grid { width: 100%; margin-top: 0; border: 0; box-shadow: inset 0 0 0 5px rgba(229,179,65,.07); }
+.echo-frame .echo-cell { min-height: 40px; aspect-ratio: 1.42; }
+.echo-cell.is-wall { background: #222746; }
+.echo-cell.is-wall.is-visible { background: #58576a; }
+.echo-cell.is-fracture.is-visible { background: #3c2d54; }
+.echo-wall, .echo-fracture { position: absolute; inset: 0; display: grid; place-items: center; font: 15px var(--font-mono); }
+.echo-wall { color: rgba(246,240,227,.82); }
+.echo-fracture { color: var(--mustard); }
+.echo-frame + .echo-controls { width: min(760px, 100%); }
+@media (max-width: 800px) {
+  .echo-game .game-hud { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 0; padding: 8px 13px; gap: 6px 12px; }
+  .echo-game .game-hud span { display: flex; justify-content: space-between; gap: 5px; }
+  .echo-game .game-hud span:last-child { display: flex; }
+  .echo-frame { width: min(100%, 440px); margin-top: 39px; box-shadow: 4px 4px 0 rgba(229,179,65,.35); }
+  .echo-camera-label { min-height: 31px; font-size: 8px; }
+  .echo-frame .echo-cell { min-height: 32px; aspect-ratio: 1.34; }
+  .echo-wall, .echo-fracture { font-size: 12px; }
+}

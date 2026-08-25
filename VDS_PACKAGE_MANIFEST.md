@@ -1,18 +1,13 @@
-# SELY.TR VDS Proje Paketi — Eksiksiz Kurulum Ağacı
+# SELY.TR VDS Source Package
 
-Bu arşiv, VDS üzerinde eski sürümle birleştirilmeden kurulum yapılması için hazırlanmıştır. Paket kökünde `package.json`, `pnpm-lock.yaml`, `client/`, `server/`, `shared/`, `db/`, `scripts/` ve `prod-overlay.example/` bulunur.
+Bu arşiv, SELY.TR MiniGame Hub’ın kaynak paketidir. Ayrı verilen `sely-vds-assets.zip` arşivi zorunludur; içindeki PNG’ler, bu kaynakta kullanılan `/manus-storage/...` yollarına bağlanmak üzere `client/public/manus-storage/` içine kopyalanmalıdır.
 
-## Zorunlu Denetimler
+| Kapsam | Dahil edilen öğe |
+|---|---|
+| İstemci | React/Vite oyun yüzeyleri, Hane Sayı/Sözcük modları, Yankı takip penceresi, Düğüm mühürleme akışı ve Canvas Kıvılcım |
+| Sunucu | Günlük manifest, sınırlı planlanmış içerik uçları ve güvenlik katmanları |
+| Veri | `db/postgres/001_daily_content.sql`, Drizzle tanımları ve migration meta verisi |
+| Denetim | Vitest yapılandırması ve `scripts/audit-public-release.mjs` |
+| Dağıtım | `VDS_AGENT_COMMAND.md`, örnek production overlay ve AGPL-3.0 lisansı |
 
-Kurulumdan önce aşağıdaki iki dosyanın varlığını doğrulayın. Eksikse arşiv bozuk kabul edilmeli ve kurulum durdurulmalıdır.
-
-```text
-db/postgres/001_daily_content.sql
-scripts/audit-public-release.mjs
-```
-
-Varlıklar bu pakete gömülü değildir. Ayrı `sely-vds-assets.zip` paketindeki `images/*.png` dosyaları, derlemeden önce `client/public/manus-storage/` yoluna; favicon ise `client/public/favicon.svg` yoluna kopyalanmalıdır. Kodda `/manus-storage/<dosya>.png` URL’leri kullanılır; `/assets/sely/` yoluna geçmeyin ve kaynak URL’lerini değiştirmeyin.
-
-## Yalnız Kaynak Paketinde Bulunmayanlar
-
-`node_modules/`, `dist/`, `.git/`, `.manus-logs/`, gerçek `.env`, production kimlik/doğrulama dosyaları ve VDS sırları bu pakette bulunmaz. Bunlar kurulum sırasında yeniden üretilmeli veya private overlay’den uygulanmalıdır.
+Kurulum sırasında `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm test`, `pnpm build` ve `pnpm audit:public` sırasıyla çalıştırılmalıdır. Private `.env`, production iletişim bilgileri, arama motoru doğrulamaları ve mevcut veritabanı bu arşivde bulunmaz ve eklenmemelidir.

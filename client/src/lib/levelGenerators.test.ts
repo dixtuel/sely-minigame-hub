@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareHaneGuess, generateCutLevel, generateEchoLevel, generateHaneLevel, generateKnotLevel, generateMarkerCases, generateShadowLevel, generateSparkLevel, generateSparkWorldSegment, isCutLevelSolvable, isEchoLevelSolvable, isHaneGuessValid, isShadowLevelSolvable, isSparkLevelFair, personalSeed, validateDailySeed } from "./levelGenerators";
+import { compareHaneGuess, compareHaneWordGuess, generateCutLevel, generateEchoLevel, generateHaneLevel, generateHaneWordLevel, generateKnotLevel, generateMarkerCases, generateShadowLevel, generateSparkLevel, generateSparkWorldSegment, isCutLevelSolvable, isEchoLevelSolvable, isHaneGuessValid, isHaneWordGuessValid, isKnotLevelSolvable, isShadowLevelSolvable, isSparkLevelFair, personalSeed, runInstanceKey, validateDailySeed } from "./levelGenerators";
 
 describe("mini-game level generators", () => {
   it("keeps each daily generator deterministic and structurally valid", () => {
@@ -19,6 +19,12 @@ describe("mini-game level generators", () => {
     expect(personalSeed(99, "echo", 2, 1)).not.toBe(personalSeed(99, "echo", 2, 2));
   });
 
+  it("assigns a distinct component identity to each generated continuation route", () => {
+    expect(runInstanceKey("echo", "daily", 0, 99)).not.toBe(runInstanceKey("echo", "personal", 1, 99));
+    expect(runInstanceKey("spark", "personal", 1, 99)).not.toBe(runInstanceKey("spark", "personal", 2, 99));
+    expect(runInstanceKey("hane", "personal", 2, 202)).toBe("hane:personal:2:202");
+  });
+
   it("finds a real completion route for the path, cut, and delayed-shadow generators", () => {
     for (const seed of [14151, 76321, 99183]) {
       expect(isEchoLevelSolvable(generateEchoLevel(seed, 2))).toBe(true);
@@ -34,6 +40,16 @@ describe("mini-game level generators", () => {
     expect(level.rows).toBeGreaterThanOrEqual(7);
     expect(level.checkpoints).toHaveLength(3);
     expect(isEchoLevelSolvable(level)).toBe(true);
+  });
+
+  it("keeps Knot’s optional bonus on an affordable branch of the target flow", () => {
+    for (const seed of [14151, 76321, 99183, 207771]) {
+      for (const mastery of [1, 2, 3, 4]) {
+        const level = generateKnotLevel(seed, mastery);
+        expect(isKnotLevelSolvable(level)).toBe(true);
+        if (mastery >= 2) expect(level.bonusIndex).toBe(5);
+      }
+    }
   });
 
   it("keeps Spark’s endless chapter compact, deterministic, and fair to replay", () => {
@@ -66,5 +82,15 @@ describe("mini-game level generators", () => {
     expect(isHaneGuessValid("0234", novice)).toBe(false);
     expect(compareHaneGuess("1212", "1111")).toEqual({ locks: 2, traces: 0 });
     expect(compareHaneGuess("1212", "2121")).toEqual({ locks: 0, traces: 4 });
+  });
+
+  it("builds a deterministic Turkish word record and consumes repeated letters only once", () => {
+    const level = generateHaneWordLevel(74181, 2);
+    expect(level).toEqual(generateHaneWordLevel(74181, 2));
+    expect(Array.from(level.target)).toHaveLength(5);
+    expect(isHaneWordGuessValid("bahçe", level)).toBe(true);
+    expect(isHaneWordGuessValid("xxxxx", level)).toBe(false);
+    expect(compareHaneWordGuess("KİTAP", "KİLİT")).toEqual({ marks: ["exact", "exact", "absent", "absent", "present"], exact: 2, present: 1 });
+    expect(compareHaneWordGuess("KİTAP", "AAAAA")).toEqual({ marks: ["absent", "absent", "absent", "exact", "absent"], exact: 1, present: 0 });
   });
 });
