@@ -72,7 +72,7 @@ export default function VakaBoard({ vakaCase, locale, soundOn, caseIndex, onSolv
       <p className="vaka-briefing">{locale === "en" ? vakaCase.briefingEn : vakaCase.briefing}</p>
       <div className="marker-rule vaka-summary">
         <span>{locale === "en" ? "CASE FILE" : "VAKA DOSYASI"}</span>
-        <h2>{accused ? `${accused.name}: ${accused.statement}` : (locale === "en" ? "Who gave this statement?" : "Bu ifadeyi kim verdi?")}</h2>
+        <h2>{accused ? `${accused.name}: ${accused.statement}` : (locale === "en" ? "Which suspect will you accuse?" : "Hangi şüpheliyi suçlayacaksın?")}</h2>
         {rejection && <p className="marker-clue vaka-rejection">{rejection}</p>}
         {phase === "select-clue" && (
           <div className="vaka-desk-actions">

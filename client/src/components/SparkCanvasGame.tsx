@@ -41,8 +41,18 @@ export function projectSparkWorld(x: number, z: number, playerDistance: number, 
   };
 }
 
-export function sparkWorldCollision(playerX: number, playerDistance: number, entity: Pick<Entity, "x" | "z" | "size">) {
-  return Math.abs(entity.z - playerDistance) < .88 && Math.abs(entity.x - playerX) < (.18 + entity.size * .38);
+export function sparkWorldCollision(playerX: number, playerDistance: number, entity: Pick<Entity, "x" | "z" | "size" | "kind">) {
+  if (Math.abs(entity.z - playerDistance) >= .88) return false;
+  const dx = Math.abs(entity.x - playerX);
+  const outerEdge = .18 + entity.size * .38;
+  if (entity.kind === "gate") {
+    // Kapı görsel olarak iki direk arasında bir boşluk bırakıyor (satır ~194-202,
+    // local x -22..-10 sol direk, 10..22 sağ direk, -10..10 geçilebilir boşluk);
+    // oyuncu tam ortadan geçince direklere değil boşluğa denk gelmeli.
+    const gapEdge = outerEdge * (10 / 22);
+    return dx > gapEdge && dx < outerEdge;
+  }
+  return dx < outerEdge;
 }
 
 function entityForSegment(seed: number, mastery: number, segmentIndex: number) {

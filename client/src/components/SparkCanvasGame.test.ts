@@ -10,10 +10,18 @@ describe("Spark Canvas world mapping", () => {
   });
 
   it("uses the same x-z world coordinates for a hit and a safe pass", () => {
-    const threat = { x: .32, z: 10, size: .68 };
+    const threat = { x: .32, z: 10, size: .68, kind: "barrier" as const };
     expect(sparkWorldCollision(.32, 10, threat)).toBe(true);
     expect(sparkWorldCollision(-.72, 10, threat)).toBe(false);
     expect(sparkWorldCollision(.32, 12.1, threat)).toBe(false);
+  });
+
+  it("lets the player pass safely through the middle of a gate but hits its posts", () => {
+    const gate = { x: 0, z: 10, size: .5, kind: "gate" as const };
+    expect(sparkWorldCollision(0, 10, gate)).toBe(false);
+    expect(sparkWorldCollision(.05, 10, gate)).toBe(false);
+    expect(sparkWorldCollision(.3, 10, gate)).toBe(true);
+    expect(sparkWorldCollision(.9, 10, gate)).toBe(false);
   });
 
   it("prepares a deterministic, bounded ribbon of side scenery before a segment reaches view", () => {
