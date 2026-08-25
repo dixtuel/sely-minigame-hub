@@ -302,9 +302,15 @@ export function echoMinimalNoise(level: Omit<EchoLevel, "noiseLimit">): number {
 }
 
 function buildEchoLevelCandidate(seed: number, mastery: number): EchoLevel {
-  const cols = mastery >= 3 ? 21 : 19;
-  const rows = mastery >= 3 ? 15 : 13;
-  const barriers = [4, 8, 12, 16];
+  const cols = mastery >= 3 ? 15 : 13;
+  const rows = mastery >= 3 ? 11 : 9;
+  // Oda küçüldüğü için sabit sütun indeksleri yerine ustalık seviyesine göre iki dar-boyut
+  // düzeni kullanılıyor; sütunlar (bariyer/iz/dinleyici/anahtar) birbirinden ayrık tutuluyor ki
+  // hiçbiri aynı duvar sütununda kaybolmasın.
+  const layout = mastery >= 3
+    ? { barriers: [4, 8, 11], checkpointXs: [2, 6, 10], fractureXs: [2, 5, 7, 9, 13], listenerX: 9, keyX: 13, keyY: 5 }
+    : { barriers: [3, 7, 10], checkpointXs: [2, 5, 9], fractureXs: [2, 4, 6, 8, 11], listenerX: 8, keyX: 11, keyY: 4 };
+  const { barriers, checkpointXs, fractureXs, listenerX, keyX, keyY } = layout;
   // Her bariyer için bağımsız, seed'e bağlı iki açıklık (kenarlara çok yakın olmasın, birbirinden farklı olsun)
   const openingAt = (barrierIndex: number, slot: number) => 2 + indexFor(seed, 401 + barrierIndex * 53 + slot * 11, rows - 4);
   const openings = barriers.map((_, barrierIndex) => {
@@ -313,14 +319,14 @@ function buildEchoLevelCandidate(seed: number, mastery: number): EchoLevel {
     return [first, second];
   });
   const walls = barriers.flatMap((x, barrierIndex) => Array.from({ length: rows }, (_, y) => ({ x, y })).filter(point => !openings[barrierIndex].includes(point.y)));
-  const listenerRoute = [{ x: 9, y: 1 }, { x: 10, y: 1 }, { x: 10, y: 2 }, { x: 9, y: 2 }];
+  const listenerRoute = [{ x: listenerX, y: 1 }, { x: listenerX + 1, y: 1 }, { x: listenerX + 1, y: 2 }, { x: listenerX, y: 2 }];
   const checkpointY = (salt: number) => 1 + indexFor(seed, salt, rows - 2);
-  const checkpoints = [{ x: 2, y: checkpointY(457) }, { x: 6, y: checkpointY(461) }, { x: 10, y: checkpointY(463) }];
-  const fractureAt = (salt: number) => ({ x: [2, 6, 10, 14, 18][indexFor(seed, salt, 5)], y: 1 + indexFor(seed, salt + 5, rows - 2) });
+  const checkpoints = [{ x: checkpointXs[0], y: checkpointY(457) }, { x: checkpointXs[1], y: checkpointY(461) }, { x: checkpointXs[2], y: checkpointY(463) }];
+  const fractureAt = (salt: number) => ({ x: fractureXs[indexFor(seed, salt, 5)], y: 1 + indexFor(seed, salt + 5, rows - 2) });
   const shape: Omit<EchoLevel, "noiseLimit"> = {
     cols,
     rows,
-    key: mastery >= 2 ? { x: 14, y: 5 } : null,
+    key: mastery >= 2 ? { x: keyX, y: keyY } : null,
     exit: { x: cols - 1, y: rows - 2 },
     checkpoints,
     listenerRoute,
