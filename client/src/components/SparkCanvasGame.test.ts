@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sparkCollision, sparkLaneBounds, sparkLaneOf } from "./SparkCanvasGame";
+import { sparkCollision, sparkLaneBounds, sparkLaneOf, sparkPlayerScreenY, sparkSpeedRatio } from "./SparkCanvasGame";
 
 describe("Spark Canvas top-down lane mapping", () => {
   it("splits the road into evenly spaced, non-overlapping lane centers", () => {
@@ -24,5 +24,14 @@ describe("Spark Canvas top-down lane mapping", () => {
     expect(sparkCollision(bounds[0].center, 10, hazardInLane1, 3)).toBe(false);
     expect(sparkCollision(bounds[2].center, 10, hazardInLane1, 3)).toBe(false);
     expect(sparkCollision(bounds[1].center, 15, hazardInLane1, 3)).toBe(false);
+  });
+
+  it("makes the car visibly creep forward on screen as speed rises, not just the road scroll", () => {
+    expect(sparkSpeedRatio(6, 6, 15)).toBe(0);
+    expect(sparkSpeedRatio(15, 6, 15)).toBe(1);
+    expect(sparkSpeedRatio(10.5, 6, 15)).toBeCloseTo(.5, 1);
+    const atRest = sparkPlayerScreenY(600, 0);
+    const atMax = sparkPlayerScreenY(600, 1);
+    expect(atMax).toBeLessThan(atRest); // daha yukarı = ekranda daha ileride
   });
 });
