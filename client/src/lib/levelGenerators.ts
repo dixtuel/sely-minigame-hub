@@ -561,23 +561,54 @@ export function isKnotLevelSolvable(level: KnotLevel) {
 export type CutShapePlan = { id: number; x: number; y: number; size: number; color: string; target: boolean; linked: boolean };
 export type CutLevel = { shapes: CutShapePlan[]; cuts: number; stainLimit: number; lesson: string };
 
-export function generateCutLevel(seed: number, mastery: number): CutLevel {
+/**
+ * Şekillerin yerleşimi ve HANGİ şekillerin hedef olduğu artık gerçekten seed'e göre değişiyor —
+ * eskiden `slots` sabit bir 11-konumluk diziydi, yalnız ±3/±2.5 birimlik önemsiz bir titreşim
+ * uygulanıyordu ve hedefler her zaman dizideki İLK N eleman oluyordu (seed'in gerçek etkisi yoktu,
+ * "hep aynı yerlerde" şikayeti buradan geliyordu). Şimdi konumlar reddetme-örneklemeyle (rejection
+ * sampling, minimum aralıkla) tuvale rastgele yerleştiriliyor, hedef kümesi seed'e göre karıştırılan
+ * bir sıradan seçiliyor, ve tüm aday sonuç generateCutLevel'da isCutLevelSolvable ile doğrulanıp
+ * gerekirse yeni bir seed ofsetiyle yeniden üretiliyor (Echo/Knot/Vaka'daki "üret→doğrula→tekrar
+ * dene" deseniyle aynı).
+ */
+function buildCutLevelCandidate(seed: number, mastery: number): CutLevel {
   const random = rng(seed ^ 0x9e3779b9);
-  const slots = [
-    [18, 12], [35, 13], [53, 10], [74, 15], [24, 28], [47, 28], [66, 30], [15, 44], [38, 45], [57, 43], [79, 44],
-  ] as const;
   const palette = ["#e9563f", "#e5b341", "#f6f0e3", "#66b8a0"];
+  const count = 7 + mastery;
   const desired = Math.min(4, 2 + mastery);
-  const shapes = slots.slice(0, 7 + mastery).map(([baseX, baseY], id) => ({
+  const minGap = 13;
+  const points: Point[] = [];
+  for (let index = 0; index < count; index += 1) {
+    let placed: Point | null = null;
+    for (let tries = 0; tries < 40 && !placed; tries += 1) {
+      const candidate = { x: 10 + random() * 80, y: 8 + random() * 40 };
+      if (points.every(existing => Math.hypot(existing.x - candidate.x, existing.y - candidate.y) >= minGap)) placed = candidate;
+    }
+    // 40 denemede boşluk bulunamazsa (çok yoğun tuval) ızgaraya düş — asla çakışma riski kalmaz.
+    points.push(placed ?? { x: 12 + (index % 6) * 13, y: 10 + Math.floor(index / 6) * 18 });
+  }
+  const order = points.map((_, index) => index);
+  for (let i = order.length - 1; i > 0; i -= 1) { const j = Math.floor(random() * (i + 1));[order[i], order[j]] = [order[j], order[i]]; }
+  const targetIds = new Set(order.slice(0, desired));
+  const linkedIds = new Set(mastery >= 3 ? order.slice(0, desired).filter((_, index) => index % 2 === 1) : []);
+  const shapes = points.map((point, id) => ({
     id,
-    x: baseX + Math.round((random() - .5) * 6),
-    y: baseY + Math.round((random() - .5) * 5),
+    x: Math.round(point.x),
+    y: Math.round(point.y),
     size: 3.5 + Math.round(random() * 2),
     color: palette[id % palette.length],
-    target: id < desired,
-    linked: mastery >= 3 && id > 0 && id < desired && id % 2 === 1,
+    target: targetIds.has(id),
+    linked: linkedIds.has(id),
   }));
   return { shapes, cuts: mastery >= 3 ? 3 : 4, stainLimit: 1 + Math.floor(mastery / 2), lesson: mastery >= 3 ? "Bağlı hedefleri aynı kesimde ayırırsan mürekkep zincirlenir." : "Hedef şekilleri tek, kararlı çizgide topla." };
+}
+
+export function generateCutLevel(seed: number, mastery: number): CutLevel {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = buildCutLevelCandidate(seed + attempt * 6229, mastery);
+    if (isCutLevelSolvable(candidate)) return candidate;
+  }
+  return buildCutLevelCandidate(seed, mastery);
 }
 
 function segmentDistance(point: Point, a: Point, b: Point) {

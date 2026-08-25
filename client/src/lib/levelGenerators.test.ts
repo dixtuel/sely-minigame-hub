@@ -34,17 +34,33 @@ describe("mini-game level generators", () => {
     }
   });
 
-  it("produces a genuinely different level on each consecutive practice attempt (echo/knot/shadow)", () => {
-    for (const gameId of ["echo", "knot", "shadow"] as const) {
+  it("produces a genuinely different level on each consecutive practice attempt (echo/knot/shadow/cut)", () => {
+    for (const gameId of ["echo", "knot", "shadow", "cut"] as const) {
       const seeds = Array.from({ length: 6 }, (_, attempt) => personalSeed(618_071, gameId, 2, attempt + 1));
       const levels = seeds.map(seed => {
         if (gameId === "echo") return generateEchoLevel(seed, 2);
         if (gameId === "knot") return generateKnotLevel(seed, 2);
+        if (gameId === "cut") return generateCutLevel(seed, 2);
         return generateShadowLevel(seed, 2);
       });
       const unique = new Set(levels.map(level => JSON.stringify(level)));
       expect(unique.size).toBeGreaterThan(1); // en azından bazı attempt'ler birbirinden farklı olmalı
     }
+  });
+
+  it("varies Cutout's shape layout AND which shapes are targets across seeds, and keeps every level genuinely solvable", () => {
+    const layouts = new Set<string>();
+    const targetSets = new Set<string>();
+    for (let seed = 1; seed <= 80; seed += 5) {
+      for (const mastery of [0, 2, 4]) {
+        const level = generateCutLevel(seed, mastery);
+        expect(isCutLevelSolvable(level)).toBe(true);
+        layouts.add(JSON.stringify(level.shapes.map(shape => [shape.x, shape.y])));
+        targetSets.add(JSON.stringify(level.shapes.filter(shape => shape.target).map(shape => shape.id).sort()));
+      }
+    }
+    expect(layouts.size).toBeGreaterThan(1);
+    expect(targetSets.size).toBeGreaterThan(1); // hedefler artık her zaman ilk N şekil değil
   });
 
   it("keeps Echo Room and Shadow Share solvable across many seeds and masteries (stress test)", () => {
