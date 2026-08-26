@@ -16,7 +16,6 @@ import { createInitialSnapshot, type GameEvent, type GameSnapshot } from "./type
 
 type PulseRing = { mesh: ReturnType<typeof CreateTorus>; material: StandardMaterial; age: number };
 
-const startPoint = new Vector3(-12.0, 0, -10.2);
 const copperLamp = Color3.FromHexString("#e5b36a");
 const calmLamp = Color3.FromHexString("#c9824a");
 
@@ -38,24 +37,32 @@ export class GameWorld {
   private hudTicker = 0;
   private demoTime = 0;
   private demoTarget = 0;
-  private readonly demoTargets: Vector3[];
+  private demoTargets: Vector3[];
+  private seed: number;
+  private mastery: number;
 
   constructor(
     private readonly scene: Scene,
     canvas: HTMLCanvasElement,
     private readonly emit: (event: GameEvent) => void,
     private readonly isDemo: boolean,
+    seed = 618071,
+    mastery = 0,
   ) {
+    this.seed = seed;
+    this.mastery = mastery;
     this.coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-    this.environment = new ArchiveEnvironment(scene);
+    this.environment = new ArchiveEnvironment(scene, seed, mastery);
     this.camera = new CameraController(scene);
     this.playerLamp = this.createPlayer();
     this.listener.position.copyFrom(this.environment.listenerPath[0]);
     this.listenerMaterial = this.createListener();
     this.pulses = this.createPulsePool();
     this.input = new InputManager(() => this.pulse());
-    this.player.position.copyFrom(startPoint);
+    this.player.position.copyFrom(this.environment.startPoint);
+    this.facingYaw = movementYaw(this.environment.initialHeading.x, this.environment.initialHeading.z);
     this.player.rotation.y = this.facingYaw;
+    this.heading.copyFrom(this.environment.initialHeading);
     this.demoTargets = [...this.environment.markers.map((marker) => marker.point), this.environment.exitPoint];
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
     if (this.isDemo) {
@@ -102,42 +109,44 @@ export class GameWorld {
   }
 
   private createListener() {
-    const material = new StandardMaterial("listener-material", this.scene);
-    material.diffuseColor = Color3.FromHexString("#3b394a");
-    material.emissiveColor = Color3.FromHexString("#1f1124");
-    const body = CreateCylinder("listener-body", { diameterTop: 0.26, diameterBottom: 0.72, height: 1.35, tessellation: 6 }, this.scene);
-    body.parent = this.listener;
-    body.position.y = 0.68;
-    body.material = material;
-    this.environment.registerDynamicReveal(body, this.listener.position, 0.72);
-    const shoulder = CreateTorus("listener-shoulder-ring", { diameter: 0.76, thickness: 0.05, tessellation: 20 }, this.scene);
-    shoulder.parent = this.listener;
-    shoulder.position.y = 0.72;
-    shoulder.material = material;
-    this.environment.registerDynamicReveal(shoulder, this.listener.position, 0.82);
-    const eye = CreateSphere("listener-eye", { diameter: 0.14, segments: 6 }, this.scene);
+    const material = new StandardMaterial("listener-glass", this.scene);
+    material.diffuseColor = Color3.FromHexString("#100c14");
+    material.emissiveColor = Color3.FromHexString("#1b1022");
+    material.specularColor = Color3.Black();
+    const eye = CreateSphere("listener-core", { diameter: 0.62, segments: 8 }, this.scene);
     eye.parent = this.listener;
-    eye.position.set(0, 0.9, -0.34);
-    this.environment.registerDynamicReveal(eye, this.listener.position, 1);
-    const eyeMaterial = new StandardMaterial("listener-eye-material", this.scene);
-    eyeMaterial.diffuseColor = copperLamp;
-    eyeMaterial.emissiveColor = copperLamp;
-    eye.material = eyeMaterial;
+    eye.position.y = 1.0;
+    eye.material = material;
+    const ring = CreateTorus("listener-ring", { diameter: 1.02, thickness: 0.045, tessellation: 24 }, this.scene);
+    ring.parent = this.listener;
+    ring.position.y = 1.0;
+    ring.rotation.x = Math.PI / 3;
+    ring.material = material;
+    const aura = CreateTorus("listener-aura", { diameter: 1.4, thickness: 0.025, tessellation: 24 }, this.scene);
+    aura.parent = this.listener;
+    aura.position.y = 0.05;
+    aura.rotation.x = Math.PI / 2;
+    aura.material = material;
+    [eye, ring, aura].forEach((mesh) => this.environment.registerDynamicReveal(mesh, this.listener.position, 1));
     return material;
   }
 
-  private createPulsePool() {
-    return Array.from({ length: 3 }, (_, index) => {
-      const mesh = CreateTorus(`echo-ring-${index}`, { diameter: 1.1 + index * 0.45, thickness: 0.045, tessellation: 24 }, this.scene);
-      const material = new StandardMaterial(`echo-ring-material-${index}`, this.scene);
-      material.diffuseColor = Color3.FromHexString("#70c6bd");
-      material.emissiveColor = Color3.FromHexString("#70c6bd");
+  private createPulsePool(): PulseRing[] {
+    const rings: PulseRing[] = [];
+    for (let index = 0; index < 4; index += 1) {
+      const material = new StandardMaterial(`pulse-ring-${index}`, this.scene);
+      material.diffuseColor = Color3.FromHexString("#c9824a");
+      material.emissiveColor = Color3.FromHexString("#f0c38d");
       material.alpha = 0;
       material.backFaceCulling = false;
+      const mesh = CreateTorus(`pulse-mesh-${index}`, { diameter: 1.6, thickness: 0.045, tessellation: 24 }, this.scene);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.position.y = 0.08;
       mesh.material = material;
       mesh.isPickable = false;
-      return { mesh, material, age: 99 };
-    });
+      rings.push({ mesh, material, age: 99 });
+    }
+    return rings;
   }
 
   setVirtualMove(x: number, z: number) {
@@ -145,98 +154,95 @@ export class GameWorld {
   }
 
   pulse() {
-    if (this.state.phase !== "explore") return;
-    if (this.state.echoes <= 0) {
-      this.emit({ type: "toast", message: "Yankı bütçesi bitti. Rotayı hatırla." });
-      return;
-    }
+    if (this.state.phase !== "explore" || this.state.echoes <= 0) return;
     this.state.echoes -= 1;
-    this.state.noise = Math.min(32, this.state.noise + 2);
     this.environment.triggerPulse(this.player.position);
     this.spawnPulse();
-    this.playerLamp.emissiveColor.copyFrom(copperLamp);
-    this.emit({ type: "toast", message: "Yankı yayıldı — işaretleri izle." });
     this.emitState();
   }
 
   private spawnPulse() {
-    this.pulses.forEach((pulse, index) => {
-      pulse.age = -index * 0.1;
-      pulse.mesh.position.copyFrom(this.player.position);
-      pulse.mesh.position.y = 0.08 + index * 0.012;
-      pulse.mesh.scaling.setAll(1);
-      pulse.material.alpha = 0.82 - index * 0.12;
-    });
+    const ring = this.pulses.find((item) => item.age > 3.0) || this.pulses[0];
+    ring.age = 0;
+    ring.mesh.position.copyFrom(this.player.position);
+    ring.mesh.position.y = 0.08;
+    ring.mesh.scaling.setAll(1);
+    ring.material.alpha = 0.78;
   }
 
   update(delta: number) {
     this.environment.update(delta);
     this.updatePulses(delta);
-    if (this.state.phase === "explore") {
-      if (this.isDemo) this.updateDemo(delta);
-      else this.updatePlayer(delta);
-      this.updateListener(delta);
-      this.checkObjectives();
-    }
-    const objective = this.getObjectivePoint();
-    this.camera.update(this.player.position, this.heading, objective, delta);
-    this.playerLamp.emissiveColor = Color3.Lerp(this.playerLamp.emissiveColor, calmLamp, Math.min(1, delta * 3.5));
+    if (this.isDemo) this.updateDemo(delta);
+    else this.updatePlayer(delta);
+    this.updateListener(delta);
+    this.camera.update(this.player.position, this.heading, this.getObjectivePoint(), delta);
     this.hudTicker += delta;
-    if (this.hudTicker > 0.18) {
+    if (this.hudTicker >= 0.25) {
       this.hudTicker = 0;
       this.emitState();
     }
   }
 
-  private faceMovement(x: number, z: number, delta: number) {
-    this.facingYaw = stepFacingYaw(this.facingYaw, x, z, delta);
+  private updateDemo(delta: number) {
+    this.demoTime += delta;
+    const target = this.demoTargets[this.demoTarget] || this.environment.exitPoint;
+    const dx = target.x - this.player.position.x;
+    const dz = target.z - this.player.position.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance < 0.8) {
+      this.demoTarget = (this.demoTarget + 1) % this.demoTargets.length;
+      return;
+    }
+    const moveX = dx / distance;
+    const moveZ = dz / distance;
+    this.facingYaw = stepFacingYaw(this.facingYaw, moveX, moveZ, delta, 9.5);
     this.player.rotation.y = this.facingYaw;
-    this.heading.set(Math.sin(this.facingYaw), 0, Math.cos(this.facingYaw));
+    this.heading.set(moveX, 0, moveZ);
+    this.player.position.x += moveX * 2.2 * delta;
+    this.player.position.z += moveZ * 2.2 * delta;
+    if (Math.sin(this.demoTime * 1.8) > 0.94) {
+      this.environment.triggerPulse(this.player.position);
+      this.spawnPulse();
+    }
   }
 
   private updatePlayer(delta: number) {
+    if (this.state.phase !== "explore") return;
     const move = this.input.getMove();
-    const moving = Math.hypot(move.x, move.z) > 0.01;
-    if (!moving) return;
-    const speed = this.coarsePointer ? 3.75 : 4.45;
-    const nextX = Math.max(-15.2, Math.min(15.2, this.player.position.x + move.x * speed * delta));
-    const nextZ = Math.max(-13.2, Math.min(13.2, this.player.position.z + move.z * speed * delta));
-    this.player.position.x = nextX;
-    this.player.position.z = nextZ;
-    this.faceMovement(move.x, move.z, delta);
-    this.state.noise = Math.min(32, this.state.noise + delta * 0.46);
-    if (this.state.noise >= 32) this.finish("failed", "Oda seni duydu. Daha az adım, daha doğru yankı.");
-  }
-
-  private updateDemo(delta: number) {
-    this.demoTime += delta;
-    if (this.demoTime < 0.85) return;
-    const goal = this.demoTargets[this.demoTarget];
-    if (!goal) return;
-    const dx = goal.x - this.player.position.x;
-    const dz = goal.z - this.player.position.z;
-    const distance = Math.hypot(dx, dz);
-    if (distance < 0.24) {
-      this.demoTarget += 1;
-      this.pulse();
-      return;
+    const active = move.x !== 0 || move.z !== 0;
+    const speed = 3.65;
+    if (active) {
+      this.facingYaw = stepFacingYaw(this.facingYaw, move.x, move.z, delta, 11.0);
+      this.player.rotation.y = this.facingYaw;
+      this.heading.set(move.x, 0, move.z);
+      const nextX = Math.max(-15.4, Math.min(15.4, this.player.position.x + move.x * speed * delta));
+      const nextZ = Math.max(-13.4, Math.min(13.4, this.player.position.z + move.z * speed * delta));
+      this.player.position.x = nextX;
+      this.player.position.z = nextZ;
+      this.state.noise = Math.min(100, this.state.noise + delta * 2.1);
+      this.playerLamp.emissiveColor.copyFrom(copperLamp.scale(0.85 + Math.sin(Date.now() * 0.008) * 0.15));
+    } else {
+      this.state.noise = Math.max(0, this.state.noise - delta * 4.8);
+      this.playerLamp.emissiveColor.copyFrom(calmLamp);
     }
-    const speed = 2.6;
-    const x = dx / distance;
-    const z = dz / distance;
-    this.player.position.x += x * speed * delta;
-    this.player.position.z += z * speed * delta;
-    this.faceMovement(x, z, delta);
+    this.checkObjectives();
   }
 
   private updateListener(delta: number) {
-    this.listenerWait += delta;
-    const target = this.environment.listenerPath[(this.listenerIndex + 1) % this.environment.listenerPath.length];
-    const dx = target.x - this.listener.position.x;
-    const dz = target.z - this.listener.position.z;
+    const route = this.environment.listenerPath;
+    if (!route.length) return;
+    const current = route[this.listenerIndex];
+    const dx = current.x - this.listener.position.x;
+    const dz = current.z - this.listener.position.z;
     const distance = Math.hypot(dx, dz);
-    if (distance < 0.12) this.listenerIndex = (this.listenerIndex + 1) % this.environment.listenerPath.length;
-    else {
+    if (distance < 0.35) {
+      this.listenerWait += delta;
+      if (this.listenerWait >= 1.6) {
+        this.listenerWait = 0;
+        this.listenerIndex = (this.listenerIndex + 1) % route.length;
+      }
+    } else {
       const pace = 1.05;
       this.listener.position.x += (dx / distance) * pace * delta;
       this.listener.position.z += (dz / distance) * pace * delta;
@@ -296,21 +302,34 @@ export class GameWorld {
     this.emitState();
   }
 
-  restart() {
+  restart(seed?: number, mastery?: number) {
+    if (seed !== undefined) {
+      this.seed = seed;
+      if (mastery !== undefined) this.mastery = mastery;
+      this.environment.rebuild(this.seed, this.mastery);
+    } else {
+      this.environment.reset();
+    }
+
     this.state = createInitialSnapshot();
-    this.player.position.copyFrom(startPoint);
-    this.facingYaw = movementYaw(0.62, 0.78);
+    this.player.position.copyFrom(this.environment.startPoint);
+    this.facingYaw = movementYaw(this.environment.initialHeading.x, this.environment.initialHeading.z);
     this.player.rotation.y = this.facingYaw;
-    this.heading.set(0.62, 0, 0.78);
+    this.heading.copyFrom(this.environment.initialHeading);
     this.listener.position.copyFrom(this.environment.listenerPath[0]);
     this.listenerIndex = 0;
+    this.listenerWait = 0;
+    this.demoTargets = [...this.environment.markers.map((marker) => marker.point), this.environment.exitPoint];
     this.demoTime = 0;
     this.demoTarget = 0;
-    this.environment.reset();
     this.pulses.forEach((pulse) => {
       pulse.age = 99;
       pulse.material.alpha = 0;
     });
+    if (this.isDemo) {
+      this.environment.triggerPulse(this.player.position);
+      this.spawnPulse();
+    }
     this.emitState();
   }
 

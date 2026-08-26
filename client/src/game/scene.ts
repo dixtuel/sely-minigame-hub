@@ -12,6 +12,8 @@ export async function createGameScene(
   canvas: HTMLCanvasElement,
   onEvent: (event: GameEvent) => void,
   demo = false,
+  seed = 618071,
+  mastery = 0,
 ): Promise<GameHandle> {
   const scene = new Scene(engine);
   const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
@@ -32,7 +34,7 @@ export async function createGameScene(
   sun.diffuse = Color3.FromHexString("#e6b176");
   sun.intensity = coarsePointer ? 1.05 : 1.28;
 
-  const world = new GameWorld(scene, canvas, onEvent, demo);
+  const world = new GameWorld(scene, canvas, onEvent, demo, seed, mastery);
   const observer = scene.onBeforeRenderObservable.add(() => {
     world.update(Math.min(0.05, scene.getEngine().getDeltaTime() / 1000));
   });
@@ -41,7 +43,7 @@ export async function createGameScene(
     scene,
     setVirtualMove: (x, z) => world.setVirtualMove(x, z),
     pulse: () => world.pulse(),
-    restart: () => world.restart(),
+    restart: (newSeed?: number, newMastery?: number) => world.restart(newSeed, newMastery),
     dispose: () => {
       scene.onBeforeRenderObservable.remove(observer);
       world.dispose();

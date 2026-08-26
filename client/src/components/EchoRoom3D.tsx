@@ -94,6 +94,8 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
         if (event.type === "ready") setReady(true);
       },
       demo,
+      seed,
+      mastery,
     )
       .then((handle) => {
         if (disposed) {
@@ -127,6 +129,14 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
       startedRef.current = false;
     };
   }, [locale, mastery, onFinish]);
+
+  useEffect(() => {
+    if (handleRef.current && startedRef.current) {
+      finishedRef.current = false;
+      handleRef.current.restart(seed, mastery);
+      setToast(local(locale, "Yeni rota kayda geçti. İlk işareti bul.", "New route recorded. Find the first mark."));
+    }
+  }, [seed, mastery, locale]);
 
   useEffect(() => {
     const update = () => setIsFullscreen(document.fullscreenElement === rootRef.current);
@@ -172,7 +182,7 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
 
   const restart = () => {
     finishedRef.current = false;
-    handleRef.current?.restart();
+    handleRef.current?.restart(seed, mastery);
     setToast(local(locale, "Yeni rota kayda geçti. İlk işareti bul.", "New route recorded. Find the first mark."));
   };
 

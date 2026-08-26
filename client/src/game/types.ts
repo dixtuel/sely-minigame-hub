@@ -21,7 +21,7 @@ export type GameHandle = {
   scene: { render: () => void };
   setVirtualMove: (x: number, z: number) => void;
   pulse: () => void;
-  restart: () => void;
+  restart: (seed?: number, mastery?: number) => void;
   dispose: () => void;
 };
 
