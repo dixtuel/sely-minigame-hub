@@ -171,7 +171,17 @@ function seoMetaPlugin(): Plugin {
         tags.push({ tag: "meta", attrs: { name: "yandex-verification", content: yandex }, injectTo: "head" });
       }
       if (adsense) {
+        const clientFormatted = adsense.startsWith("ca-") ? adsense : `ca-${adsense}`;
         tags.push({ tag: "meta", attrs: { name: "google-adsense-account", content: adsense }, injectTo: "head" });
+        tags.push({
+          tag: "script",
+          attrs: {
+            async: "true",
+            src: `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientFormatted}`,
+            crossorigin: "anonymous",
+          },
+          injectTo: "head",
+        });
       }
 
       return { html, tags };

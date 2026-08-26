@@ -903,10 +903,13 @@ var securityHeaders = (_req, res, next) => {
 };
 
 // server/seoRoutes.ts
+var CACHE_1DAY = "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
+var CACHE_1WEEK = "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000";
 function registerSeoAndVerificationRoutes(app2) {
   app2.get("/ads.txt", (_req, res) => {
     const adsTxt = process.env.ADS_TXT || process.env.VITE_ADS_TXT;
     if (adsTxt) {
+      res.set("Cache-Control", CACHE_1DAY);
       res.type("text/plain; charset=utf-8").send(adsTxt.trim() + "\n");
     } else {
       res.status(404).send("Not Found");
@@ -915,6 +918,7 @@ function registerSeoAndVerificationRoutes(app2) {
   app2.get("/robots.txt", (_req, res) => {
     const domain = process.env.PRIMARY_DOMAIN || process.env.VITE_PRIMARY_DOMAIN;
     const sitemapUrl = domain ? `https://${domain}/sitemap.xml` : "/sitemap.xml";
+    res.set("Cache-Control", CACHE_1DAY);
     res.type("text/plain; charset=utf-8").send(`User-agent: *
 Allow: /
 
@@ -931,12 +935,14 @@ Sitemap: ${sitemapUrl}
   <url><loc>${base}/terms</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>${base}/accessibility</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
 </urlset>`;
+    res.set("Cache-Control", CACHE_1DAY);
     res.type("application/xml; charset=utf-8").send(sitemap);
   });
   app2.get("/google:token.html", (req, res, next) => {
     const token = req.params.token;
     const expected = process.env.GOOGLE_SITE_VERIFICATION || process.env.VITE_GOOGLE_SITE_VERIFICATION;
     if (expected && expected === token) {
+      res.set("Cache-Control", CACHE_1WEEK);
       return res.type("text/html; charset=utf-8").send(`google-site-verification: google${token}.html
 `);
     }
@@ -945,6 +951,7 @@ Sitemap: ${sitemapUrl}
   app2.get("/BingSiteAuth.xml", (_req, res, next) => {
     const token = process.env.BING_SITE_VERIFICATION || process.env.VITE_BING_SITE_VERIFICATION;
     if (token) {
+      res.set("Cache-Control", CACHE_1WEEK);
       return res.type("application/xml; charset=utf-8").send(`<?xml version="1.0"?>
 <users>
 	<user>${token}</user>
@@ -957,6 +964,7 @@ Sitemap: ${sitemapUrl}
     const token = req.params.token;
     const expected = process.env.YANDEX_SITE_VERIFICATION || process.env.VITE_YANDEX_SITE_VERIFICATION;
     if (expected && expected === token) {
+      res.set("Cache-Control", CACHE_1WEEK);
       return res.type("text/html; charset=utf-8").send(`<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head><body>Verification: ${token}</body></html>
 `);
     }
@@ -978,6 +986,12 @@ function createApp() {
   const publicApiLimiter = createRateLimiter({ max: 90, windowMs: 6e4 });
   app2.post("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);
   app2.post("/api/scheduled/daily-cleanup", scheduledLimiter, dailyCleanupHandler);
+  app2.use("/api/trpc", (req, res, next) => {
+    if (req.method === "GET") {
+      res.setHeader("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
+    }
+    next();
+  });
   app2.use(
     "/api/trpc",
     publicApiLimiter,
@@ -991,8 +1005,8 @@ function createApp() {
 var app = createApp();
 var app_default = app;
 
-// api/index.ts
-var index_default = app_default;
+// server/serverless.ts
+var serverless_default = app_default;
 export {
-  index_default as default
+  serverless_default as default
 };
