@@ -1,3 +1,4 @@
+import { moveFromInputAxes } from "./movementBasis";
 import type { GridPoint } from "./types";
 
 const clampAxis = (value: number) => (Math.abs(value) < 0.16 ? 0 : Math.max(-1, Math.min(1, value)));
@@ -40,22 +41,23 @@ export class InputManager {
   }
 
   getMove(): GridPoint {
-    let x = (this.keys.has("d") || this.keys.has("arrowright") ? 1 : 0) - (this.keys.has("a") || this.keys.has("arrowleft") ? 1 : 0);
-    let z = (this.keys.has("s") || this.keys.has("arrowdown") ? 1 : 0) - (this.keys.has("w") || this.keys.has("arrowup") ? 1 : 0);
+    // Keep keyboard, gamepad and virtual joystick on one camera-relative plane.
+    // W/ArrowUp is negative vertical input and therefore maps to forward.
+    let horizontal = (this.keys.has("d") || this.keys.has("arrowright") ? 1 : 0) - (this.keys.has("a") || this.keys.has("arrowleft") ? 1 : 0);
+    let vertical = (this.keys.has("s") || this.keys.has("arrowdown") ? 1 : 0) - (this.keys.has("w") || this.keys.has("arrowup") ? 1 : 0);
 
     const pad = navigator.getGamepads?.()[0];
     const gamepadPulseDown = Boolean(pad?.buttons[0]?.pressed);
     if (pad) {
-      x += clampAxis(pad.axes[0] ?? 0);
-      z += clampAxis(pad.axes[1] ?? 0);
+      horizontal += clampAxis(pad.axes[0] ?? 0);
+      vertical += clampAxis(pad.axes[1] ?? 0);
       if (gamepadPulseDown && !this.gamepadPulseWasDown) this.onPulse();
     }
     this.gamepadPulseWasDown = gamepadPulseDown;
 
-    x += this.virtualMove.x;
-    z += this.virtualMove.z;
-    const magnitude = Math.hypot(x, z);
-    return magnitude > 1 ? { x: x / magnitude, z: z / magnitude } : { x, z };
+    horizontal += this.virtualMove.x;
+    vertical += this.virtualMove.z;
+    return moveFromInputAxes(horizontal, vertical);
   }
 
   dispose() {

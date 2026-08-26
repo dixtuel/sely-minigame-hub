@@ -1,5 +1,6 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCapsule } from "@babylonjs/core/Meshes/Builders/capsuleBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
@@ -10,6 +11,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { ArchiveEnvironment, type Marker } from "./ArchiveEnvironment";
 import { CameraController } from "./CameraController";
 import { InputManager } from "./InputManager";
+import { movementYaw, stepFacingYaw } from "./heading";
 import { createInitialSnapshot, type GameEvent, type GameSnapshot } from "./types";
 
 type PulseRing = { mesh: ReturnType<typeof CreateTorus>; material: StandardMaterial; age: number };
@@ -27,6 +29,7 @@ export class GameWorld {
   private readonly listener = new TransformNode("listener-root", this.scene);
   private readonly listenerMaterial: StandardMaterial;
   private readonly heading = new Vector3(0.62, 0, 0.78);
+  private facingYaw = movementYaw(0.62, 0.78);
   private readonly pulses: PulseRing[];
   private readonly coarsePointer: boolean;
   private state: GameSnapshot = createInitialSnapshot();
@@ -52,6 +55,7 @@ export class GameWorld {
     this.pulses = this.createPulsePool();
     this.input = new InputManager(() => this.pulse());
     this.player.position.copyFrom(startPoint);
+    this.player.rotation.y = this.facingYaw;
     this.demoTargets = [...this.environment.markers.map((marker) => marker.point), this.environment.exitPoint];
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
     if (this.isDemo) {
@@ -85,6 +89,10 @@ export class GameWorld {
     lamp.parent = this.player;
     lamp.position.set(0, 1.24, 0.35);
     lamp.material = lampMaterial;
+    const frontPlate = CreateBox("traveler-front-plate", { width: 0.2, height: 0.18, depth: 0.1 }, this.scene);
+    frontPlate.parent = this.player;
+    frontPlate.position.set(0, 0.82, 0.34);
+    frontPlate.material = lampMaterial;
     const shadowRing = CreateTorus("traveler-foot-ring", { diameter: 0.78, thickness: 0.018, tessellation: 24 }, this.scene);
     shadowRing.parent = this.player;
     shadowRing.position.y = 0.025;
@@ -180,6 +188,12 @@ export class GameWorld {
     }
   }
 
+  private faceMovement(x: number, z: number, delta: number) {
+    this.facingYaw = stepFacingYaw(this.facingYaw, x, z, delta);
+    this.player.rotation.y = this.facingYaw;
+    this.heading.set(Math.sin(this.facingYaw), 0, Math.cos(this.facingYaw));
+  }
+
   private updatePlayer(delta: number) {
     const move = this.input.getMove();
     const moving = Math.hypot(move.x, move.z) > 0.01;
@@ -189,9 +203,7 @@ export class GameWorld {
     const nextZ = Math.max(-13.2, Math.min(13.2, this.player.position.z + move.z * speed * delta));
     this.player.position.x = nextX;
     this.player.position.z = nextZ;
-    this.heading.x += (move.x - this.heading.x) * Math.min(1, delta * 10);
-    this.heading.z += (move.z - this.heading.z) * Math.min(1, delta * 10);
-    this.player.rotation.y = Math.atan2(this.heading.x, this.heading.z);
+    this.faceMovement(move.x, move.z, delta);
     this.state.noise = Math.min(32, this.state.noise + delta * 0.46);
     if (this.state.noise >= 32) this.finish("failed", "Oda seni duydu. Daha az adım, daha doğru yankı.");
   }
@@ -214,9 +226,7 @@ export class GameWorld {
     const z = dz / distance;
     this.player.position.x += x * speed * delta;
     this.player.position.z += z * speed * delta;
-    this.heading.x += (x - this.heading.x) * Math.min(1, delta * 7);
-    this.heading.z += (z - this.heading.z) * Math.min(1, delta * 7);
-    this.player.rotation.y = Math.atan2(this.heading.x, this.heading.z);
+    this.faceMovement(x, z, delta);
   }
 
   private updateListener(delta: number) {
@@ -289,7 +299,8 @@ export class GameWorld {
   restart() {
     this.state = createInitialSnapshot();
     this.player.position.copyFrom(startPoint);
-    this.player.rotation.set(0, 0, 0);
+    this.facingYaw = movementYaw(0.62, 0.78);
+    this.player.rotation.y = this.facingYaw;
     this.heading.set(0.62, 0, 0.78);
     this.listener.position.copyFrom(this.environment.listenerPath[0]);
     this.listenerIndex = 0;
