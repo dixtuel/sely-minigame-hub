@@ -148,3 +148,8 @@ todo.md
 verification_notes.md
 PRIVATE_DELIVERY_MANIFEST.md
 GAME_REVISION_PLAN_2026-08.md
+.vercel
+
+# AI Assistant configs and memory
+.agents/
+.claude/
