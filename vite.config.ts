@@ -167,25 +167,6 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    // Yankı Odası'nın three.js/@react-three yükü yalnız o oyun açıldığında indirilsin diye
-    // "echo-3d" chunk'ı, Vite'ın varsayılan modulepreload sezgisinden hariç tutuluyor —
-    // aksi halde ana sayfa index.html'de <link rel="modulepreload"> ile önceden indirilirdi.
-    modulePreload: {
-      resolveDependencies: (_filename, deps) => deps.filter(dep => !dep.includes("echo-3d")),
-    },
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (id.includes("react") || id.includes("scheduler") || id.includes("wouter")) return "framework";
-          if (id.includes("@tanstack") || id.includes("@trpc") || id.includes("superjson")) return "data-client";
-          if (id.includes("lucide-react")) return "icons";
-          if (id.includes("@radix-ui") || id.includes("cmdk") || id.includes("vaul")) return "ui-primitives";
-          if (id.includes("/three/") || id.includes("@react-three")) return "echo-3d";
-          return "vendor";
-        },
-      },
-    },
   },
   server: {
     host: true,
