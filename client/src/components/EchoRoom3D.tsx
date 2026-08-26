@@ -50,7 +50,7 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
     const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
     const devicePixelRatio = Math.max(1, window.devicePixelRatio || 1);
     const hardwareScale = coarsePointer
-      ? Math.max(1.25, Math.min(1.55, devicePixelRatio * 0.62))
+      ? Math.max(1, Math.min(1.3, devicePixelRatio * 0.5))
       : Math.max(1, Math.min(1.2, devicePixelRatio * 0.82));
 
     const engine = new Engine(canvas, true, {
@@ -116,14 +116,21 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
     const onVisibilityChange = () => {
       if (!document.hidden) engine.resize();
     };
+    const onFullscreenChange = () => {
+      // Some mobile browsers settle fullscreen layout a frame late; resize twice to be safe.
+      engine.resize();
+      requestAnimationFrame(() => engine.resize());
+    };
 
     window.addEventListener("resize", onResize);
     document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
 
     return () => {
       disposed = true;
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
       handleRef.current?.dispose();
       handleRef.current = null;
       engine.dispose();
@@ -181,8 +188,13 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
   };
 
   const toggleFullscreen = async () => {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else await rootRef.current?.requestFullscreen?.();
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await rootRef.current?.requestFullscreen?.();
+    } catch {
+      // Fullscreen API is unsupported/blocked on this browser (e.g. iOS Safari) —
+      // the game shell already fills the viewport, so this is a soft no-op.
+    }
   };
 
   const restart = () => {
@@ -320,7 +332,13 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
         </div>
         <button
           className="mobile-pulse"
-          onClick={() => handleRef.current?.pulse()}
+          onPointerDown={(event) => {
+            // A synthesized click can be dropped/delayed when another finger is
+            // already down on the joystick — fire on pointerdown like the joystick does,
+            // so both controls work with two fingers at once.
+            event.preventDefault();
+            handleRef.current?.pulse();
+          }}
           disabled={snapshot.echoes === 0 || snapshot.phase !== "explore"}
         >
           <span>{local(locale, "YANKI", "ECHO")}</span>

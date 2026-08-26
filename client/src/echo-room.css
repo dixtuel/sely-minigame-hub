@@ -4,7 +4,7 @@
  * bakır-turkuaz bilgi vurgusu ve her cihazda sabit yatay oyun çerçevesi.
  */
 
-.game-shell { position: fixed; inset: 0; overflow: hidden; isolation: isolate; background: #07100f; color: #f2ecdf; transition: inset .32s cubic-bezier(.23,1,.32,1), box-shadow .32s cubic-bezier(.23,1,.32,1); }
+.game-shell { position: fixed; inset: 0; overflow: hidden; isolation: isolate; background: #07100f; color: #f2ecdf; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); transition: inset .32s cubic-bezier(.23,1,.32,1), box-shadow .32s cubic-bezier(.23,1,.32,1); }
 .game-shell.is-window { inset: clamp(20px, 5.5vh, 64px) clamp(24px, 7vw, 122px); border: 1px solid rgba(201,130,74,.68); box-shadow: 0 24px 70px rgba(0,0,0,.55), 8px 8px 0 rgba(201,130,74,.35); }
 .game-shell:fullscreen { inset: 0; border: 0; box-shadow: none; }
 .game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
@@ -104,7 +104,7 @@
   .movement-pad::before, .movement-pad::after { content: ""; position: absolute; background: rgba(235,225,204,.11); pointer-events: none; }
   .movement-pad::before { width: 1px; height: 72%; } .movement-pad::after { width: 72%; height: 1px; }
   .joystick-knob { position: relative; z-index: 1; display: block; width: 54px; height: 54px; transform: translate(var(--joy-x, 0px), var(--joy-z, 0px)); border: 1px solid rgba(235,225,204,.5); border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(112,198,189,.86), rgba(17,44,42,.92) 65%); box-shadow: 0 0 0 7px rgba(112,198,189,.1), 0 8px 20px rgba(0,0,0,.35); transition: transform .08s linear; pointer-events: none; }
-  .mobile-pulse { display: grid; width: 86px; height: 86px; place-content: center; border: 1px solid #c9824a; border-radius: 50%; background: radial-gradient(circle, rgba(103,63,39,.94), rgba(15,28,27,.84)); color: #fff5e5; box-shadow: 0 0 0 8px rgba(201,130,74,.1); cursor: pointer; }
+  .mobile-pulse { display: grid; width: 86px; height: 86px; place-content: center; border: 1px solid #c9824a; border-radius: 50%; background: radial-gradient(circle, rgba(103,63,39,.94), rgba(15,28,27,.84)); color: #fff5e5; box-shadow: 0 0 0 8px rgba(201,130,74,.1); cursor: pointer; touch-action: none; }
   .mobile-pulse span { font-family: "Space Grotesk", sans-serif; font-size: 9px; letter-spacing: .14em; } .mobile-pulse b { color: #70c6bd; font-size: 22px; }
   .result-card { padding: 24px; } .result-card h1 { font-size: 32px; }
 }
