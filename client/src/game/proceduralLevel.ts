@@ -1,5 +1,5 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { cellCenter, generateMaze, type MazeResult } from "./maze";
+import { cellCenter, generateMaze, type MazeResult, type MazeWall } from "./maze";
 
 export type WallPlacement = [number, number, number, number, number]; // x, z, width, depth, height
 
@@ -13,13 +13,13 @@ export type Echo3DLayout = {
   exitPoint: Vector3;
   gateRotation: number;
   walls: WallPlacement[];
+  hiddenWalls: WallPlacement[];
   gateWallPlacement: WallPlacement;
   columns: [number, number, number, number][];
   rubble: [number, number, number, number][];
   grass: [number, number][];
   listenerPath: Vector3[];
   rooms: { x: number; z: number; theme: 0 | 1 | 2 | 3 }[];
-  floorTiles: [number, number][];
 };
 
 function rng(seed: number) {
@@ -47,6 +47,62 @@ function wallToPlacement(wall: { x1: number; z1: number; x2: number; z2: number 
   }
   const depth = +(Math.abs(wall.z2 - wall.z1)).toFixed(2);
   return [cx, cz, WALL_THICKNESS, depth, height];
+}
+
+const cellKey = (col: number, row: number) => `${col},${row}`;
+
+/**
+ * Cells on the shortest open-graph path from start to every marker and to the
+ * gate. Walls bordering any of these cells are never hidden, so a "hidden trap"
+ * wall can only ever sit on an optional side-branch/dead-end — the actual
+ * solution route stays ambiently visible without spending an echo on it.
+ */
+export function computeCriticalCells(maze: MazeResult): Set<string> {
+  const parent = new Map<string, string | null>();
+  const startKey = cellKey(maze.startCell.col, maze.startCell.row);
+  parent.set(startKey, null);
+  const queue: { col: number; row: number }[] = [maze.startCell];
+  while (queue.length) {
+    const current = queue.shift()!;
+    const cell = maze.cells[current.row][current.col];
+    const neighbors: { col: number; row: number }[] = [];
+    if (!cell.north) neighbors.push({ col: current.col, row: current.row - 1 });
+    if (!cell.south) neighbors.push({ col: current.col, row: current.row + 1 });
+    if (!cell.east) neighbors.push({ col: current.col + 1, row: current.row });
+    if (!cell.west) neighbors.push({ col: current.col - 1, row: current.row });
+    for (const neighbor of neighbors) {
+      const key = cellKey(neighbor.col, neighbor.row);
+      if (!parent.has(key)) {
+        parent.set(key, cellKey(current.col, current.row));
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  const critical = new Set<string>();
+  const addPathTo = (target: { col: number; row: number }) => {
+    let key: string | null | undefined = cellKey(target.col, target.row);
+    while (key) {
+      critical.add(key);
+      key = parent.get(key) ?? null;
+    }
+  };
+  maze.markerCells.forEach(addPathTo);
+  addPathTo(maze.gateCell);
+  return critical;
+}
+
+/**
+ * Walls where BOTH bordering cells are off the critical path (start → every marker,
+ * start → gate). Only these are eligible to become pulse-only "hidden traps" — the
+ * actual solution route is guaranteed to stay ambiently visible without spending an echo.
+ */
+export function selectHiddenWalls(maze: MazeResult, prng: () => number, chance = 0.22): MazeWall[] {
+  const criticalCells = computeCriticalCells(maze);
+  return maze.walls.filter((wall) => {
+    const onCriticalPath = criticalCells.has(cellKey(wall.cellA.col, wall.cellA.row)) || criticalCells.has(cellKey(wall.cellB.col, wall.cellB.row));
+    return !onCriticalPath && prng() < chance;
+  });
 }
 
 function cellFreePoint(maze: MazeResult, col: number, row: number, prng: () => number, margin = 0.55) {
@@ -92,6 +148,17 @@ export function generate3DEchoLayout(seed: number, mastery: number): Echo3DLayou
   const gateRotation = gateHorizontal ? 0 : Math.PI / 2;
 
   const walls = maze.walls.map((wall) => wallToPlacement(wall, prng));
+
+  // Hidden "trap" walls: pulse-only, and only ever picked from walls where BOTH
+  // bordering cells are off the critical path — the route to every marker and
+  // to the gate always stays ambiently visible, so there's always a legible way through.
+  const criticalCells = computeCriticalCells(maze);
+  const hiddenChance = 0.22;
+  const hiddenWalls: WallPlacement[] = [];
+  maze.walls.forEach((wall, index) => {
+    const onCriticalPath = criticalCells.has(cellKey(wall.cellA.col, wall.cellA.row)) || criticalCells.has(cellKey(wall.cellB.col, wall.cellB.row));
+    if (!onCriticalPath && prng() < hiddenChance) hiddenWalls.push(walls[index]);
+  });
 
   // Initial heading: point toward the first open neighbor of the start cell.
   const startCellData = maze.cells[maze.startCell.row][maze.startCell.col];
@@ -147,14 +214,6 @@ export function generate3DEchoLayout(seed: number, mastery: number): Echo3DLayou
 
   const listenerPath = maze.rooms.map((room) => new Vector3(+room.cx.toFixed(2), 0, +room.cz.toFixed(2)));
 
-  const floorTiles: [number, number][] = [];
-  for (let row = 0; row < maze.rows; row++) {
-    for (let col = 0; col < maze.cols; col++) {
-      const c = cellCenter(maze, col, row);
-      floorTiles.push([+c.x.toFixed(2), +c.z.toFixed(2)]);
-    }
-  }
-
   return {
     seed,
     mastery,
@@ -165,12 +224,12 @@ export function generate3DEchoLayout(seed: number, mastery: number): Echo3DLayou
     exitPoint,
     gateRotation,
     walls,
+    hiddenWalls,
     gateWallPlacement,
     columns,
     rubble,
     grass,
     listenerPath,
     rooms: maze.rooms.map((room) => ({ x: +room.cx.toFixed(2), z: +room.cz.toFixed(2), theme: room.theme })),
-    floorTiles,
   };
 }

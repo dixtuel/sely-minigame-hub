@@ -11,7 +11,15 @@ export type MazeCell = {
   west: boolean;
 };
 
-export type MazeWall = { x1: number; z1: number; x2: number; z2: number };
+export type MazeWall = {
+  x1: number;
+  z1: number;
+  x2: number;
+  z2: number;
+  /** The two cells this wall separates — lets callers reason about which corridors it borders. */
+  cellA: { col: number; row: number };
+  cellB: { col: number; row: number };
+};
 
 export type MazeRoom = { col: number; row: number; size: number; cx: number; cz: number; theme: 0 | 1 | 2 | 3 };
 
@@ -71,13 +79,18 @@ export function generateMaze(
     return list;
   };
 
+  const NEIGHBOR_DELTA: Record<Dir, [number, number]> = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
+
   const wallSegmentFor = (c: number, r: number, dir: Dir): MazeWall => {
     const x0 = originX + c * cellSize;
     const z0 = originZ + r * cellSize;
-    if (dir === "north") return { x1: x0, z1: z0, x2: x0 + cellSize, z2: z0 };
-    if (dir === "south") return { x1: x0, z1: z0 + cellSize, x2: x0 + cellSize, z2: z0 + cellSize };
-    if (dir === "west") return { x1: x0, z1: z0, x2: x0, z2: z0 + cellSize };
-    return { x1: x0 + cellSize, z1: z0, x2: x0 + cellSize, z2: z0 + cellSize };
+    const [dc, dr] = NEIGHBOR_DELTA[dir];
+    const cellA = { col: c, row: r };
+    const cellB = { col: c + dc, row: r + dr };
+    if (dir === "north") return { x1: x0, z1: z0, x2: x0 + cellSize, z2: z0, cellA, cellB };
+    if (dir === "south") return { x1: x0, z1: z0 + cellSize, x2: x0 + cellSize, z2: z0 + cellSize, cellA, cellB };
+    if (dir === "west") return { x1: x0, z1: z0, x2: x0, z2: z0 + cellSize, cellA, cellB };
+    return { x1: x0 + cellSize, z1: z0, x2: x0 + cellSize, z2: z0 + cellSize, cellA, cellB };
   };
 
   const startCol = 1 + Math.floor(rng() * 2);

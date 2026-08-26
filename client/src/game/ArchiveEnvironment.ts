@@ -1,10 +1,11 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -18,6 +19,22 @@ type Rect = { xMin: number; xMax: number; zMin: number; zMax: number };
 
 function placementToRect([x, z, width, depth]: WallPlacement): Rect {
   return { xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 };
+}
+
+/** One draw call for many static props: a unit box/blade scaled+placed per thin instance. */
+function addThinInstance(
+  mesh: Mesh,
+  position: { x: number; y: number; z: number },
+  scale: { x: number; y: number; z: number },
+  rotationY = 0,
+  rotationZ = 0,
+) {
+  const matrix = Matrix.Compose(
+    new Vector3(scale.x, scale.y, scale.z),
+    Quaternion.RotationYawPitchRoll(rotationY, 0, rotationZ),
+    new Vector3(position.x, position.y, position.z),
+  );
+  mesh.thinInstanceAdd(matrix);
 }
 
 export type Marker = {
@@ -35,6 +52,8 @@ type RevealEntry = {
   point: Vector3;
   persistent: boolean;
   baseVisibility: number;
+  /** Once an echo pulse reveals it for the first time, it stays dimly visible from then on. */
+  sticky: boolean;
 };
 
 type RevealWave = { origin: Vector3; age: number };
@@ -61,7 +80,7 @@ export class ArchiveEnvironment {
 
   private readonly scene: Scene;
   private readonly stoneMaterial: StandardMaterial;
-  private readonly routeMaterial: StandardMaterial;
+  private readonly ambientStoneMaterial: StandardMaterial;
   private readonly grassMaterial: StandardMaterial;
   private readonly copperMaterial: StandardMaterial;
   private gateSeal!: StandardMaterial;
@@ -72,6 +91,7 @@ export class ArchiveEnvironment {
   private readonly dynamicNodes: TransformNode[] = [];
   private readonly dynamicMeshes: AbstractMesh[] = [];
   private revealClock = 0;
+  private readonly boundaryRects: Rect[] = [];
   private readonly wallRects: Rect[] = [];
   private gateRect: Rect | null = null;
   private doorIsOpen = false;
@@ -79,22 +99,33 @@ export class ArchiveEnvironment {
 
   constructor(scene: Scene, seed = 618071, mastery = 0) {
     this.scene = scene;
-    const floorMaterial = this.createMaterial("basalt-floor", "#111817", assets.floor, 8.5, 7.5, assets.floorNormal);
-    floorMaterial.alpha = 0.72;
+    const floorMaterial = this.createMaterial("basalt-floor", "#232f30", assets.floor, 8.5, 7.5, assets.floorNormal);
+    floorMaterial.emissiveColor = Color3.FromHexString("#0d1616");
     const floor = CreateGround("archive-floor", { width: 34, height: 30, subdivisions: 2 }, scene);
     floor.material = floorMaterial;
-    floor.visibility = 0.36;
+    floor.visibility = 0.85;
     floor.receiveShadows = true;
     staticMesh(floor);
     floorMaterial.freeze();
 
     this.stoneMaterial = this.createMaterial("archive-stone", "#181e1f", assets.archiveStone, 3.2, 1.5, assets.archiveStoneNormal);
-    this.routeMaterial = this.createMaterial("route-slab", "#59605c", assets.floor, 0.92, 0.92, assets.floorNormal);
-    this.routeMaterial.emissiveColor = Color3.FromHexString("#101a1a");
+
+    // A brighter, always-visible twin of the stone material — for ordinary maze walls,
+    // columns, rubble and the boundary, lit by its own soft glow so the maze reads even
+    // in the dark (the base stone material is near-black by design, for the pulse-reveal
+    // look). Only a minority of walls (hidden "traps") and the markers/gate stay in the
+    // pulse-only reveal system so the echo still matters.
+    this.ambientStoneMaterial = this.stoneMaterial.clone("archive-stone-ambient");
+    this.ambientStoneMaterial.diffuseColor = Color3.FromHexString("#4a5456");
+    this.ambientStoneMaterial.emissiveColor = Color3.FromHexString("#16201f");
+    this.ambientStoneMaterial.alpha = 0.88;
+    this.ambientStoneMaterial.freeze();
 
     this.grassMaterial = new StandardMaterial("dry-grass", scene);
-    this.grassMaterial.diffuseColor = Color3.FromHexString("#6a5b3d");
-    this.grassMaterial.emissiveColor = Color3.FromHexString("#17170f");
+    this.grassMaterial.diffuseColor = Color3.FromHexString("#8a7a52");
+    this.grassMaterial.emissiveColor = Color3.FromHexString("#221f12");
+    this.grassMaterial.alpha = 0.75;
+    this.grassMaterial.freeze();
 
     this.copperMaterial = new StandardMaterial("gate-accent", scene);
     this.copperMaterial.diffuseColor = copper;
@@ -125,10 +156,10 @@ export class ArchiveEnvironment {
     return material;
   }
 
-  private registerRevealable(mesh: AbstractMesh, position: Vector3, baseVisibility = 1) {
+  private registerRevealable(mesh: AbstractMesh, position: Vector3, baseVisibility = 1, sticky = false) {
     mesh.isPickable = false;
     mesh.visibility = 0;
-    this.revealables.push({ mesh, point: new Vector3(position.x, 0, position.z), persistent: false, baseVisibility });
+    this.revealables.push({ mesh, point: new Vector3(position.x, 0, position.z), persistent: false, baseVisibility, sticky });
     return mesh;
   }
 
@@ -143,20 +174,22 @@ export class ArchiveEnvironment {
     const thickness = 0.72;
     const halfW = (MAZE_COLS * MAZE_CELL_SIZE) / 2;
     const halfH = (MAZE_ROWS * MAZE_CELL_SIZE) / 2;
+    const height = 1.18;
 
-    const addWall = (name: string, x: number, z: number, width: number, depth: number, height = 1.18) => {
-      const wall = CreateBox(name, { width, height, depth }, this.scene);
-      wall.material = this.stoneMaterial;
-      wall.position.set(x, height / 2, z);
-      this.registerRevealable(wall, wall.position, 0.98);
-      staticMesh(wall);
-      this.wallRects.push({ xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 });
+    const boundary = CreateBox("boundary-walls", { width: 1, height: 1, depth: 1 }, this.scene);
+    boundary.material = this.ambientStoneMaterial;
+    staticMesh(boundary);
+
+    const addWall = (x: number, z: number, width: number, depth: number) => {
+      addThinInstance(boundary, { x, y: height / 2, z }, { x: width, y: height, z: depth });
+      this.boundaryRects.push({ xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 });
     };
 
-    addWall("north-boundary", 0, -halfH - thickness / 2, halfW * 2 + thickness * 2, thickness, 1.18);
-    addWall("south-boundary", 0, halfH + thickness / 2, halfW * 2 + thickness * 2, thickness, 1.18);
-    addWall("west-boundary", -halfW - thickness / 2, 0, thickness, halfH * 2, 1.18);
-    addWall("east-boundary", halfW + thickness / 2, 0, thickness, halfH * 2, 1.18);
+    addWall(0, -halfH - thickness / 2, halfW * 2 + thickness * 2, thickness);
+    addWall(0, halfH + thickness / 2, halfW * 2 + thickness * 2, thickness);
+    addWall(-halfW - thickness / 2, 0, thickness, halfH * 2);
+    addWall(halfW + thickness / 2, 0, thickness, halfH * 2);
+    boundary.thinInstanceRefreshBoundingInfo(true);
   }
 
   rebuild(seed: number, mastery: number) {
@@ -178,20 +211,6 @@ export class ArchiveEnvironment {
     this.gateRect = null;
     this.rooms = [];
 
-    // Re-register outer perimeter walls
-    this.scene.meshes.forEach((mesh) => {
-      if (mesh.name.endsWith("-boundary")) {
-        this.registerRevealable(mesh, mesh.position, 0.98);
-        const bbox = mesh.getBoundingInfo().boundingBox;
-        this.wallRects.push({
-          xMin: mesh.position.x + bbox.minimum.x,
-          xMax: mesh.position.x + bbox.maximum.x,
-          zMin: mesh.position.z + bbox.minimum.z,
-          zMax: mesh.position.z + bbox.maximum.z,
-        });
-      }
-    });
-
     this.buildLevel(seed, mastery);
   }
 
@@ -203,68 +222,83 @@ export class ArchiveEnvironment {
     this.exitPoint.copyFrom(layout.exitPoint);
     this.listenerPath = layout.listenerPath.map((p) => p.clone());
 
-    // 1. Maze walls (real branching corridors — replaces the old decorative partitions)
-    layout.walls.forEach(([x, z, width, depth, height], index) => {
-      const wall = CreateBox(`maze-wall-${index}`, { width, height, depth }, this.scene);
-      wall.material = this.stoneMaterial;
-      wall.position.set(x, height / 2, z);
-      this.registerRevealable(wall, wall.position, 0.98);
-      staticMesh(wall);
-      this.dynamicMeshes.push(wall);
-      this.wallRects.push(placementToRect([x, z, width, depth, height]));
+    // 1. Maze walls. Most stay ambiently visible (one thin-instanced draw call) so the
+    // corridors actually read as a maze; a minority — always off the solution route to
+    // every marker and the gate (see selectHiddenWalls) — are hidden "traps" that only
+    // an echo pulse reveals. Once a pulse has hit one, it stays dimly visible for good.
+    const hiddenKeys = new Set(layout.hiddenWalls.map((wall) => wall.join(",")));
+    const ambientWallMesh = CreateBox("maze-walls-ambient", { width: 1, height: 1, depth: 1 }, this.scene);
+    ambientWallMesh.material = this.ambientStoneMaterial;
+    staticMesh(ambientWallMesh);
+    this.dynamicMeshes.push(ambientWallMesh);
+    let ambientWallCount = 0;
+
+    layout.walls.forEach((placement, index) => {
+      const [x, z, width, depth, height] = placement;
+      this.wallRects.push(placementToRect(placement));
+      if (hiddenKeys.has(placement.join(","))) {
+        const wall = CreateBox(`maze-wall-hidden-${index}`, { width, height, depth }, this.scene);
+        wall.material = this.stoneMaterial;
+        wall.position.set(x, height / 2, z);
+        this.registerRevealable(wall, wall.position, 0.9, true);
+        staticMesh(wall);
+        this.dynamicMeshes.push(wall);
+      } else {
+        addThinInstance(ambientWallMesh, { x, y: height / 2, z }, { x: width, y: height, z: depth });
+        ambientWallCount += 1;
+      }
     });
+    if (ambientWallCount > 0) ambientWallMesh.thinInstanceRefreshBoundingInfo(true);
+
     this.gateRect = placementToRect(layout.gateWallPlacement);
     this.rooms = layout.rooms;
 
-    // 2. Procedural Columns
+    // 2. Procedural Columns — ambient decor, thin-instanced.
+    const columnMesh = CreateBox("archive-columns", { width: 0.62, height: 1, depth: 0.62 }, this.scene);
+    columnMesh.material = this.ambientStoneMaterial;
+    staticMesh(columnMesh);
+    this.dynamicMeshes.push(columnMesh);
     layout.columns.forEach(([x, z, height, width], index) => {
-      const column = CreateBox(`archive-column-${index}`, { width: 0.62, height: 1, depth: 0.62 }, this.scene);
-      column.material = this.stoneMaterial;
-      column.position.set(x, height / 2, z);
-      column.scaling.set(width, height, width * (index % 3 === 0 ? 1.25 : 0.92));
-      column.rotation.y = (index % 4) * 0.19;
-      this.registerRevealable(column, column.position, 0.82);
-      staticMesh(column);
-      this.dynamicMeshes.push(column);
+      addThinInstance(
+        columnMesh,
+        { x, y: height / 2, z },
+        { x: width, y: height, z: width * (index % 3 === 0 ? 1.25 : 0.92) },
+        (index % 4) * 0.19,
+      );
     });
+    if (layout.columns.length > 0) columnMesh.thinInstanceRefreshBoundingInfo(true);
 
-    // 3. Per-cell floor tiles — the pulse reveal now ripples across the whole maze
-    // instead of tracing out a "route" (which would give away the solution).
-    const tileSize = layout.cellSize * 0.92;
-    layout.floorTiles.forEach(([x, z], index) => {
-      const slab = CreateBox(`floor-tile-${index}`, { width: tileSize, height: 0.1, depth: tileSize }, this.scene);
-      slab.material = this.routeMaterial;
-      slab.position.set(x, 0.05, z);
-      slab.receiveShadows = true;
-      this.registerRevealable(slab, slab.position, 0.92);
-      staticMesh(slab);
-      this.dynamicMeshes.push(slab);
-    });
-
-    // 4. Procedural Rubble & Grass Props
+    // 3. Procedural Rubble & Grass Props — ambient decor, thin-instanced.
+    const rubbleMesh = CreateBox("archive-rubble", { width: 0.7, height: 0.35, depth: 0.55 }, this.scene);
+    rubbleMesh.material = this.ambientStoneMaterial;
+    staticMesh(rubbleMesh);
+    this.dynamicMeshes.push(rubbleMesh);
     layout.rubble.forEach(([x, z, scale, rotation], index) => {
-      const rock = CreateBox(`rubble-${index}`, { width: 0.7, height: 0.35, depth: 0.55 }, this.scene);
-      rock.material = this.stoneMaterial;
-      rock.position.set(x, 0.17, z);
-      rock.scaling.set(scale, scale * (index % 3 === 0 ? 1.2 : 0.85), scale * 0.82);
-      rock.rotation.y = rotation;
-      this.registerRevealable(rock, rock.position, 0.78);
-      staticMesh(rock);
-      this.dynamicMeshes.push(rock);
+      addThinInstance(
+        rubbleMesh,
+        { x, y: 0.17, z },
+        { x: scale, y: scale * (index % 3 === 0 ? 1.2 : 0.85), z: scale * 0.82 },
+        rotation,
+      );
     });
+    if (layout.rubble.length > 0) rubbleMesh.thinInstanceRefreshBoundingInfo(true);
 
-    layout.grass.forEach(([x, z], index) => {
+    const grassMesh = CreateBox("archive-grass", { width: 0.06, height: 0.55, depth: 0.06 }, this.scene);
+    grassMesh.material = this.grassMaterial;
+    staticMesh(grassMesh);
+    this.dynamicMeshes.push(grassMesh);
+    layout.grass.forEach(([x, z]) => {
       for (let blade = 0; blade < 3; blade += 1) {
-        const grassMesh = CreateBox(`dry-grass-${index}-${blade}`, { width: 0.06, height: 0.55, depth: 0.06 }, this.scene);
-        grassMesh.material = this.grassMaterial;
-        grassMesh.position.set(x + (blade - 1) * 0.12, 0.26, z + (blade % 2) * 0.1);
-        grassMesh.rotation.z = (blade - 1) * 0.26;
-        grassMesh.rotation.y = blade * 0.9;
-        this.registerRevealable(grassMesh, grassMesh.position, 0.62);
-        staticMesh(grassMesh);
-        this.dynamicMeshes.push(grassMesh);
+        addThinInstance(
+          grassMesh,
+          { x: x + (blade - 1) * 0.12, y: 0.26, z: z + (blade % 2) * 0.1 },
+          { x: 1, y: 1, z: 1 },
+          blade * 0.9,
+          (blade - 1) * 0.26,
+        );
       }
     });
+    if (layout.grass.length > 0) grassMesh.thinInstanceRefreshBoundingInfo(true);
 
     // 5. Procedural Markers
     this.markers = layout.markers.map((definition) => {
@@ -410,6 +444,9 @@ export class ArchiveEnvironment {
   }
 
   private blocked(px: number, pz: number, radius: number) {
+    for (const rect of this.boundaryRects) {
+      if (this.nearRect(px, pz, radius, rect)) return true;
+    }
     for (const rect of this.wallRects) {
       if (this.nearRect(px, pz, radius, rect)) return true;
     }
@@ -454,7 +491,7 @@ export class ArchiveEnvironment {
     while (this.waves[0] && this.waves[0].age > WAVE_LIFETIME) this.waves.shift();
 
     this.revealables.forEach((entry) => {
-      let reveal = entry.persistent ? 0.82 : 0;
+      let reveal = entry.persistent ? (entry.sticky ? 0.55 : 0.82) * entry.baseVisibility : 0;
       this.waves.forEach((wave) => {
         const distance = Math.hypot(entry.point.x - wave.origin.x, entry.point.z - wave.origin.z);
         const waveTime = wave.age - distance / WAVE_SPEED;
@@ -463,6 +500,9 @@ export class ArchiveEnvironment {
         const trail = waveTime <= 0.18 ? 1 : Math.max(0, 1 - (waveTime - 0.18) / (REVEAL_TRAIL - 0.18));
         reveal = Math.max(reveal, front * trail * entry.baseVisibility);
       });
+      // A hidden trap that an echo has ever touched stays dimly visible from then on —
+      // you shouldn't have to keep re-pinging a wall you already found.
+      if (entry.sticky && !entry.persistent && reveal > 0.05) entry.persistent = true;
       this.setReveal(entry, reveal);
     });
   }

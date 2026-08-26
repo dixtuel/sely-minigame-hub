@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { generate3DEchoLayout } from "./proceduralLevel";
+import { generateMaze } from "./maze";
+import { computeCriticalCells, generate3DEchoLayout, selectHiddenWalls } from "./proceduralLevel";
+
+function mulberry32(seed: number) {
+  let value = (seed >>> 0) || 1;
+  return () => {
+    value += 0x6d2b79f5;
+    let t = value;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
 
 function pointBlockedByWalls(x: number, z: number, walls: [number, number, number, number, number][]) {
   return walls.some(([wx, wz, width, depth]) => Math.abs(x - wx) < width / 2 + 0.05 && Math.abs(z - wz) < depth / 2 + 0.05);
@@ -55,5 +67,29 @@ describe("proceduralLevel (maze-based 3D Echo Room)", () => {
       const isDuplicate = layout.walls.some(([wx, wz]) => wx === gx && wz === gz);
       expect(isDuplicate).toBe(false);
     }
+  });
+
+  it("only hides walls off the critical path, so the route to every marker and the gate always stays legible", () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const maze = generateMaze(mulberry32(seed * 811), 1);
+      const critical = computeCriticalCells(maze);
+      const hidden = selectHiddenWalls(maze, mulberry32(seed * 811 + 1), 0.9); // high chance to stress-test the filter
+      for (const wall of hidden) {
+        const aOnPath = critical.has(`${wall.cellA.col},${wall.cellA.row}`);
+        const bOnPath = critical.has(`${wall.cellB.col},${wall.cellB.row}`);
+        expect(aOnPath || bOnPath).toBe(false);
+      }
+    }
+  });
+
+  it("actually produces some hidden walls in a typical run (the feature is wired up, not a no-op)", () => {
+    let totalHidden = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const layout = generate3DEchoLayout(seed * 4441, 1);
+      totalHidden += layout.hiddenWalls.length;
+      // Hidden walls are a real subset of the full wall list, never the whole thing.
+      expect(layout.hiddenWalls.length).toBeLessThan(layout.walls.length);
+    }
+    expect(totalHidden).toBeGreaterThan(0);
   });
 });
