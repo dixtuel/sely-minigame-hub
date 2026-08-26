@@ -6,8 +6,8 @@ export class CameraController {
   readonly camera: FreeCamera;
   private readonly target = new Vector3();
   private readonly desiredPosition = new Vector3();
-  private readonly objectiveVector = new Vector3();
-  private readonly lateralVector = new Vector3();
+  private readonly fixedCameraOffset: Vector3;
+  private readonly fixedLookOffset = new Vector3(2.8, 0.58, 1.2);
   private readonly coarsePointer: boolean;
   private firstFrame = true;
 
@@ -17,37 +17,26 @@ export class CameraController {
     this.camera.fov = this.coarsePointer ? 0.92 : 0.86;
     this.camera.minZ = 0.1;
     this.camera.maxZ = 72;
+    // InputManager owns keyboard/touch gameplay input. Babylon must never rotate this camera.
     this.camera.inputs.clear();
     this.camera.detachControl();
+    this.fixedCameraOffset = this.coarsePointer
+      ? new Vector3(-9.8, 8.95, -6.6)
+      : new Vector3(-9.4, 8.3, -6.4);
   }
 
-  update(player: Vector3, heading: Vector3, objective: Vector3, delta: number) {
-    const headingLength = Math.max(0.001, Math.hypot(heading.x, heading.z));
-    const forwardX = heading.x / headingLength;
-    const forwardZ = heading.z / headingLength;
-    const followDistance = this.coarsePointer ? 10.4 : 9.7;
-    const cameraHeight = this.coarsePointer ? 8.85 : 8.25;
-    const lateral = this.coarsePointer ? 0.34 : 0.48;
-
-    this.lateralVector.set(-forwardZ, 0, forwardX);
+  update(player: Vector3, _heading: Vector3, _objective: Vector3, delta: number) {
+    // Deliberately ignore movement heading and objective direction. The camera translates
+    // with the player but its azimuth is fixed, so W/A/S/D and arrow keys cannot rotate it.
     this.desiredPosition.set(
-      player.x - forwardX * followDistance + this.lateralVector.x * lateral,
-      cameraHeight,
-      player.z - forwardZ * followDistance + this.lateralVector.z * lateral,
+      player.x + this.fixedCameraOffset.x,
+      this.fixedCameraOffset.y,
+      player.z + this.fixedCameraOffset.z,
     );
-
-    this.objectiveVector.set(objective.x - player.x, 0, objective.z - player.z);
-    const objectiveDistance = Math.hypot(this.objectiveVector.x, this.objectiveVector.z);
-    const objectiveLead = Math.min(3.6, objectiveDistance * 0.44);
-    if (objectiveDistance > 0.001) {
-      this.objectiveVector.scaleInPlace(objectiveLead / objectiveDistance);
-    } else {
-      this.objectiveVector.set(0, 0, 0);
-    }
     this.target.set(
-      player.x + forwardX * 0.85 + this.objectiveVector.x,
-      0.58,
-      player.z + forwardZ * 0.85 + this.objectiveVector.z,
+      player.x + this.fixedLookOffset.x,
+      this.fixedLookOffset.y,
+      player.z + this.fixedLookOffset.z,
     );
 
     if (this.firstFrame) {
