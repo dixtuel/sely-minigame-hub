@@ -29,6 +29,14 @@ export function createApp() {
   app.post("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);
   app.post("/api/scheduled/daily-cleanup", scheduledLimiter, dailyCleanupHandler);
 
+  // Edge Caching Hook for read-only tRPC requests to minimize Function Invocations & compute units
+  app.use("/api/trpc", (req, res, next) => {
+    if (req.method === "GET") {
+      res.setHeader("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
+    }
+    next();
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

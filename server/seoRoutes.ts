@@ -1,10 +1,14 @@
 import type { Express } from "express";
 
+const CACHE_1DAY = "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
+const CACHE_1WEEK = "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000";
+
 export function registerSeoAndVerificationRoutes(app: Express) {
   // 1. ads.txt (env-driven)
   app.get("/ads.txt", (_req, res) => {
     const adsTxt = process.env.ADS_TXT || process.env.VITE_ADS_TXT;
     if (adsTxt) {
+      res.set("Cache-Control", CACHE_1DAY);
       res.type("text/plain; charset=utf-8").send(adsTxt.trim() + "\n");
     } else {
       res.status(404).send("Not Found");
@@ -15,6 +19,7 @@ export function registerSeoAndVerificationRoutes(app: Express) {
   app.get("/robots.txt", (_req, res) => {
     const domain = process.env.PRIMARY_DOMAIN || process.env.VITE_PRIMARY_DOMAIN;
     const sitemapUrl = domain ? `https://${domain}/sitemap.xml` : "/sitemap.xml";
+    res.set("Cache-Control", CACHE_1DAY);
     res.type("text/plain; charset=utf-8").send(`User-agent: *\nAllow: /\n\nSitemap: ${sitemapUrl}\n`);
   });
 
@@ -29,6 +34,7 @@ export function registerSeoAndVerificationRoutes(app: Express) {
   <url><loc>${base}/terms</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
   <url><loc>${base}/accessibility</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
 </urlset>`;
+    res.set("Cache-Control", CACHE_1DAY);
     res.type("application/xml; charset=utf-8").send(sitemap);
   });
 
@@ -37,6 +43,7 @@ export function registerSeoAndVerificationRoutes(app: Express) {
     const token = req.params.token;
     const expected = process.env.GOOGLE_SITE_VERIFICATION || process.env.VITE_GOOGLE_SITE_VERIFICATION;
     if (expected && expected === token) {
+      res.set("Cache-Control", CACHE_1WEEK);
       return res.type("text/html; charset=utf-8").send(`google-site-verification: google${token}.html\n`);
     }
     next();
@@ -46,6 +53,7 @@ export function registerSeoAndVerificationRoutes(app: Express) {
   app.get("/BingSiteAuth.xml", (_req, res, next) => {
     const token = process.env.BING_SITE_VERIFICATION || process.env.VITE_BING_SITE_VERIFICATION;
     if (token) {
+      res.set("Cache-Control", CACHE_1WEEK);
       return res.type("application/xml; charset=utf-8").send(`<?xml version="1.0"?>\n<users>\n\t<user>${token}</user>\n</users>\n`);
     }
     next();
@@ -56,6 +64,7 @@ export function registerSeoAndVerificationRoutes(app: Express) {
     const token = req.params.token;
     const expected = process.env.YANDEX_SITE_VERIFICATION || process.env.VITE_YANDEX_SITE_VERIFICATION;
     if (expected && expected === token) {
+      res.set("Cache-Control", CACHE_1WEEK);
       return res.type("text/html; charset=utf-8").send(`<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head><body>Verification: ${token}</body></html>\n`);
     }
     next();

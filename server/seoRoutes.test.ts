@@ -11,6 +11,14 @@ function createMockRes() {
       this.statusCode = code;
       return this;
     },
+    set(key: string, val: string) {
+      this.headers[key.toLowerCase()] = val;
+      return this;
+    },
+    setHeader(key: string, val: string) {
+      this.headers[key.toLowerCase()] = val;
+      return this;
+    },
     type(t: string) {
       this.headers["content-type"] = t;
       return this;
@@ -68,6 +76,7 @@ describe("SEO and Verification Routes", () => {
       await handler(req, res);
       expect(res.statusCode).toBe(200);
       expect(res.headers["content-type"]).toContain("text/plain");
+      expect(res.headers["cache-control"]).toContain("public");
       expect(res.body).toContain("pub-123456789");
       delete process.env.ADS_TXT;
     });
@@ -82,6 +91,7 @@ describe("SEO and Verification Routes", () => {
 
       await handler(req, res);
       expect(res.statusCode).toBe(200);
+      expect(res.headers["cache-control"]).toContain("public");
       expect(res.body).toContain("Sitemap: https://example.com/sitemap.xml");
       delete process.env.PRIMARY_DOMAIN;
     });
@@ -95,6 +105,7 @@ describe("SEO and Verification Routes", () => {
       await handler(req, res);
       expect(res.statusCode).toBe(200);
       expect(res.headers["content-type"]).toContain("xml");
+      expect(res.headers["cache-control"]).toContain("public");
       expect(res.body).toContain("<loc>https://example.com/</loc>");
       delete process.env.PRIMARY_DOMAIN;
     });
@@ -110,6 +121,7 @@ describe("SEO and Verification Routes", () => {
 
       await handler(req, res, () => { nextCalled = true; });
       expect(res.statusCode).toBe(200);
+      expect(res.headers["cache-control"]).toContain("public");
       expect(res.body).toContain("google-site-verification: googletestgoogle123.html");
       expect(nextCalled).toBe(false);
       delete process.env.GOOGLE_SITE_VERIFICATION;
@@ -136,6 +148,7 @@ describe("SEO and Verification Routes", () => {
 
       await handler(req, res, () => { nextCalled = true; });
       expect(res.statusCode).toBe(200);
+      expect(res.headers["cache-control"]).toContain("public");
       expect(res.body).toContain("<user>TESTBINGTOKEN123</user>");
       delete process.env.BING_SITE_VERIFICATION;
     });
@@ -149,6 +162,7 @@ describe("SEO and Verification Routes", () => {
 
       await handler(req, res, () => { nextCalled = true; });
       expect(res.statusCode).toBe(200);
+      expect(res.headers["cache-control"]).toContain("public");
       expect(res.body).toContain("Verification: testyandex123");
       delete process.env.YANDEX_SITE_VERIFICATION;
     });
