@@ -3,6 +3,7 @@ import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { Scene } from "@babylonjs/core/scene";
 import { GameWorld } from "./GameWorld";
 import type { GameEvent, GameHandle } from "./types";
@@ -34,7 +35,16 @@ export async function createGameScene(
   sun.diffuse = Color3.FromHexString("#e6b176");
   sun.intensity = coarsePointer ? 1.05 : 1.28;
 
-  const world = new GameWorld(scene, canvas, onEvent, demo, seed, mastery);
+  // Shadows ground the traveler in the space; skipped on touch/mobile to protect frame rate.
+  let shadowGenerator: ShadowGenerator | null = null;
+  if (!coarsePointer) {
+    shadowGenerator = new ShadowGenerator(1024, sun);
+    shadowGenerator.useBlurExponentialShadowMap = true;
+    shadowGenerator.blurKernel = 6;
+    shadowGenerator.setDarkness(0.35);
+  }
+
+  const world = new GameWorld(scene, canvas, onEvent, demo, seed, mastery, shadowGenerator);
   const observer = scene.onBeforeRenderObservable.add(() => {
     world.update(Math.min(0.05, scene.getEngine().getDeltaTime() / 1000));
   });
@@ -44,6 +54,7 @@ export async function createGameScene(
     setVirtualMove: (x, z) => world.setVirtualMove(x, z),
     pulse: () => world.pulse(),
     restart: (newSeed?: number, newMastery?: number) => world.restart(newSeed, newMastery),
+    setSound: (on: boolean) => world.setSound(on),
     dispose: () => {
       scene.onBeforeRenderObservable.remove(observer);
       world.dispose();

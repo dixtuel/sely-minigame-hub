@@ -103,6 +103,7 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
           return;
         }
         handleRef.current = handle;
+        handle.setSound(soundOn);
         setReady(true);
         engine.runRenderLoop(() => handle.scene.render());
       })
@@ -137,6 +138,10 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
       setToast(local(locale, "Yeni rota kayda geçti. İlk işareti bul.", "New route recorded. Find the first mark."));
     }
   }, [seed, mastery, locale]);
+
+  useEffect(() => {
+    handleRef.current?.setSound(soundOn);
+  }, [soundOn]);
 
   useEffect(() => {
     const update = () => setIsFullscreen(document.fullscreenElement === rootRef.current);

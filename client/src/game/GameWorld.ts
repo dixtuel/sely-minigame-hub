@@ -6,6 +6,8 @@ import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder"
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
 import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { ArchiveEnvironment, type Marker } from "./ArchiveEnvironment";
@@ -13,11 +15,19 @@ import { CameraController } from "./CameraController";
 import { InputManager } from "./InputManager";
 import { movementYaw, stepFacingYaw } from "./heading";
 import { createInitialSnapshot, type GameEvent, type GameSnapshot } from "./types";
+import { GameAudio } from "./audio";
 
 type PulseRing = { mesh: ReturnType<typeof CreateTorus>; material: StandardMaterial; age: number };
 
 const copperLamp = Color3.FromHexString("#e5b36a");
 const calmLamp = Color3.FromHexString("#c9824a");
+
+const ZONE_FOG: Record<0 | 1 | 2 | 3, Color3> = {
+  0: Color3.FromHexString("#040f0e"), // çökük arşiv
+  1: Color3.FromHexString("#0a140a"), // yosunlu avlu
+  2: Color3.FromHexString("#050b16"), // su basmış mahzen
+  3: Color3.FromHexString("#130c07"), // kemik kasa
+};
 
 export class GameWorld {
   private readonly environment: ArchiveEnvironment;
@@ -36,10 +46,13 @@ export class GameWorld {
   private listenerWait = 0;
   private hudTicker = 0;
   private demoTime = 0;
-  private demoTarget = 0;
-  private demoTargets: Vector3[];
+  private demoHeading = new Vector3(1, 0, 0);
   private seed: number;
   private mastery: number;
+  private readonly playerLight: PointLight;
+  private currentFogTheme: 0 | 1 | 2 | 3 = 0;
+  private readonly audio = new GameAudio();
+  private moveClock = 0;
 
   constructor(
     private readonly scene: Scene,
@@ -48,6 +61,7 @@ export class GameWorld {
     private readonly isDemo: boolean,
     seed = 618071,
     mastery = 0,
+    private readonly shadowGenerator: ShadowGenerator | null = null,
   ) {
     this.seed = seed;
     this.mastery = mastery;
@@ -55,6 +69,10 @@ export class GameWorld {
     this.environment = new ArchiveEnvironment(scene, seed, mastery);
     this.camera = new CameraController(scene);
     this.playerLamp = this.createPlayer();
+    this.playerLight = new PointLight("traveler-light", new Vector3(0, 1.3, 0), scene);
+    this.playerLight.diffuse = copperLamp;
+    this.playerLight.intensity = 0.55;
+    this.playerLight.range = 6.5;
     this.listener.position.copyFrom(this.environment.listenerPath[0]);
     this.listenerMaterial = this.createListener();
     this.pulses = this.createPulsePool();
@@ -63,7 +81,7 @@ export class GameWorld {
     this.facingYaw = movementYaw(this.environment.initialHeading.x, this.environment.initialHeading.z);
     this.player.rotation.y = this.facingYaw;
     this.heading.copyFrom(this.environment.initialHeading);
-    this.demoTargets = [...this.environment.markers.map((marker) => marker.point), this.environment.exitPoint];
+    this.demoHeading.copyFrom(this.environment.initialHeading);
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
     if (this.isDemo) {
       this.environment.triggerPulse(this.player.position);
@@ -105,6 +123,8 @@ export class GameWorld {
     shadowRing.position.y = 0.025;
     shadowRing.rotation.x = Math.PI / 2;
     shadowRing.material = lampMaterial;
+    this.shadowGenerator?.addShadowCaster(body);
+    this.shadowGenerator?.addShadowCaster(cloak);
     return lampMaterial;
   }
 
@@ -154,10 +174,16 @@ export class GameWorld {
 
   pulse() {
     if (this.state.phase !== "explore" || this.state.echoes <= 0) return;
+    this.audio.unlock();
     this.state.echoes -= 1;
     this.environment.triggerPulse(this.player.position);
     this.spawnPulse();
+    this.audio.playPulse();
     this.emitState();
+  }
+
+  setSound(on: boolean) {
+    this.audio.setMuted(!on);
   }
 
   private spawnPulse() {
@@ -175,6 +201,7 @@ export class GameWorld {
     if (this.isDemo) this.updateDemo(delta);
     else this.updatePlayer(delta);
     this.updateListener(delta);
+    this.updateAmbiance(delta);
     this.camera.update(this.player.position, this.heading, this.getObjectivePoint(), delta);
     this.hudTicker += delta;
     if (this.hudTicker >= 0.25) {
@@ -185,21 +212,33 @@ export class GameWorld {
 
   private updateDemo(delta: number) {
     this.demoTime += delta;
-    const target = this.demoTargets[this.demoTarget] || this.environment.exitPoint;
-    const dx = target.x - this.player.position.x;
-    const dz = target.z - this.player.position.z;
-    const distance = Math.hypot(dx, dz);
-    if (distance < 0.8) {
-      this.demoTarget = (this.demoTarget + 1) % this.demoTargets.length;
-      return;
+    const speed = 2.2;
+    const resolved = this.environment.resolveMove(
+      this.player.position.x,
+      this.player.position.z,
+      this.demoHeading.x * speed * delta,
+      this.demoHeading.z * speed * delta,
+      0.34,
+    );
+    const moved = Math.hypot(resolved.x - this.player.position.x, resolved.z - this.player.position.z) > 0.0005;
+    if (moved) {
+      this.player.position.x = resolved.x;
+      this.player.position.z = resolved.z;
+    } else {
+      const cardinals = [
+        { x: 1, z: 0 }, { x: -1, z: 0 }, { x: 0, z: 1 }, { x: 0, z: -1 },
+      ].sort(() => Math.random() - 0.5);
+      for (const dir of cardinals) {
+        const probe = this.environment.resolveMove(this.player.position.x, this.player.position.z, dir.x * 0.4, dir.z * 0.4, 0.34);
+        if (Math.hypot(probe.x - this.player.position.x, probe.z - this.player.position.z) > 0.0005) {
+          this.demoHeading.set(dir.x, 0, dir.z);
+          break;
+        }
+      }
     }
-    const moveX = dx / distance;
-    const moveZ = dz / distance;
-    this.facingYaw = stepFacingYaw(this.facingYaw, moveX, moveZ, delta, 9.5);
+    this.heading.copyFrom(this.demoHeading);
+    this.facingYaw = stepFacingYaw(this.facingYaw, this.demoHeading.x, this.demoHeading.z, delta, 9.5);
     this.player.rotation.y = this.facingYaw;
-    this.heading.set(moveX, 0, moveZ);
-    this.player.position.x += moveX * 2.2 * delta;
-    this.player.position.z += moveZ * 2.2 * delta;
     if (Math.sin(this.demoTime * 1.8) > 0.94) {
       this.environment.triggerPulse(this.player.position);
       this.spawnPulse();
@@ -212,13 +251,21 @@ export class GameWorld {
     const active = move.x !== 0 || move.z !== 0;
     const speed = 3.65;
     if (active) {
+      this.audio.unlock();
+      this.moveClock += delta;
+      this.audio.playFootstep(this.moveClock);
       this.facingYaw = stepFacingYaw(this.facingYaw, move.x, move.z, delta, 11.0);
       this.player.rotation.y = this.facingYaw;
       this.heading.set(move.x, 0, move.z);
-      const nextX = Math.max(-15.4, Math.min(15.4, this.player.position.x + move.x * speed * delta));
-      const nextZ = Math.max(-13.4, Math.min(13.4, this.player.position.z + move.z * speed * delta));
-      this.player.position.x = nextX;
-      this.player.position.z = nextZ;
+      const resolved = this.environment.resolveMove(
+        this.player.position.x,
+        this.player.position.z,
+        move.x * speed * delta,
+        move.z * speed * delta,
+        0.34,
+      );
+      this.player.position.x = resolved.x;
+      this.player.position.z = resolved.z;
       this.state.noise = Math.min(100, this.state.noise + delta * 2.1);
       this.playerLamp.emissiveColor.copyFrom(copperLamp.scale(0.85 + Math.sin(Date.now() * 0.008) * 0.15));
     } else {
@@ -226,6 +273,18 @@ export class GameWorld {
       this.playerLamp.emissiveColor.copyFrom(calmLamp);
     }
     this.checkObjectives();
+  }
+
+  private updateAmbiance(delta: number) {
+    this.playerLight.position.set(this.player.position.x, 1.3, this.player.position.z);
+    const flicker = 0.5 + Math.sin(Date.now() * 0.006) * 0.06;
+    this.playerLight.intensity = flicker;
+
+    const theme = this.environment.themeAt(this.player.position.x, this.player.position.z);
+    if (theme !== this.currentFogTheme) this.currentFogTheme = theme;
+    const target = ZONE_FOG[this.currentFogTheme];
+    const lerp = Math.min(1, delta * 0.8);
+    this.scene.fogColor = Color3.Lerp(this.scene.fogColor, target, lerp);
   }
 
   private updateListener(delta: number) {
@@ -248,7 +307,10 @@ export class GameWorld {
       this.listener.rotation.y = Math.atan2(dx, dz);
     }
     this.listenerMaterial.emissiveColor.copyFrom(Color3.FromHexString("#1f1124").scale(0.8 + Math.sin(this.listenerWait * 3) * 0.12));
-    if (!this.isDemo && this.distanceTo(this.listener.position) < 0.86) this.finish("failed", "Dinleyici seni duydu. Siper al ve yankıyı daha erken kullan.");
+    if (!this.isDemo && this.distanceTo(this.listener.position) < 0.86) {
+      this.audio.playCaught();
+      this.finish("failed", "Dinleyici seni duydu. Siper al ve yankıyı daha erken kullan.");
+    }
   }
 
   private checkObjectives() {
@@ -260,6 +322,7 @@ export class GameWorld {
 
   private collectMarker(marker: Marker) {
     this.environment.activateMarker(marker);
+    this.audio.playMark();
     this.state.marks += 1;
     this.state.message = `${marker.label} kayda geçti.`;
     this.emit({ type: "toast", message: `${this.state.marks}/3 işaret etkin.` });
@@ -267,6 +330,7 @@ export class GameWorld {
       this.state.doorOpen = true;
       this.state.objective = "Açılan mühre ulaş";
       this.environment.setDoorOpen(true);
+      this.audio.playGate();
       this.emit({ type: "toast", message: "Mühür açıldı. Çıkış ışığını takip et." });
     } else {
       this.state.objective = `Sonraki işareti bul · ${this.state.marks}/3`;
@@ -318,9 +382,8 @@ export class GameWorld {
     this.listener.position.copyFrom(this.environment.listenerPath[0]);
     this.listenerIndex = 0;
     this.listenerWait = 0;
-    this.demoTargets = [...this.environment.markers.map((marker) => marker.point), this.environment.exitPoint];
+    this.demoHeading.copyFrom(this.environment.initialHeading);
     this.demoTime = 0;
-    this.demoTarget = 0;
     this.pulses.forEach((pulse) => {
       pulse.age = 99;
       pulse.material.alpha = 0;
@@ -338,6 +401,7 @@ export class GameWorld {
 
   dispose() {
     this.input.dispose();
+    this.audio.dispose();
     this.pulses.forEach((pulse) => {
       pulse.mesh.dispose();
       pulse.material.dispose();

@@ -11,8 +11,14 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { assets } from "./assets";
-import { generate3DEchoLayout, type Echo3DLayout } from "./proceduralLevel";
-import type { GridPoint } from "./types";
+import { MAZE_CELL_SIZE, MAZE_COLS, MAZE_ROWS } from "./maze";
+import { generate3DEchoLayout, type Echo3DLayout, type WallPlacement } from "./proceduralLevel";
+
+type Rect = { xMin: number; xMax: number; zMin: number; zMax: number };
+
+function placementToRect([x, z, width, depth]: WallPlacement): Rect {
+  return { xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 };
+}
 
 export type Marker = {
   id: string;
@@ -66,28 +72,25 @@ export class ArchiveEnvironment {
   private readonly dynamicNodes: TransformNode[] = [];
   private readonly dynamicMeshes: AbstractMesh[] = [];
   private revealClock = 0;
+  private readonly wallRects: Rect[] = [];
+  private gateRect: Rect | null = null;
+  private doorIsOpen = false;
+  rooms: { x: number; z: number; theme: 0 | 1 | 2 | 3 }[] = [];
 
   constructor(scene: Scene, seed = 618071, mastery = 0) {
     this.scene = scene;
-    const floorMaterial = this.createMaterial("basalt-floor", "#111817", assets.floor, 8.5, 7.5);
+    const floorMaterial = this.createMaterial("basalt-floor", "#111817", assets.floor, 8.5, 7.5, assets.floorNormal);
     floorMaterial.alpha = 0.72;
     const floor = CreateGround("archive-floor", { width: 34, height: 30, subdivisions: 2 }, scene);
     floor.material = floorMaterial;
     floor.visibility = 0.36;
+    floor.receiveShadows = true;
     staticMesh(floor);
     floorMaterial.freeze();
 
-    this.stoneMaterial = this.createMaterial("archive-stone", "#181e1f", assets.archiveStone, 3.2, 1.5);
-    this.routeMaterial = new StandardMaterial("route-slab", scene);
-    this.routeMaterial.diffuseColor = Color3.FromHexString("#59605c");
+    this.stoneMaterial = this.createMaterial("archive-stone", "#181e1f", assets.archiveStone, 3.2, 1.5, assets.archiveStoneNormal);
+    this.routeMaterial = this.createMaterial("route-slab", "#59605c", assets.floor, 0.92, 0.92, assets.floorNormal);
     this.routeMaterial.emissiveColor = Color3.FromHexString("#101a1a");
-    this.routeMaterial.specularColor = Color3.Black();
-    const routeTexture = new Texture(assets.floor, scene, true, false);
-    routeTexture.uScale = 0.92;
-    routeTexture.vScale = 0.92;
-    routeTexture.wrapU = Texture.WRAP_ADDRESSMODE;
-    routeTexture.wrapV = Texture.WRAP_ADDRESSMODE;
-    this.routeMaterial.diffuseTexture = routeTexture;
 
     this.grassMaterial = new StandardMaterial("dry-grass", scene);
     this.grassMaterial.diffuseColor = Color3.FromHexString("#6a5b3d");
@@ -101,7 +104,7 @@ export class ArchiveEnvironment {
     this.buildLevel(seed, mastery);
   }
 
-  private createMaterial(name: string, color: string, textureUrl: string, uScale: number, vScale: number) {
+  private createMaterial(name: string, color: string, textureUrl: string, uScale: number, vScale: number, normalUrl?: string) {
     const material = new StandardMaterial(name, this.scene);
     material.diffuseColor = Color3.FromHexString(color);
     material.specularColor = Color3.Black();
@@ -111,6 +114,14 @@ export class ArchiveEnvironment {
     texture.wrapU = Texture.WRAP_ADDRESSMODE;
     texture.wrapV = Texture.WRAP_ADDRESSMODE;
     material.diffuseTexture = texture;
+    if (normalUrl) {
+      const bump = new Texture(normalUrl, this.scene, true, false);
+      bump.uScale = uScale;
+      bump.vScale = vScale;
+      bump.wrapU = Texture.WRAP_ADDRESSMODE;
+      bump.wrapV = Texture.WRAP_ADDRESSMODE;
+      material.bumpTexture = bump;
+    }
     return material;
   }
 
@@ -129,18 +140,23 @@ export class ArchiveEnvironment {
   }
 
   private buildOuterPerimeter() {
+    const thickness = 0.72;
+    const halfW = (MAZE_COLS * MAZE_CELL_SIZE) / 2;
+    const halfH = (MAZE_ROWS * MAZE_CELL_SIZE) / 2;
+
     const addWall = (name: string, x: number, z: number, width: number, depth: number, height = 1.18) => {
       const wall = CreateBox(name, { width, height, depth }, this.scene);
       wall.material = this.stoneMaterial;
       wall.position.set(x, height / 2, z);
       this.registerRevealable(wall, wall.position, 0.98);
       staticMesh(wall);
+      this.wallRects.push({ xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 });
     };
 
-    addWall("north-boundary", 0, -14.25, 32.5, 0.72, 1.18);
-    addWall("south-boundary", 0, 14.25, 32.5, 0.72, 1.18);
-    addWall("west-boundary", -16.25, 0, 0.72, 27.5, 1.18);
-    addWall("east-boundary", 16.25, 0, 0.72, 27.5, 1.18);
+    addWall("north-boundary", 0, -halfH - thickness / 2, halfW * 2 + thickness * 2, thickness, 1.18);
+    addWall("south-boundary", 0, halfH + thickness / 2, halfW * 2 + thickness * 2, thickness, 1.18);
+    addWall("west-boundary", -halfW - thickness / 2, 0, thickness, halfH * 2, 1.18);
+    addWall("east-boundary", halfW + thickness / 2, 0, thickness, halfH * 2, 1.18);
   }
 
   rebuild(seed: number, mastery: number) {
@@ -158,11 +174,21 @@ export class ArchiveEnvironment {
     this.waves.length = 0;
     this.gateMeshes.length = 0;
     this.markers.length = 0;
+    this.wallRects.length = 0;
+    this.gateRect = null;
+    this.rooms = [];
 
     // Re-register outer perimeter walls
     this.scene.meshes.forEach((mesh) => {
       if (mesh.name.endsWith("-boundary")) {
         this.registerRevealable(mesh, mesh.position, 0.98);
+        const bbox = mesh.getBoundingInfo().boundingBox;
+        this.wallRects.push({
+          xMin: mesh.position.x + bbox.minimum.x,
+          xMax: mesh.position.x + bbox.maximum.x,
+          zMin: mesh.position.z + bbox.minimum.z,
+          zMax: mesh.position.z + bbox.maximum.z,
+        });
       }
     });
 
@@ -177,15 +203,18 @@ export class ArchiveEnvironment {
     this.exitPoint.copyFrom(layout.exitPoint);
     this.listenerPath = layout.listenerPath.map((p) => p.clone());
 
-    // 1. Procedural Partitions
-    layout.partitions.forEach(([x, z, width, depth, height], index) => {
-      const wall = CreateBox(`room-partition-${index}`, { width, height, depth }, this.scene);
+    // 1. Maze walls (real branching corridors — replaces the old decorative partitions)
+    layout.walls.forEach(([x, z, width, depth, height], index) => {
+      const wall = CreateBox(`maze-wall-${index}`, { width, height, depth }, this.scene);
       wall.material = this.stoneMaterial;
       wall.position.set(x, height / 2, z);
       this.registerRevealable(wall, wall.position, 0.98);
       staticMesh(wall);
       this.dynamicMeshes.push(wall);
+      this.wallRects.push(placementToRect([x, z, width, depth, height]));
     });
+    this.gateRect = placementToRect(layout.gateWallPlacement);
+    this.rooms = layout.rooms;
 
     // 2. Procedural Columns
     layout.columns.forEach(([x, z, height, width], index) => {
@@ -199,25 +228,17 @@ export class ArchiveEnvironment {
       this.dynamicMeshes.push(column);
     });
 
-    // 3. Procedural Walkable Slabs
-    layout.route.forEach((position, index) => {
-      const slab = CreateBox(`route-slab-${index}`, { width: 1.7, height: 0.12, depth: 1.7 }, this.scene);
+    // 3. Per-cell floor tiles — the pulse reveal now ripples across the whole maze
+    // instead of tracing out a "route" (which would give away the solution).
+    const tileSize = layout.cellSize * 0.92;
+    layout.floorTiles.forEach(([x, z], index) => {
+      const slab = CreateBox(`floor-tile-${index}`, { width: tileSize, height: 0.1, depth: tileSize }, this.scene);
       slab.material = this.routeMaterial;
-      slab.position.set(position.x, 0.055, position.z);
-      slab.scaling.set(position.scale[0], position.scale[1], position.scale[2]);
-      slab.rotation.y = position.rotation;
-      this.registerRevealable(slab, slab.position, 1);
+      slab.position.set(x, 0.05, z);
+      slab.receiveShadows = true;
+      this.registerRevealable(slab, slab.position, 0.92);
       staticMesh(slab);
       this.dynamicMeshes.push(slab);
-
-      const inlay = CreateTorus(`route-inlay-${index}`, { diameter: 1.08, thickness: 0.025, tessellation: 16 }, this.scene);
-      inlay.position.set(position.x, 0.125, position.z);
-      inlay.rotation.y = position.rotation;
-      inlay.scaling.set(position.scale[0] * 0.82, 1, position.scale[2] * 0.82);
-      inlay.material = this.routeMaterial;
-      this.registerRevealable(inlay, inlay.position, 0.95);
-      staticMesh(inlay);
-      this.dynamicMeshes.push(inlay);
     });
 
     // 4. Procedural Rubble & Grass Props
@@ -384,6 +405,40 @@ export class ArchiveEnvironment {
     return this.registerRevealable(mesh, position, baseVisibility);
   }
 
+  private nearRect(px: number, pz: number, radius: number, rect: Rect) {
+    return px > rect.xMin - radius && px < rect.xMax + radius && pz > rect.zMin - radius && pz < rect.zMax + radius;
+  }
+
+  private blocked(px: number, pz: number, radius: number) {
+    for (const rect of this.wallRects) {
+      if (this.nearRect(px, pz, radius, rect)) return true;
+    }
+    if (!this.doorIsOpen && this.gateRect && this.nearRect(px, pz, radius, this.gateRect)) return true;
+    return false;
+  }
+
+  /** Axis-separated slide collision against maze walls + the locked gate. */
+  resolveMove(x: number, z: number, dx: number, dz: number, radius = 0.34) {
+    let nx = x + dx;
+    if (this.blocked(nx, z, radius)) nx = x;
+    let nz = z + dz;
+    if (this.blocked(nx, nz, radius)) nz = z;
+    return { x: nx, z: nz };
+  }
+
+  themeAt(x: number, z: number): 0 | 1 | 2 | 3 {
+    let best: { x: number; z: number; theme: 0 | 1 | 2 | 3 } | null = null;
+    let bestDist = Infinity;
+    for (const room of this.rooms) {
+      const d = Math.hypot(room.x - x, room.z - z);
+      if (d < bestDist) {
+        bestDist = d;
+        best = room;
+      }
+    }
+    return best?.theme ?? 0;
+  }
+
   private setReveal(entry: RevealEntry, reveal: number) {
     entry.mesh.visibility = reveal;
   }
@@ -428,6 +483,7 @@ export class ArchiveEnvironment {
   }
 
   setDoorOpen(open: boolean) {
+    this.doorIsOpen = open;
     this.gateSeal.emissiveColor.copyFrom(open ? copper.scale(0.92) : Color3.FromHexString("#1d110d"));
     this.gateSeal.diffuseColor.copyFrom(open ? Color3.FromHexString("#c9824a") : Color3.FromHexString("#3d2b20"));
     this.revealables.forEach((entry) => {

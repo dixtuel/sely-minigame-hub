@@ -22,6 +22,7 @@ export type GameHandle = {
   setVirtualMove: (x: number, z: number) => void;
   pulse: () => void;
   restart: (seed?: number, mastery?: number) => void;
+  setSound: (on: boolean) => void;
   dispose: () => void;
 };
 
