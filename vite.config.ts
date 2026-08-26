@@ -150,7 +150,43 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+function seoMetaPlugin(): Plugin {
+  return {
+    name: "sely-seo-meta",
+    transformIndexHtml(html) {
+      const google = process.env.VITE_GOOGLE_SITE_VERIFICATION || process.env.GOOGLE_SITE_VERIFICATION;
+      const bing = process.env.VITE_BING_SITE_VERIFICATION || process.env.BING_SITE_VERIFICATION;
+      const yandex = process.env.VITE_YANDEX_SITE_VERIFICATION || process.env.YANDEX_SITE_VERIFICATION;
+      const adsense = process.env.VITE_ADSENSE_CLIENT_ID || process.env.ADSENSE_CLIENT_ID;
+
+      const tags: Array<{ tag: string; attrs: Record<string, string>; injectTo: "head" }> = [];
+
+      if (google) {
+        tags.push({ tag: "meta", attrs: { name: "google-site-verification", content: google }, injectTo: "head" });
+      }
+      if (bing) {
+        tags.push({ tag: "meta", attrs: { name: "msvalidate.01", content: bing }, injectTo: "head" });
+      }
+      if (yandex) {
+        tags.push({ tag: "meta", attrs: { name: "yandex-verification", content: yandex }, injectTo: "head" });
+      }
+      if (adsense) {
+        tags.push({ tag: "meta", attrs: { name: "google-adsense-account", content: adsense }, injectTo: "head" });
+      }
+
+      return { html, tags };
+    },
+  };
+}
+
+const plugins = [
+  react(),
+  tailwindcss(),
+  jsxLocPlugin(),
+  vitePluginManusRuntime(),
+  vitePluginManusDebugCollector(),
+  seoMetaPlugin(),
+];
 
 export default defineConfig({
   plugins,
