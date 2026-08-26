@@ -140,7 +140,6 @@ export class GameWorld {
       material.alpha = 0;
       material.backFaceCulling = false;
       const mesh = CreateTorus(`pulse-mesh-${index}`, { diameter: 1.6, thickness: 0.045, tessellation: 24 }, this.scene);
-      mesh.rotation.x = Math.PI / 2;
       mesh.position.y = 0.08;
       mesh.material = material;
       mesh.isPickable = false;
