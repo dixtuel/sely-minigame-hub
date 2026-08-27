@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useCookieConsent } from "@/contexts/CookieConsentContext";
 
 type AdSenseResultUnitProps = {
   locale?: string;
@@ -7,6 +8,7 @@ type AdSenseResultUnitProps = {
 export default function AdSenseResultUnit({ locale = "tr" }: AdSenseResultUnitProps) {
   const adRef = useRef<HTMLModElement | null>(null);
   const pushedRef = useRef(false);
+  const { status } = useCookieConsent();
 
   const clientId =
     import.meta.env.VITE_ADSENSE_CLIENT_ID ||
@@ -22,7 +24,7 @@ export default function AdSenseResultUnit({ locale = "tr" }: AdSenseResultUnitPr
     clientId && !clientId.startsWith("ca-") ? `ca-${clientId}` : clientId;
 
   useEffect(() => {
-    if (!slotId || !formattedClientId || pushedRef.current) return;
+    if (!slotId || !formattedClientId || status !== "accepted" || pushedRef.current) return;
 
     try {
       if (typeof window !== "undefined") {
@@ -34,9 +36,9 @@ export default function AdSenseResultUnit({ locale = "tr" }: AdSenseResultUnitPr
     } catch {
       // Gracefully ignore ad blocker errors
     }
-  }, [slotId, formattedClientId]);
+  }, [slotId, formattedClientId, status]);
 
-  if (!slotId || !formattedClientId) {
+  if (!slotId || !formattedClientId || status !== "accepted") {
     return null;
   }
 

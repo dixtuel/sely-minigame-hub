@@ -4,6 +4,8 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import { useEffect } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
+import CookieConsentBanner from "./components/CookieConsentBanner";
+import { CookieConsentProvider } from "./contexts/CookieConsentContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Legal from "./pages/Legal";
@@ -49,10 +51,13 @@ function App() {
         defaultTheme="light"
         // switchable
       >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <CookieConsentProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+            <CookieConsentBanner />
+          </TooltipProvider>
+        </CookieConsentProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
