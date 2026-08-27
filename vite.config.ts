@@ -159,7 +159,7 @@ function seoMetaPlugin(): Plugin {
       const yandex = process.env.VITE_YANDEX_SITE_VERIFICATION || process.env.YANDEX_SITE_VERIFICATION;
       const adsense = process.env.VITE_ADSENSE_CLIENT_ID || process.env.ADSENSE_CLIENT_ID;
 
-      const tags: Array<{ tag: string; attrs: Record<string, string>; injectTo: "head"; children?: string }> = [];
+      const tags: Array<{ tag: string; attrs: Record<string, string>; injectTo: "head" }> = [];
 
       if (google) {
         tags.push({ tag: "meta", attrs: { name: "google-site-verification", content: google }, injectTo: "head" });
@@ -181,19 +181,6 @@ function seoMetaPlugin(): Plugin {
             crossorigin: "anonymous",
           },
           injectTo: "head",
-        });
-        // Anchor ads only: a single dismissible bar pinned to the bottom of the
-        // viewport on both desktop and mobile. No in-content or modal ad units —
-        // Google manages placement/frequency itself, so it never covers gameplay.
-        tags.push({
-          tag: "script",
-          attrs: { type: "text/javascript" },
-          injectTo: "head",
-          children: `(window.adsbygoogle = window.adsbygoogle || []).push({
-  google_ad_client: "${clientFormatted}",
-  enable_page_level_ads: true,
-  overlays: { bottom: true }
-});`,
         });
       }
 
