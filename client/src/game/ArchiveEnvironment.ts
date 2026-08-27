@@ -1,11 +1,11 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
 import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
@@ -21,20 +21,21 @@ function placementToRect([x, z, width, depth]: WallPlacement): Rect {
   return { xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 };
 }
 
-/** One draw call for many static props: a unit box/blade scaled+placed per thin instance. */
-function addThinInstance(
-  mesh: Mesh,
-  position: { x: number; y: number; z: number },
-  scale: { x: number; y: number; z: number },
-  rotationY = 0,
-  rotationZ = 0,
-) {
-  const matrix = Matrix.Compose(
-    new Vector3(scale.x, scale.y, scale.z),
-    Quaternion.RotationYawPitchRoll(rotationY, 0, rotationZ),
-    new Vector3(position.x, position.y, position.z),
-  );
-  mesh.thinInstanceAdd(matrix);
+/**
+ * Merges many static props into a single draw call. Thin instances would do the same job
+ * with less setup, but the production build's tree-shaking silently drops part of
+ * Babylon's thin-instance prototype patch (thinInstanceAdd exists and runs, but the
+ * instance buffer never gets allocated — instancesCount stays 0, so nothing renders).
+ * Mesh.MergeMeshes is a plain static method on the always-fully-bundled Mesh class, so it
+ * doesn't have that failure mode.
+ */
+function mergeIntoOne(name: string, material: StandardMaterial, parts: Mesh[]): Mesh | null {
+  if (!parts.length) return null;
+  const merged = Mesh.MergeMeshes(parts, true, true, undefined, false, false);
+  if (!merged) return null;
+  merged.name = name;
+  merged.material = material;
+  return merged;
 }
 
 export type Marker = {
@@ -176,12 +177,11 @@ export class ArchiveEnvironment {
     const halfH = (MAZE_ROWS * MAZE_CELL_SIZE) / 2;
     const height = 1.18;
 
-    const boundary = CreateBox("boundary-walls", { width: 1, height: 1, depth: 1 }, this.scene);
-    boundary.material = this.ambientStoneMaterial;
-    staticMesh(boundary);
-
+    const parts: Mesh[] = [];
     const addWall = (x: number, z: number, width: number, depth: number) => {
-      addThinInstance(boundary, { x, y: height / 2, z }, { x: width, y: height, z: depth });
+      const box = CreateBox("boundary-part", { width, height, depth }, this.scene);
+      box.position.set(x, height / 2, z);
+      parts.push(box);
       this.boundaryRects.push({ xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 });
     };
 
@@ -189,7 +189,9 @@ export class ArchiveEnvironment {
     addWall(0, halfH + thickness / 2, halfW * 2 + thickness * 2, thickness);
     addWall(-halfW - thickness / 2, 0, thickness, halfH * 2);
     addWall(halfW + thickness / 2, 0, thickness, halfH * 2);
-    boundary.thinInstanceRefreshBoundingInfo(true);
+
+    const boundary = mergeIntoOne("boundary-walls", this.ambientStoneMaterial, parts);
+    if (boundary) staticMesh(boundary);
   }
 
   rebuild(seed: number, mastery: number) {
@@ -222,16 +224,12 @@ export class ArchiveEnvironment {
     this.exitPoint.copyFrom(layout.exitPoint);
     this.listenerPath = layout.listenerPath.map((p) => p.clone());
 
-    // 1. Maze walls. Most stay ambiently visible (one thin-instanced draw call) so the
+    // 1. Maze walls. Most stay ambiently visible (merged into one draw call) so the
     // corridors actually read as a maze; a minority — always off the solution route to
     // every marker and the gate (see selectHiddenWalls) — are hidden "traps" that only
     // an echo pulse reveals. Once a pulse has hit one, it stays dimly visible for good.
     const hiddenKeys = new Set(layout.hiddenWalls.map((wall) => wall.join(",")));
-    const ambientWallMesh = CreateBox("maze-walls-ambient", { width: 1, height: 1, depth: 1 }, this.scene);
-    ambientWallMesh.material = this.ambientStoneMaterial;
-    staticMesh(ambientWallMesh);
-    this.dynamicMeshes.push(ambientWallMesh);
-    let ambientWallCount = 0;
+    const ambientWallParts: Mesh[] = [];
 
     layout.walls.forEach((placement, index) => {
       const [x, z, width, depth, height] = placement;
@@ -244,61 +242,63 @@ export class ArchiveEnvironment {
         staticMesh(wall);
         this.dynamicMeshes.push(wall);
       } else {
-        addThinInstance(ambientWallMesh, { x, y: height / 2, z }, { x: width, y: height, z: depth });
-        ambientWallCount += 1;
+        const box = CreateBox(`maze-wall-part-${index}`, { width, height, depth }, this.scene);
+        box.position.set(x, height / 2, z);
+        ambientWallParts.push(box);
       }
     });
-    if (ambientWallCount > 0) ambientWallMesh.thinInstanceRefreshBoundingInfo(true);
+    const ambientWallMesh = mergeIntoOne("maze-walls-ambient", this.ambientStoneMaterial, ambientWallParts);
+    if (ambientWallMesh) {
+      staticMesh(ambientWallMesh);
+      this.dynamicMeshes.push(ambientWallMesh);
+    }
 
     this.gateRect = placementToRect(layout.gateWallPlacement);
     this.rooms = layout.rooms;
 
-    // 2. Procedural Columns — ambient decor, thin-instanced.
-    const columnMesh = CreateBox("archive-columns", { width: 0.62, height: 1, depth: 0.62 }, this.scene);
-    columnMesh.material = this.ambientStoneMaterial;
-    staticMesh(columnMesh);
-    this.dynamicMeshes.push(columnMesh);
-    layout.columns.forEach(([x, z, height, width], index) => {
-      addThinInstance(
-        columnMesh,
-        { x, y: height / 2, z },
-        { x: width, y: height, z: width * (index % 3 === 0 ? 1.25 : 0.92) },
-        (index % 4) * 0.19,
-      );
+    // 2. Procedural Columns — ambient decor, merged into one draw call.
+    const columnParts: Mesh[] = layout.columns.map(([x, z, height, width], index) => {
+      const column = CreateBox(`column-part-${index}`, { width: 0.62, height: 1, depth: 0.62 }, this.scene);
+      column.position.set(x, height / 2, z);
+      column.scaling.set(width, height, width * (index % 3 === 0 ? 1.25 : 0.92));
+      column.rotation.y = (index % 4) * 0.19;
+      return column;
     });
-    if (layout.columns.length > 0) columnMesh.thinInstanceRefreshBoundingInfo(true);
+    const columnMesh = mergeIntoOne("archive-columns", this.ambientStoneMaterial, columnParts);
+    if (columnMesh) {
+      staticMesh(columnMesh);
+      this.dynamicMeshes.push(columnMesh);
+    }
 
-    // 3. Procedural Rubble & Grass Props — ambient decor, thin-instanced.
-    const rubbleMesh = CreateBox("archive-rubble", { width: 0.7, height: 0.35, depth: 0.55 }, this.scene);
-    rubbleMesh.material = this.ambientStoneMaterial;
-    staticMesh(rubbleMesh);
-    this.dynamicMeshes.push(rubbleMesh);
-    layout.rubble.forEach(([x, z, scale, rotation], index) => {
-      addThinInstance(
-        rubbleMesh,
-        { x, y: 0.17, z },
-        { x: scale, y: scale * (index % 3 === 0 ? 1.2 : 0.85), z: scale * 0.82 },
-        rotation,
-      );
+    // 3. Procedural Rubble & Grass Props — ambient decor, merged into one draw call each.
+    const rubbleParts: Mesh[] = layout.rubble.map(([x, z, scale, rotation], index) => {
+      const rock = CreateBox(`rubble-part-${index}`, { width: 0.7, height: 0.35, depth: 0.55 }, this.scene);
+      rock.position.set(x, 0.17, z);
+      rock.scaling.set(scale, scale * (index % 3 === 0 ? 1.2 : 0.85), scale * 0.82);
+      rock.rotation.y = rotation;
+      return rock;
     });
-    if (layout.rubble.length > 0) rubbleMesh.thinInstanceRefreshBoundingInfo(true);
+    const rubbleMesh = mergeIntoOne("archive-rubble", this.ambientStoneMaterial, rubbleParts);
+    if (rubbleMesh) {
+      staticMesh(rubbleMesh);
+      this.dynamicMeshes.push(rubbleMesh);
+    }
 
-    const grassMesh = CreateBox("archive-grass", { width: 0.06, height: 0.55, depth: 0.06 }, this.scene);
-    grassMesh.material = this.grassMaterial;
-    staticMesh(grassMesh);
-    this.dynamicMeshes.push(grassMesh);
-    layout.grass.forEach(([x, z]) => {
+    const grassParts: Mesh[] = [];
+    layout.grass.forEach(([x, z], index) => {
       for (let blade = 0; blade < 3; blade += 1) {
-        addThinInstance(
-          grassMesh,
-          { x: x + (blade - 1) * 0.12, y: 0.26, z: z + (blade % 2) * 0.1 },
-          { x: 1, y: 1, z: 1 },
-          blade * 0.9,
-          (blade - 1) * 0.26,
-        );
+        const grassBlade = CreateBox(`grass-part-${index}-${blade}`, { width: 0.06, height: 0.55, depth: 0.06 }, this.scene);
+        grassBlade.position.set(x + (blade - 1) * 0.12, 0.26, z + (blade % 2) * 0.1);
+        grassBlade.rotation.z = (blade - 1) * 0.26;
+        grassBlade.rotation.y = blade * 0.9;
+        grassParts.push(grassBlade);
       }
     });
-    if (layout.grass.length > 0) grassMesh.thinInstanceRefreshBoundingInfo(true);
+    const grassMesh = mergeIntoOne("archive-grass", this.grassMaterial, grassParts);
+    if (grassMesh) {
+      staticMesh(grassMesh);
+      this.dynamicMeshes.push(grassMesh);
+    }
 
     // 5. Procedural Markers
     this.markers = layout.markers.map((definition) => {
