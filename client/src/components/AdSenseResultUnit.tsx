@@ -60,6 +60,7 @@ export default function AdSenseResultUnit({ locale = "tr" }: AdSenseResultUnitPr
           data-ad-slot={slotId}
           data-ad-format="auto"
           data-full-width-responsive="true"
+          data-npa="1"
         />
       </div>
     </div>
