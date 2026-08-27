@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ArrowDown, ArrowLeft, ArrowLeft as ArrowLeftIcon, ArrowRight, ArrowUp, Maximize, Minimize, RotateCcw, Volume2, X } from "lucide-react";
 import SparkCanvasGame from "@/components/SparkCanvasGame";
 import VakaBoard from "@/components/VakaBoard";
-import AdSenseResultUnit from "@/components/AdSenseResultUnit";
 import type { GameId, GameMeta } from "@/lib/catalog";
 import type { SiteLocale } from "@/lib/i18n";
 import {
@@ -138,7 +137,6 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
                   <button className="quiet-button" onClick={onBack}>{locale === "en" ? "Choose a route" : "Rota seç"}</button>
                 </div>
                 {result.outcome === "failure" && failureCount >= 3 && <p className="result-nudge">{locale === "en" ? "A new route is available after three attempts." : "Üç denemeden sonra yeni rota açıldı."}</p>}
-                <AdSenseResultUnit locale={locale} />
               </div>
             )}
           </div>
