@@ -103,26 +103,23 @@ export class ArchiveEnvironment {
 
   constructor(scene: Scene, seed = 618071, mastery = 0) {
     this.scene = scene;
-    const floorMaterial = this.createMaterial("basalt-floor", "#232f30", assets.floor, 8.5, 7.5, assets.floorNormal);
-    floorMaterial.emissiveColor = Color3.FromHexString("#0d1616");
+    const floorMaterial = this.createMaterial("basalt-floor", "#2e3d3c", assets.floor, 8.5, 7.5, assets.floorNormal);
+    floorMaterial.emissiveColor = Color3.FromHexString("#040807");
     const floor = CreateGround("archive-floor", { width: 34, height: 30, subdivisions: 2 }, scene);
     floor.material = floorMaterial;
-    floor.visibility = 0.85;
     floor.receiveShadows = true;
     staticMesh(floor);
     floorMaterial.freeze();
 
     this.stoneMaterial = this.createMaterial("archive-stone", "#181e1f", assets.archiveStone, 3.2, 1.5, assets.archiveStoneNormal);
 
-    // A brighter, always-visible twin of the stone material — for ordinary maze walls,
-    // columns, rubble and the boundary, lit by its own soft glow so the maze reads even
-    // in the dark (the base stone material is near-black by design, for the pulse-reveal
-    // look). Only a minority of walls (hidden "traps") and the markers/gate stay in the
-    // pulse-only reveal system so the echo still matters.
+    // A slightly lighter, always-visible twin of the stone material for ordinary maze walls,
+    // columns, rubble and the boundary — real geometry the player's own lamp lights up as they
+    // get close, dungeon-crawler style, rather than a self-glowing surface. Only a minority of
+    // walls (hidden "traps") and the markers/gate stay in the pulse-only reveal system.
     this.ambientStoneMaterial = this.stoneMaterial.clone("archive-stone-ambient");
-    this.ambientStoneMaterial.diffuseColor = Color3.FromHexString("#4a5456");
-    this.ambientStoneMaterial.emissiveColor = Color3.FromHexString("#16201f");
-    this.ambientStoneMaterial.alpha = 0.88;
+    this.ambientStoneMaterial.diffuseColor = Color3.FromHexString("#54605f");
+    this.ambientStoneMaterial.emissiveColor = Color3.FromHexString("#050807");
     this.ambientStoneMaterial.freeze();
 
     this.grassMaterial = new StandardMaterial("dry-grass", scene);
@@ -162,7 +159,10 @@ export class ArchiveEnvironment {
 
   private registerRevealable(mesh: AbstractMesh, position: Vector3, baseVisibility = 1, sticky = false) {
     mesh.isPickable = false;
-    mesh.visibility = 0;
+    // Hidden traps get a faint "tell" even before an echo hits them — a wall that pops out of
+    // pure black with zero warning feels unfair. Everything else (markers, the gate) stays
+    // fully hidden until deliberately revealed, which is the actual point of finding them.
+    mesh.visibility = sticky ? 0.07 : 0;
     this.revealables.push({ mesh, point: new Vector3(position.x, 0, position.z), persistent: false, baseVisibility, sticky });
     return mesh;
   }
@@ -494,18 +494,25 @@ export class ArchiveEnvironment {
     while (this.waves[0] && this.waves[0].age > WAVE_LIFETIME) this.waves.shift();
 
     this.revealables.forEach((entry) => {
-      let reveal = entry.persistent ? (entry.sticky ? 0.55 : 0.82) * entry.baseVisibility : 0;
+      let waveReveal = 0;
       this.waves.forEach((wave) => {
         const distance = Math.hypot(entry.point.x - wave.origin.x, entry.point.z - wave.origin.z);
         const waveTime = wave.age - distance / WAVE_SPEED;
         if (waveTime < -0.12 || waveTime > REVEAL_TRAIL) return;
         const front = waveTime < 0.18 ? Math.max(0, (waveTime + 0.12) / 0.3) : 1;
         const trail = waveTime <= 0.18 ? 1 : Math.max(0, 1 - (waveTime - 0.18) / (REVEAL_TRAIL - 0.18));
-        reveal = Math.max(reveal, front * trail * entry.baseVisibility);
+        waveReveal = Math.max(waveReveal, front * trail * entry.baseVisibility);
       });
       // A hidden trap that an echo has ever touched stays dimly visible from then on —
-      // you shouldn't have to keep re-pinging a wall you already found.
-      if (entry.sticky && !entry.persistent && reveal > 0.05) entry.persistent = true;
+      // you shouldn't have to keep re-pinging a wall you already found. The 0.05 threshold
+      // is deliberately above the passive "tell" baseline (0.07 visibility but no actual
+      // wave contribution) so just standing near one doesn't count as discovering it.
+      if (entry.sticky && !entry.persistent && waveReveal > 0.05) entry.persistent = true;
+      const reveal = entry.persistent
+        ? Math.max(waveReveal, (entry.sticky ? 0.55 : 0.82) * entry.baseVisibility)
+        : entry.sticky
+          ? Math.max(waveReveal, 0.07)
+          : waveReveal;
       this.setReveal(entry, reveal);
     });
   }

@@ -26,14 +26,18 @@ export async function createGameScene(
   scene.skipPointerMovePicking = true;
   scene.constantlyUpdateMeshUnderPointer = false;
 
+  // Deliberately dim and directionless — like real dungeon-crawlers (Grimrock, Light Crawler),
+  // the room itself carries almost no light of its own. The traveler's own lamp
+  // (GameWorld's PointLight) is the real, localized light source that reveals what's nearby;
+  // this pair only keeps far shapes from going pure-black silhouette.
   const skyLight = new HemisphericLight("archive-sky-light", new Vector3(0, 1, 0), scene);
-  skyLight.diffuse = Color3.FromHexString("#8ba5a0");
-  skyLight.groundColor = Color3.FromHexString("#121313");
-  skyLight.intensity = coarsePointer ? 0.86 : 1.0;
+  skyLight.diffuse = Color3.FromHexString("#5a6f6b");
+  skyLight.groundColor = Color3.FromHexString("#0a0d0d");
+  skyLight.intensity = coarsePointer ? 0.16 : 0.2;
 
   const sun = new DirectionalLight("archive-sun", new Vector3(-0.4, -1, -0.5), scene);
-  sun.diffuse = Color3.FromHexString("#e6b176");
-  sun.intensity = coarsePointer ? 1.05 : 1.28;
+  sun.diffuse = Color3.FromHexString("#8a6f52");
+  sun.intensity = coarsePointer ? 0.1 : 0.14;
 
   // Shadows ground the traveler in the space; skipped on touch/mobile to protect frame rate.
   let shadowGenerator: ShadowGenerator | null = null;

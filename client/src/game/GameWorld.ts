@@ -71,8 +71,8 @@ export class GameWorld {
     this.playerLamp = this.createPlayer();
     this.playerLight = new PointLight("traveler-light", new Vector3(0, 1.3, 0), scene);
     this.playerLight.diffuse = copperLamp;
-    this.playerLight.intensity = 0.55;
-    this.playerLight.range = 6.5;
+    this.playerLight.intensity = 3.2;
+    this.playerLight.range = 8.5;
     this.listener.position.copyFrom(this.environment.listenerPath[0]);
     this.listenerMaterial = this.createListener();
     this.pulses = this.createPulsePool();
@@ -300,7 +300,7 @@ export class GameWorld {
 
   private updateAmbiance(delta: number) {
     this.playerLight.position.set(this.player.position.x, 1.3, this.player.position.z);
-    const flicker = 0.5 + Math.sin(Date.now() * 0.006) * 0.06;
+    const flicker = 3.2 + Math.sin(Date.now() * 0.006) * 0.25;
     this.playerLight.intensity = flicker;
 
     const theme = this.environment.themeAt(this.player.position.x, this.player.position.z);
