@@ -1,7 +1,6 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
-import { CreateCapsule } from "@babylonjs/core/Meshes/Builders/capsuleBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
 import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder";
@@ -45,6 +44,7 @@ export class GameWorld {
   private listenerIndex = 0;
   private listenerWait = 0;
   private hudTicker = 0;
+  private gateHintCooldown = 0;
   private demoTime = 0;
   private demoHeading = new Vector3(1, 0, 0);
   private seed: number;
@@ -92,39 +92,61 @@ export class GameWorld {
   }
 
   private createPlayer() {
-    const bodyMaterial = new StandardMaterial("traveler-linen", this.scene);
-    bodyMaterial.diffuseColor = Color3.FromHexString("#e3d7bf");
-    bodyMaterial.emissiveColor = Color3.FromHexString("#30291f");
-    bodyMaterial.specularColor = Color3.Black();
+    const skinMaterial = new StandardMaterial("traveler-skin", this.scene);
+    skinMaterial.diffuseColor = Color3.FromHexString("#f0dfc4");
+    skinMaterial.emissiveColor = Color3.FromHexString("#3a3122");
+    skinMaterial.specularColor = Color3.Black();
     const cloakMaterial = new StandardMaterial("traveler-cloak", this.scene);
-    cloakMaterial.diffuseColor = Color3.FromHexString("#315050");
+    cloakMaterial.diffuseColor = Color3.FromHexString("#3a6362");
+    cloakMaterial.emissiveColor = Color3.FromHexString("#0e1c1b");
     cloakMaterial.specularColor = Color3.Black();
+    const eyeMaterial = new StandardMaterial("traveler-eyes", this.scene);
+    eyeMaterial.diffuseColor = Color3.FromHexString("#1b2a29");
+    eyeMaterial.emissiveColor = Color3.FromHexString("#70c6bd");
+    eyeMaterial.specularColor = Color3.Black();
     const lampMaterial = new StandardMaterial("traveler-lamp", this.scene);
     lampMaterial.diffuseColor = copperLamp;
     lampMaterial.emissiveColor = calmLamp;
-    const body = CreateCapsule("traveler-body", { radius: 0.25, height: 1.12, tessellation: 8 }, this.scene);
-    body.parent = this.player;
-    body.position.y = 0.74;
-    body.material = bodyMaterial;
-    const cloak = CreateCylinder("traveler-cloak", { diameterTop: 0.34, diameterBottom: 0.72, height: 0.64, tessellation: 6 }, this.scene);
-    cloak.parent = this.player;
-    cloak.position.y = 0.37;
-    cloak.material = cloakMaterial;
-    const lamp = CreateSphere("traveler-lamp", { diameter: 0.18, segments: 8 }, this.scene);
+
+    // A small round-headed, hooded traveler — friendlier silhouette than a plain capsule.
+    const robe = CreateCylinder("traveler-robe", { diameterTop: 0.32, diameterBottom: 0.64, height: 0.76, tessellation: 12 }, this.scene);
+    robe.parent = this.player;
+    robe.position.y = 0.4;
+    robe.material = cloakMaterial;
+
+    const head = CreateSphere("traveler-head", { diameter: 0.44, segments: 14 }, this.scene);
+    head.parent = this.player;
+    head.position.y = 0.98;
+    head.material = skinMaterial;
+
+    const hood = CreateCylinder("traveler-hood", { diameterTop: 0.12, diameterBottom: 0.5, height: 0.3, tessellation: 12 }, this.scene);
+    hood.parent = this.player;
+    hood.position.set(0, 1.16, -0.06);
+    hood.rotation.x = -0.2;
+    hood.material = cloakMaterial;
+
+    [-0.09, 0.09].forEach((offset, index) => {
+      const eye = CreateSphere(`traveler-eye-${index}`, { diameter: 0.055, segments: 8 }, this.scene);
+      eye.parent = this.player;
+      eye.position.set(offset, 0.97, 0.195);
+      eye.material = eyeMaterial;
+    });
+
+    const lamp = CreateSphere("traveler-lamp", { diameter: 0.19, segments: 10 }, this.scene);
     lamp.parent = this.player;
-    lamp.position.set(0, 1.24, 0.35);
+    lamp.position.set(0, 1.08, 0.34);
     lamp.material = lampMaterial;
-    const frontPlate = CreateBox("traveler-front-plate", { width: 0.2, height: 0.18, depth: 0.1 }, this.scene);
-    frontPlate.parent = this.player;
-    frontPlate.position.set(0, 0.82, 0.34);
-    frontPlate.material = lampMaterial;
-    const shadowRing = CreateTorus("traveler-foot-ring", { diameter: 0.78, thickness: 0.018, tessellation: 24 }, this.scene);
+    const lampHandle = CreateBox("traveler-lamp-handle", { width: 0.05, height: 0.16, depth: 0.05 }, this.scene);
+    lampHandle.parent = this.player;
+    lampHandle.position.set(0, 0.86, 0.32);
+    lampHandle.material = lampMaterial;
+    const shadowRing = CreateTorus("traveler-foot-ring", { diameter: 0.7, thickness: 0.018, tessellation: 24 }, this.scene);
     shadowRing.parent = this.player;
     shadowRing.position.y = 0.025;
     shadowRing.rotation.x = Math.PI / 2;
     shadowRing.material = lampMaterial;
-    this.shadowGenerator?.addShadowCaster(body);
-    this.shadowGenerator?.addShadowCaster(cloak);
+    this.shadowGenerator?.addShadowCaster(robe);
+    this.shadowGenerator?.addShadowCaster(head);
     return lampMaterial;
   }
 
@@ -202,6 +224,7 @@ export class GameWorld {
     else this.updatePlayer(delta);
     this.updateListener(delta);
     this.updateAmbiance(delta);
+    if (this.gateHintCooldown > 0) this.gateHintCooldown -= delta;
     this.camera.update(this.player.position, this.heading, this.getObjectivePoint(), delta);
     this.hudTicker += delta;
     if (this.hudTicker >= 0.25) {
@@ -317,7 +340,14 @@ export class GameWorld {
     this.environment.markers.filter((marker) => !marker.complete).forEach((marker) => {
       if (this.distanceTo(marker.point) < 1.1) this.collectMarker(marker);
     });
-    if (this.state.doorOpen && this.distanceTo(this.environment.exitPoint) < 1.2) this.finish("won", "Arşiv seni tanıdı. Çıkış yolu artık senin.");
+    if (this.state.doorOpen && this.distanceTo(this.environment.exitPoint) < 1.2) {
+      this.finish("won", "Arşiv seni tanıdı. Çıkış yolu artık senin.");
+    } else if (!this.state.doorOpen && this.gateHintCooldown <= 0 && this.distanceTo(this.environment.exitPoint) < 2.4) {
+      // Reachable but revealed via a pulse: without this, the gate looks just like a
+      // "hidden wall" that stubbornly won't open once you've echoed it.
+      this.gateHintCooldown = 7;
+      this.emit({ type: "toast", message: `Mühür kilitli — ${this.state.marks}/3 işaret bulmadan açılmaz.` });
+    }
   }
 
   private collectMarker(marker: Marker) {

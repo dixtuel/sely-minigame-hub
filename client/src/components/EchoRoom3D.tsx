@@ -289,8 +289,8 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
           <p>
             {local(
               locale,
-              "Turkuaz halkalar gizli yol döşemelerini kısa süre açar. Her kaide yaklaştığında kayda geçer; üçü tamamlanınca bakır mühür ışık verir.",
-              "Turquoise rings briefly reveal hidden path tiles. Approaching pedestals activates them; completing all three opens the copper seal.",
+              "Duvarların çoğu zaten hafifçe görünür; yankı yalnızca gizlenmiş birkaç duvarı ortaya çıkarır — onlar da diğerleri gibi katıdır, üstünden geçilmez, etrafından dolaşılır. Kaidelere yaklaşarak üç işareti bul; bakır mühür ancak üçü tamamlanınca açılır ve geçit verir.",
+              "Most walls are already dimly visible; the echo only reveals a handful of hidden ones — those are just as solid as the rest, you route around them, not through them. Approach the pedestals to find all three marks; the copper seal only opens — and lets you through — once all three are found.",
             )}
           </p>
           <div>

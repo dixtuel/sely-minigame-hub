@@ -62,9 +62,12 @@ type RevealWave = { origin: Vector3; age: number };
 const copper = Color3.FromHexString("#c9824a");
 const turquoise = Color3.FromHexString("#70c6bd");
 const charcoal = Color3.FromHexString("#171a1c");
-const WAVE_SPEED = 6.2;
-const WAVE_LIFETIME = 3.1;
-const REVEAL_TRAIL = 1.55;
+// The wavefront travels roughly WAVE_SPEED * (WAVE_LIFETIME + 0.12) units before dying out —
+// keep that well under the maze size (cells are MAZE_CELL_SIZE apart) so one echo reveals a
+// nearby pocket of the maze, not most of the map.
+const WAVE_SPEED = 5.0;
+const WAVE_LIFETIME = 1.05;
+const REVEAL_TRAIL = 0.85;
 
 const staticMesh = (mesh: AbstractMesh) => {
   mesh.isPickable = false;
