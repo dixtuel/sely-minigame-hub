@@ -218,7 +218,7 @@ export class GameWorld {
   }
 
   update(delta: number) {
-    this.environment.update(delta);
+    this.environment.update(delta, this.player.position.x, this.player.position.z);
     this.updatePulses(delta);
     if (this.isDemo) this.updateDemo(delta);
     else this.updatePlayer(delta);

@@ -55,6 +55,14 @@ type RevealEntry = {
   baseVisibility: number;
   /** Once an echo pulse reveals it for the first time, it stays dimly visible from then on. */
   sticky: boolean;
+  /** Distance within which merely walking close also counts as a reveal signal (0 = proximity-immune). */
+  proximityRadius: number;
+  /** Ceiling proximity alone can reach — kept below 1 for objectives so a full echo pulse still matters. */
+  proximityCap: number;
+  /** Secret doors: once the combined reveal crosses a threshold, they open for good (see OPEN_THRESHOLD). */
+  autoOpens: boolean;
+  /** Doors drive their own alpha/frame-glow visuals instead of the plain mesh.visibility fade. */
+  apply?: (reveal: number, opened: boolean) => void;
 };
 
 type RevealWave = { origin: Vector3; age: number };
@@ -68,6 +76,19 @@ const charcoal = Color3.FromHexString("#171a1c");
 const WAVE_SPEED = 5.0;
 const WAVE_LIFETIME = 1.05;
 const REVEAL_TRAIL = 0.85;
+
+// Secret doors: reads as an ordinary wall at rest, then telegraphs itself as a passable,
+// slightly-transparent doorway once the player is close or pings it with an echo pulse.
+// Whichever signal gets there first opens it for the rest of the run.
+const DOOR_PROXIMITY_RADIUS = 3.2;
+const DOOR_OPEN_THRESHOLD = 0.3;
+const DOOR_OPEN_FLOOR = 0.65;
+// Checkpoints stay only partially readable on approach — full clarity still rewards an echo ping.
+const MARKER_PROXIMITY_RADIUS = 4.2;
+const MARKER_PROXIMITY_CAP = 0.45;
+// The exit gate itself should never be a total surprise either, though unlocking it still needs
+// every marker — this only controls whether the player can *see* it before that.
+const GATE_PROXIMITY_RADIUS = 4.5;
 
 const staticMesh = (mesh: AbstractMesh) => {
   mesh.isPickable = false;
@@ -97,6 +118,7 @@ export class ArchiveEnvironment {
   private revealClock = 0;
   private readonly boundaryRects: Rect[] = [];
   private readonly wallRects: Rect[] = [];
+  private readonly doorRects: { rect: Rect; entry: RevealEntry }[] = [];
   private gateRect: Rect | null = null;
   private doorIsOpen = false;
   rooms: { x: number; z: number; theme: 0 | 1 | 2 | 3 }[] = [];
@@ -157,13 +179,28 @@ export class ArchiveEnvironment {
     return material;
   }
 
-  private registerRevealable(mesh: AbstractMesh, position: Vector3, baseVisibility = 1, sticky = false) {
+  private registerRevealable(
+    mesh: AbstractMesh,
+    position: Vector3,
+    baseVisibility = 1,
+    sticky = false,
+    options?: { proximityRadius?: number; proximityCap?: number; autoOpens?: boolean; apply?: (reveal: number, opened: boolean) => void },
+  ) {
     mesh.isPickable = false;
-    // Hidden traps get a faint "tell" even before an echo hits them — a wall that pops out of
-    // pure black with zero warning feels unfair. Everything else (markers, the gate) stays
-    // fully hidden until deliberately revealed, which is the actual point of finding them.
+    // Objectives with a proximity radius get a faint "tell" purely from walking close, on top of
+    // the sticky echo tell below — nothing in the maze should be a total, unwarned surprise.
     mesh.visibility = sticky ? 0.07 : 0;
-    this.revealables.push({ mesh, point: new Vector3(position.x, 0, position.z), persistent: false, baseVisibility, sticky });
+    this.revealables.push({
+      mesh,
+      point: new Vector3(position.x, 0, position.z),
+      persistent: false,
+      baseVisibility,
+      sticky,
+      proximityRadius: options?.proximityRadius ?? 0,
+      proximityCap: options?.proximityCap ?? 1,
+      autoOpens: options?.autoOpens ?? false,
+      apply: options?.apply,
+    });
     return mesh;
   }
 
@@ -213,6 +250,7 @@ export class ArchiveEnvironment {
     this.gateMeshes.length = 0;
     this.markers.length = 0;
     this.wallRects.length = 0;
+    this.doorRects.length = 0;
     this.gateRect = null;
     this.rooms = [];
 
@@ -229,22 +267,19 @@ export class ArchiveEnvironment {
 
     // 1. Maze walls. Most stay ambiently visible (merged into one draw call) so the
     // corridors actually read as a maze; a minority — always off the solution route to
-    // every marker and the gate (see selectHiddenWalls) — are hidden "traps" that only
-    // an echo pulse reveals. Once a pulse has hit one, it stays dimly visible for good.
+    // every marker and the gate (see selectHiddenWalls) — are secret doors instead: they
+    // look like an ordinary wall at rest (never truly invisible), and getting close or
+    // pinging one with an echo fades it into a passable, faintly transparent doorway
+    // that stays open and visible for the rest of the run.
     const hiddenKeys = new Set(layout.hiddenWalls.map((wall) => wall.join(",")));
     const ambientWallParts: Mesh[] = [];
 
     layout.walls.forEach((placement, index) => {
       const [x, z, width, depth, height] = placement;
-      this.wallRects.push(placementToRect(placement));
       if (hiddenKeys.has(placement.join(","))) {
-        const wall = CreateBox(`maze-wall-hidden-${index}`, { width, height, depth }, this.scene);
-        wall.material = this.stoneMaterial;
-        wall.position.set(x, height / 2, z);
-        this.registerRevealable(wall, wall.position, 0.9, true);
-        staticMesh(wall);
-        this.dynamicMeshes.push(wall);
+        this.buildSecretDoor(placement, index);
       } else {
+        this.wallRects.push(placementToRect(placement));
         const box = CreateBox(`maze-wall-part-${index}`, { width, height, depth }, this.scene);
         box.position.set(x, height / 2, z);
         ambientWallParts.push(box);
@@ -350,8 +385,16 @@ export class ArchiveEnvironment {
       glyphMaterial.emissiveColor = Color3.FromHexString("#507f7b");
       glyph.material = glyphMaterial;
 
-      [plinth, ring, core, glyph].forEach((mesh) => {
-        this.registerRevealable(mesh, root.position, 1);
+      const accentRing = CreateTorus(`${definition.id}-accent-ring`, { diameter: 1.15, thickness: 0.045, tessellation: 32 }, this.scene);
+      accentRing.parent = root;
+      accentRing.position.y = 0.52;
+      accentRing.material = this.copperMaterial;
+
+      [plinth, ring, core, glyph, accentRing].forEach((mesh) => {
+        this.registerRevealable(mesh, root.position, 1, false, {
+          proximityRadius: MARKER_PROXIMITY_RADIUS,
+          proximityCap: MARKER_PROXIMITY_CAP,
+        });
         this.dynamicMeshes.push(mesh);
       });
 
@@ -360,6 +403,73 @@ export class ArchiveEnvironment {
 
     // 6. Procedural Exit Gate
     this.buildGate(layout.exitPoint, layout.gateRotation);
+  }
+
+  /**
+   * A "secret door": at rest it's an ordinary opaque stone slab indistinguishable from a real
+   * wall — no invisible collision surprises. Getting close or catching an echo pulse eases it
+   * toward translucent and lights up a copper door-frame + rune around it, telegraphing that
+   * it's actually a passage. Once that crosses the open threshold it stays open and visible.
+   */
+  private buildSecretDoor(placement: WallPlacement, index: number) {
+    const [x, z, width, depth, height] = placement;
+    const rect = placementToRect(placement);
+
+    const doorMaterial = this.stoneMaterial.clone(`secret-door-mat-${index}`);
+    doorMaterial.alpha = 1;
+    const slab = CreateBox(`maze-door-${index}`, { width, height, depth }, this.scene);
+    slab.material = doorMaterial;
+    slab.position.set(x, height / 2, z);
+    slab.visibility = 1;
+
+    const frameMaterial = this.copperMaterial.clone(`secret-door-frame-${index}`);
+    frameMaterial.alpha = 0.85;
+    const horizontal = depth <= width;
+    const frame = CreateBox(
+      `maze-door-frame-${index}`,
+      horizontal
+        ? { width: width * 0.92, height: height * 0.16, depth: depth + 0.1 }
+        : { width: width + 0.1, height: height * 0.16, depth: depth * 0.92 },
+      this.scene,
+    );
+    frame.material = frameMaterial;
+    frame.position.set(x, height * 0.62, z);
+    frame.visibility = 0;
+
+    const glyph = CreatePlane(`maze-door-glyph-${index}`, { size: Math.min(width, depth, height) * 0.7 || 0.5 }, this.scene);
+    glyph.rotation.y = horizontal ? 0 : Math.PI / 2;
+    glyph.position.set(x, height * 0.55, z + (horizontal ? 0.001 : 0));
+    if (!horizontal) glyph.position.x = x + 0.001;
+    const glyphMaterial = new StandardMaterial(`secret-door-glyph-${index}`, this.scene);
+    const glyphTexture = new Texture(assets.echoGlyph, this.scene, true, false);
+    glyphTexture.hasAlpha = true;
+    glyphMaterial.diffuseTexture = glyphTexture;
+    glyphMaterial.emissiveTexture = glyphTexture;
+    glyphMaterial.useAlphaFromDiffuseTexture = true;
+    glyphMaterial.backFaceCulling = false;
+    glyphMaterial.emissiveColor = copper.scale(0.6);
+    glyph.material = glyphMaterial;
+    glyph.visibility = 0;
+
+    [slab, frame, glyph].forEach((mesh) => {
+      mesh.isPickable = false;
+      mesh.freezeWorldMatrix();
+    });
+    this.dynamicMeshes.push(slab, frame, glyph);
+
+    this.registerRevealable(slab, new Vector3(x, 0, z), 1, false, {
+      proximityRadius: DOOR_PROXIMITY_RADIUS,
+      proximityCap: 1,
+      autoOpens: true,
+      apply: (reveal, opened) => {
+        doorMaterial.alpha = 1 - reveal * (opened ? 0.78 : 0.5);
+        frame.visibility = reveal;
+        glyph.visibility = reveal * 0.95;
+        frameMaterial.emissiveColor = copper.scale(opened ? 0.55 : 0.25 * reveal);
+      },
+    });
+    const entry = this.revealables[this.revealables.length - 1];
+    this.doorRects.push({ rect, entry });
   }
 
   private buildGate(position: Vector3, rotationY: number) {
@@ -372,7 +482,7 @@ export class ArchiveEnvironment {
       mesh.material = this.stoneMaterial;
       mesh.parent = this.gateRoot;
       if (persistent) this.registerPersistent(mesh, position, 1);
-      else this.registerRevealable(mesh, position, 0.95);
+      else this.registerRevealable(mesh, position, 0.95, true, { proximityRadius: GATE_PROXIMITY_RADIUS, proximityCap: 1 });
       this.gateMeshes.push(mesh);
       this.dynamicMeshes.push(mesh);
       staticMesh(mesh);
@@ -409,7 +519,7 @@ export class ArchiveEnvironment {
     sealMaterial.diffuseColor = Color3.FromHexString("#3d2b20");
     sealMaterial.emissiveColor = Color3.FromHexString("#1d110d");
     seal.material = sealMaterial;
-    this.registerRevealable(seal, position, 1);
+    this.registerRevealable(seal, position, 1, true, { proximityRadius: GATE_PROXIMITY_RADIUS, proximityCap: 1 });
     this.gateMeshes.push(seal);
     this.dynamicMeshes.push(seal);
     this.gateSeal = sealMaterial;
@@ -420,7 +530,7 @@ export class ArchiveEnvironment {
       ring.position.set(0, 1.55, -0.57);
       ring.rotation.x = Math.PI / 2;
       ring.material = this.copperMaterial;
-      this.registerRevealable(ring, position, 1);
+      this.registerRevealable(ring, position, 1, true, { proximityRadius: GATE_PROXIMITY_RADIUS, proximityCap: 1 });
       this.gateMeshes.push(ring);
       this.dynamicMeshes.push(ring);
       staticMesh(ring);
@@ -431,7 +541,7 @@ export class ArchiveEnvironment {
       lamp.parent = this.gateRoot;
       lamp.material = this.copperMaterial;
       lamp.position.set(offset, 0.7, -0.5);
-      this.registerRevealable(lamp, position, 1);
+      this.registerRevealable(lamp, position, 1, true, { proximityRadius: GATE_PROXIMITY_RADIUS, proximityCap: 1 });
       this.gateMeshes.push(lamp);
       this.dynamicMeshes.push(lamp);
       staticMesh(lamp);
@@ -452,6 +562,9 @@ export class ArchiveEnvironment {
     }
     for (const rect of this.wallRects) {
       if (this.nearRect(px, pz, radius, rect)) return true;
+    }
+    for (const door of this.doorRects) {
+      if (!door.entry.persistent && this.nearRect(px, pz, radius, door.rect)) return true;
     }
     if (!this.doorIsOpen && this.gateRect && this.nearRect(px, pz, radius, this.gateRect)) return true;
     return false;
@@ -488,7 +601,7 @@ export class ArchiveEnvironment {
     if (this.waves.length > 3) this.waves.shift();
   }
 
-  update(delta: number) {
+  update(delta: number, playerX = 0, playerZ = 0) {
     this.revealClock += delta;
     this.waves.forEach((wave) => { wave.age += delta; });
     while (this.waves[0] && this.waves[0].age > WAVE_LIFETIME) this.waves.shift();
@@ -503,17 +616,34 @@ export class ArchiveEnvironment {
         const trail = waveTime <= 0.18 ? 1 : Math.max(0, 1 - (waveTime - 0.18) / (REVEAL_TRAIL - 0.18));
         waveReveal = Math.max(waveReveal, front * trail * entry.baseVisibility);
       });
-      // A hidden trap that an echo has ever touched stays dimly visible from then on —
-      // you shouldn't have to keep re-pinging a wall you already found. The 0.05 threshold
-      // is deliberately above the passive "tell" baseline (0.07 visibility but no actual
-      // wave contribution) so just standing near one doesn't count as discovering it.
-      if (entry.sticky && !entry.persistent && waveReveal > 0.05) entry.persistent = true;
+
+      let proximityReveal = 0;
+      if (entry.proximityRadius > 0) {
+        const distance = Math.hypot(entry.point.x - playerX, entry.point.z - playerZ);
+        if (distance < entry.proximityRadius) {
+          proximityReveal = Math.min(entry.proximityCap, (1 - distance / entry.proximityRadius) * entry.proximityCap) * entry.baseVisibility;
+        }
+      }
+
+      const combined = Math.max(waveReveal, proximityReveal);
+
+      // A hidden trap/gate that an echo (or plain proximity) has ever touched stays dimly
+      // visible from then on — you shouldn't have to keep re-pinging something you already
+      // found. The 0.05 threshold is deliberately above the passive "tell" baseline (0.07
+      // visibility but no actual signal) so just standing near one doesn't count on its own.
+      if (entry.sticky && !entry.persistent && combined > 0.05) entry.persistent = true;
+      // Secret doors open for good — and stay passable — once either signal crosses the
+      // open threshold, whether that came from walking close or from an echo pulse.
+      if (entry.autoOpens && !entry.persistent && combined > DOOR_OPEN_THRESHOLD) entry.persistent = true;
+
       const reveal = entry.persistent
-        ? Math.max(waveReveal, (entry.sticky ? 0.55 : 0.82) * entry.baseVisibility)
+        ? Math.max(combined, (entry.sticky ? 0.55 : entry.autoOpens ? DOOR_OPEN_FLOOR : 0.82) * entry.baseVisibility)
         : entry.sticky
-          ? Math.max(waveReveal, 0.07)
-          : waveReveal;
-      this.setReveal(entry, reveal);
+          ? Math.max(combined, 0.07)
+          : combined;
+
+      if (entry.apply) entry.apply(reveal, entry.persistent);
+      else this.setReveal(entry, reveal);
     });
   }
 
@@ -560,7 +690,8 @@ export class ArchiveEnvironment {
     });
     this.revealables.forEach((entry) => {
       entry.persistent = false;
-      this.setReveal(entry, 0);
+      if (entry.apply) entry.apply(0, false);
+      else this.setReveal(entry, 0);
     });
     this.setDoorOpen(false);
   }
