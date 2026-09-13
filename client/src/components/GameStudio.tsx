@@ -41,7 +41,11 @@ type GameResult = { score: number; label: string; detail: string; outcome: Resul
 type Position = { r: number; c: number };
 const local = (locale: SiteLocale, tr: string, en: string) => locale === "en" ? en : tr;
 export const runMasteryFor = (highScore: number, dailyDifficulty: number) => Math.min(4, Math.max(masteryBand(highScore), dailyDifficulty));
-export function resultActionsFor(outcome: ResultOutcome, failureCount: number) {
+export function resultActionsFor(outcome: ResultOutcome, failureCount: number, gameId?: GameId) {
+  if (gameId === "spark") {
+    // Kıvılcım sonsuz arcade uçuş oyunudur; seviye atlama/geçiş olmaz, her zaman tekrar denenebilir
+    return { canRetry: true, canAdvance: false };
+  }
   return { canRetry: outcome === "failure", canAdvance: outcome === "success" || failureCount >= 3 };
 }
 
@@ -93,7 +97,7 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
 
   const finish = useCallback((next: GameResult) => {
     const finalScore = scoreFor(game.id, next.score);
-    if (next.outcome === "success") onScore(finalScore);
+    if (next.outcome === "success" || game.id === "spark") onScore(finalScore);
     setFailureCount(current => next.outcome === "failure" ? current + 1 : 0);
     setResult({ ...next, score: finalScore });
   }, [game.id, onScore]);
@@ -124,7 +128,7 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
           </div>
         ) : (
           <div className={`game-stage ${sparkActive ? "game-stage-spark" : ""}`}>
-            <GameRenderer key={runKey} game={game} locale={locale} dailySeed={dailySeed} mastery={runMastery} demo={demo} soundOn={soundOn} onFinish={finish} />
+            <GameRenderer key={runKey} game={game} locale={locale} dailySeed={game.id === "spark" ? ((dailySeed ^ ((runKey + 1) * 0x1f351f) ^ Math.imul(runKey + 7, 0x9e3779b9)) >>> 0) : dailySeed} mastery={runMastery} demo={demo} soundOn={soundOn} onFinish={finish} />
             {result && (
               <div className="result-panel" role="dialog" aria-modal="true" aria-label={locale === "en" ? "Run result" : "Tur sonucu"}>
                 <button className="result-close" onClick={() => setResult(null)} aria-label={locale === "en" ? "Close result" : "Sonucu kapat"}><X size={18} /></button>
@@ -133,11 +137,11 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
                 <p>{result.detail}</p>
                 <div className="result-score"><span>{locale === "en" ? "SCORE" : "PUAN"}</span><strong>{result.score.toLocaleString(locale === "en" ? "en-US" : "tr-TR")}</strong></div>
                 <div className="result-actions">
-                  {resultActionsFor(result.outcome, failureCount).canRetry && <button className="ink-button" onClick={restart}>{locale === "en" ? "Try again" : "Tekrar dene"} <RotateCcw size={16} /></button>}
-                  {resultActionsFor(result.outcome, failureCount).canAdvance && <button className="ink-button" onClick={continueToNext}>{result.outcome === "success" ? (locale === "en" ? "Continue" : "Devam et") : (locale === "en" ? "Next level" : "Sonraki seviyeye geç")} <ArrowRight size={16} /></button>}
+                  {resultActionsFor(result.outcome, failureCount, game.id).canRetry && <button className="ink-button" onClick={restart}>{locale === "en" ? "Try again" : "Tekrar dene"} <RotateCcw size={16} /></button>}
+                  {resultActionsFor(result.outcome, failureCount, game.id).canAdvance && <button className="ink-button" onClick={continueToNext}>{result.outcome === "success" ? (locale === "en" ? "Continue" : "Devam et") : (locale === "en" ? "Next level" : "Sonraki seviyeye geç")} <ArrowRight size={16} /></button>}
                   <button className="quiet-button" onClick={onBack}>{locale === "en" ? "Choose a route" : "Rota seç"}</button>
                 </div>
-                {result.outcome === "failure" && failureCount >= 3 && <p className="result-nudge">{locale === "en" ? "A new route is available after three attempts." : "Üç denemeden sonra yeni rota açıldı."}</p>}
+                {game.id !== "spark" && result.outcome === "failure" && failureCount >= 3 && <p className="result-nudge">{locale === "en" ? "A new route is available after three attempts." : "Üç denemeden sonra yeni rota açıldı."}</p>}
                 <AdSenseResultUnit locale={locale} />
               </div>
             )}

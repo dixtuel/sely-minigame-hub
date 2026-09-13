@@ -66,10 +66,22 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Pylon yüksekliğini deterministik seed ve index üzerinden hesaplar */
-export function sparkCalculatePylonHeight(seed: number, index: number, minHeight = SPARK_DEFAULTS.minTopHeight, maxAvailable = 320): number {
+/** Pylon yüksekliğini deterministik seed, index ve önceki pilon üzerinden dengeli hesaplar */
+export function sparkCalculatePylonHeight(
+  seed: number,
+  index: number,
+  minHeight = SPARK_DEFAULTS.minTopHeight,
+  maxAvailable = 320,
+  prevHeight?: number,
+  maxDelta = 140
+): number {
   const prng = mulberry32(seed ^ Math.imul(index + 37, 0x1f351f) ^ 0x9e3779b9);
-  return Math.floor(minHeight + prng() * (maxAvailable - minHeight));
+  let raw = Math.floor(minHeight + prng() * (maxAvailable - minHeight));
+  if (prevHeight !== undefined) {
+    raw = clamp(raw, prevHeight - maxDelta, prevHeight + maxDelta);
+    raw = clamp(raw, minHeight, maxAvailable);
+  }
+  return raw;
 }
 
 /** Zorluk kademesi: Skor arttıkça hız hafifçe yükselir, açıklık daralır */
@@ -271,9 +283,9 @@ export default function SparkCanvasGame({
     let arcPhase = 0;
 
     // İlk 3 pylon oluşturulur
-    function spawnPylon(index: number, startX: number) {
+    function spawnPylon(index: number, startX: number, prevTopHeight?: number) {
       const { gap } = sparkDifficulty(score, mastery);
-      const topHeight = sparkCalculatePylonHeight(seed, index, SPARK_DEFAULTS.minTopHeight, GROUND_Y - gap - 50);
+      const topHeight = sparkCalculatePylonHeight(seed, index, SPARK_DEFAULTS.minTopHeight, GROUND_Y - gap - 50, prevTopHeight);
       const bottomY = topHeight + gap;
       const bottomHeight = GROUND_Y - bottomY;
       return {
@@ -288,9 +300,12 @@ export default function SparkCanvasGame({
       };
     }
 
-    pylons.push(spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60));
-    pylons.push(spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60 + SPARK_DEFAULTS.pylonSpacing));
-    pylons.push(spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60 + SPARK_DEFAULTS.pylonSpacing * 2));
+    const firstPylon = spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60);
+    pylons.push(firstPylon);
+    const secondPylon = spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60 + SPARK_DEFAULTS.pylonSpacing, firstPylon.topHeight);
+    pylons.push(secondPylon);
+    const thirdPylon = spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60 + SPARK_DEFAULTS.pylonSpacing * 2, secondPylon.topHeight);
+    pylons.push(thirdPylon);
 
     // Parçacık patlaması üretici
     function createSparks(x: number, y: number, count: number, color = "#f8d77a", speed = 140) {
@@ -448,7 +463,7 @@ export default function SparkCanvasGame({
       pylons = pylons.filter(p => p.x + p.width > -50);
       const lastPylon = pylons[pylons.length - 1];
       if (lastPylon && lastPylon.x < CANVAS_WIDTH) {
-        pylons.push(spawnPylon(nextPylonIndex++, lastPylon.x + SPARK_DEFAULTS.pylonSpacing));
+        pylons.push(spawnPylon(nextPylonIndex++, lastPylon.x + SPARK_DEFAULTS.pylonSpacing, lastPylon.topHeight));
       }
 
       // Çarpışma Denetimi

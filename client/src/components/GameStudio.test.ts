@@ -27,4 +27,10 @@ describe("resultActionsFor", () => {
   it("unlocks the next generated level on the third failed run", () => {
     expect(resultActionsFor("failure", 3)).toEqual({ canRetry: true, canAdvance: true });
   });
+
+  it("keeps Spark endless with retry only, never offering level advance", () => {
+    expect(resultActionsFor("success", 0, "spark")).toEqual({ canRetry: true, canAdvance: false });
+    expect(resultActionsFor("failure", 0, "spark")).toEqual({ canRetry: true, canAdvance: false });
+    expect(resultActionsFor("failure", 3, "spark")).toEqual({ canRetry: true, canAdvance: false });
+  });
 });
