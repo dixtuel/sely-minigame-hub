@@ -91,6 +91,11 @@ Bu belge, **SELY MiniGame Hub** projesinde doğrudan veya dolaylı olarak kullan
 - **Kullanım:** Knot (topolojik çizgi akışı), Cut (açısal dilimleme), Shadow (gecikmeli gölge matrisi), Vaka (çelişki grafı çözücüsü), Hane (harf/sayı kısıt motoru) ve Spark (kaçış şeridi akışı).
 - **Açıklama:** Seed ve mastery parametreleriyle her gün tekil ve kesinlikle çözülebilir seviyeler üreten algoritmalar.
 
+### [ncarkaci/TDKDictionaryCrawler](https://github.com/ncarkaci/TDKDictionaryCrawler)
+- **Kullanım:** Hane oyununda tahmin geçerliliği denetimi için kullanılan 76.187 kelimelik kapsamlı Türkçe sözlük veri seti (`client/src/lib/haneWordLists.ts`).
+- **Lisans:** MIT Lisansı / Açık Kaynak Referans
+- **Web Sitesi:** https://github.com/ncarkaci/TDKDictionaryCrawler
+
 ---
 
 ## 6. Lisans Bildirimi
