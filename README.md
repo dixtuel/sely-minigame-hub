@@ -116,4 +116,4 @@ Bu projede kullanılan 3D motoru (Babylon.js), kullanıcı arayüzü çerçevele
 
 Kaynak kodu [GNU Affero General Public License v3.0](LICENSE) kapsamında sunulur. Bu lisans, değiştirilmiş veya ağ üzerinden kullanıma sunulan türevlerin de aynı AGPL-3.0 koşullarıyla kaynak kodunu erişilebilir kılmasını gerektirir.
 
-`SELY.TR`, `dixtuel` adı, logolar, oyun adları ve marka kimliği AGPL-3.0 ile ayrı bir marka lisansı kazanmaz; bu işaretler, onay veya ilişki ima edecek biçimde kullanılamaz. Telif hakkı **© 2026 Asrın Kılıç (dixtuel).**
+`SELY.TR`, `dixtuel` adı, logolar, oyun adları ve marka kimliği AGPL-3.0 ile ayrı bir marka lisansı kazanmaz; bu işaretler, onay veya ilişki ima edecek biçimde kullanılamaz. Telif hakkı **© 2026 dixtuel (SELY.TR).**

@@ -1,11 +1,10 @@
-import { ArrowLeft, ExternalLink, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Cookie, ExternalLink, ShieldCheck } from "lucide-react";
 import { Link } from "wouter";
-import { publicContactEmail } from "@/lib/contact";
+import { ProtectedContact, ProtectedName } from "@/components/ProtectedIdentity";
+import { useCookieConsent } from "@/contexts/CookieConsentContext";
 import type { SiteLocale } from "@/lib/i18n";
 
 type LegalPageProps = { kind: "privacy" | "terms" | "accessibility"; locale?: SiteLocale };
-
-const Contact = () => <a href={`mailto:${publicContactEmail}`}>{publicContactEmail}</a>;
 
 export default function Legal({ kind, locale = "tr" }: LegalPageProps) {
   const privacy = kind === "privacy";
@@ -39,8 +38,8 @@ export default function Legal({ kind, locale = "tr" }: LegalPageProps) {
         <ShieldCheck size={21} />
         <p>
           {english
-            ? <>For questions, privacy requests or feedback, contact <Contact />.</>
-            : <>Gizlilik politikası, KVKK başvuruları veya geri bildirimleriniz için doğrudan <Contact /> adresi üzerinden iletişime geçebilirsiniz.</>}
+            ? <>For questions, privacy requests or feedback, contact <ProtectedContact locale="en" />.</>
+            : <>Gizlilik politikası, KVKK başvuruları veya geri bildirimleriniz için doğrudan <ProtectedContact /> adresi üzerinden iletişime geçebilirsiniz.</>}
         </p>
       </section>
     </article>
@@ -48,6 +47,8 @@ export default function Legal({ kind, locale = "tr" }: LegalPageProps) {
 }
 
 function EnglishLegalContent({ kind }: { kind: LegalPageProps["kind"] }) {
+  const { openBanner } = useCookieConsent();
+
   if (kind === "accessibility") {
     return <div className="legal-copy">
       <section>
@@ -64,7 +65,7 @@ function EnglishLegalContent({ kind }: { kind: LegalPageProps["kind"] }) {
       </section>
       <section>
         <h2>4. Feedback & Support</h2>
-        <p>If you encounter any accessibility barriers on any device or browser, please report the details to <Contact />.</p>
+        <p>If you encounter any accessibility barriers on any device or browser, please report the details to <ProtectedContact locale="en" />.</p>
       </section>
     </div>;
   }
@@ -73,7 +74,7 @@ function EnglishLegalContent({ kind }: { kind: LegalPageProps["kind"] }) {
     return <div className="legal-copy">
       <section>
         <h2>1. Data Controller</h2>
-        <p>This privacy notice is issued by the operator of SELY.TR (Asrın Kılıç / dixtuel). You may address any privacy or data rights inquiries to <Contact />.</p>
+        <p>This privacy notice is issued by the operator of SELY.TR (<ProtectedName /> / dixtuel). You may address any privacy or data rights inquiries to <ProtectedContact locale="en" />.</p>
       </section>
       <section>
         <h2>2. Data Minimisation & No Account Requirement</h2>
@@ -91,8 +92,18 @@ function EnglishLegalContent({ kind }: { kind: LegalPageProps["kind"] }) {
         <p>These values stay strictly on your personal device, are never transmitted to our database, and can be cleared at any time via your browser settings.</p>
       </section>
       <section>
-        <h2>4. Cookies & Third-Party Trackers</h2>
-        <p>SELY.TR does not use third-party advertising cookies, behavioural trackers, analytics beacons, or marketing pixels. No tracking cookies are planted on your device.</p>
+        <h2>4. Cookies & Google AdSense Advertising</h2>
+        <p>SELY.TR maintains a strict data minimization stance. We do not use intrusive cross-site tracking pixels or behavioural surveillance beacons. However, the site displays sponsored advertisements provided through Google AdSense to sustain operations:</p>
+        <ul>
+          <li><strong>Google AdSense Cookies:</strong> Google and its partner advertising vendors use cookies (such as <code>__gads</code>, <code>__gpi</code>, and advertising identifiers) to serve relevant ads based on prior visits to this or other websites.</li>
+          <li><strong>Google Consent Mode v2:</strong> SELY.TR respects your choices via Google Consent Mode v2. By default, ad personalization and ad storage permissions are set to denied, and requests are submitted as non-personalized (<code>requestNonPersonalizedAds = 1</code>).</li>
+          <li><strong>User Choice & Opt-Out:</strong> Advertising cookies are only active if you explicitly provide consent via our cookie banner. You can change your choice at any time using the preferences button below or via <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">Google Ads Settings <ExternalLink size={12} /></a> and <a href="https://aboutads.info/choices" target="_blank" rel="noreferrer">aboutads.info <ExternalLink size={12} /></a>.</li>
+        </ul>
+        <div style={{ marginTop: "14px" }}>
+          <button type="button" className="footer-link-button" onClick={openBanner}>
+            <Cookie size={14} /> Open Cookie & Ad Preferences
+          </button>
+        </div>
       </section>
       <section>
         <h2>5. Server Logs & Security</h2>
@@ -100,7 +111,7 @@ function EnglishLegalContent({ kind }: { kind: LegalPageProps["kind"] }) {
       </section>
       <section>
         <h2>6. Your Rights</h2>
-        <p>Under Turkish Law No. 6698 on the Protection of Personal Data (KVKK Art. 11) and applicable data protection regulations, you have the right to learn whether your data is processed, request information, and demand deletion. Because we do not store persistent player profiles or identifiable databases, there are typically no personal records to query; however, you may direct any inquiry to <Contact />.</p>
+        <p>Under Turkish Law No. 6698 on the Protection of Personal Data (KVKK Art. 11) and applicable data protection regulations, you have the right to learn whether your data is processed, request information, and demand deletion. Because we do not store persistent player profiles or identifiable databases, there are typically no personal records to query; however, you may direct any inquiry to <ProtectedContact locale="en" />.</p>
       </section>
     </div>;
   }
@@ -124,7 +135,7 @@ function EnglishLegalContent({ kind }: { kind: LegalPageProps["kind"] }) {
     </section>
     <section>
       <h2>5. Inquiries & Contact</h2>
-      <p>For questions or operational notices, contact <Contact />.</p>
+      <p>For questions or operational notices, contact <ProtectedContact locale="en" />.</p>
     </section>
   </div>;
 }
@@ -145,16 +156,18 @@ function AccessibilityContent() {
     </section>
     <section>
       <h2>4. Geri Bildirim ve İletişim</h2>
-      <p>Kullandığınız yardımcı teknoloji veya cihazda herhangi bir erişilebilirlik engeliyle karşılaşırsanız, detayları <Contact /> adresine iletebilirsiniz.</p>
+      <p>Kullandığınız yardımcı teknoloji veya cihazda herhangi bir erişilebilirlik engeliyle karşılaşırsanız, detayları <ProtectedContact /> adresine iletebilirsiniz.</p>
     </section>
   </div>;
 }
 
 function PrivacyContent() {
+  const { openBanner } = useCookieConsent();
+
   return <div className="legal-copy">
     <section>
       <h2>1. Veri Sorumlusu</h2>
-      <p>6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) uyarınca, SELY.TR MiniGame Hub platformunun veri sorumlusu site işleticisi Asrın Kılıç’tır (dixtuel). Her türlü bilgi talebi veya başvuru için doğrudan <Contact /> adresini kullanabilirsiniz.</p>
+      <p>6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) uyarınca, SELY.TR MiniGame Hub platformunun veri sorumlusu site işleticisi <ProtectedName />’tır (dixtuel). Her türlü bilgi talebi veya başvuru için doğrudan <ProtectedContact /> adresini kullanabilirsiniz.</p>
     </section>
     <section>
       <h2>2. Veri Minimizasyonu ve Hesapsız Kullanım</h2>
@@ -172,8 +185,18 @@ function PrivacyContent() {
       <p>Bu veriler <strong>yalnızca sizin cihazınızda saklanır</strong>, sunucularımıza iletilmez veya üçüncü kişilerle paylaşılmaz. İstediğiniz zaman tarayıcı geçmişinizi ve yerel depolama verilerinizi temizleyerek bu bilgileri silebilirsiniz.</p>
     </section>
     <section>
-      <h2>4. Çerezler ve Takipçiler</h2>
-      <p>SELY.TR’de üçüncü taraf reklam çerezleri, davranışsal profil çıkarma araçları, Google Analytics veya Facebook/Meta pikseli gibi pazarlama izleyicileri <strong>kesinlikle kullanılmaz</strong>. Ziyaretçilerimizin internet alışkanlıkları takip edilmez.</p>
+      <h2>4. Çerezler ve Google AdSense Reklam Tercihleri</h2>
+      <p>SELY.TR olarak veri minimizasyonu ilkesini benimsiyoruz; platformumuzda kullanıcıyı internet genelinde gözetleyen harici pazarlama pikselleri veya istilacı veri simsarı takipçileri yer almaz. Bununla birlikte, platformun sürdürülebilirliğini sağlamak amacıyla Google AdSense sponsorlu reklam alanları sunulmaktadır:</p>
+      <ul>
+        <li><strong>Google AdSense Çerezleri:</strong> Google ve yetkili reklam iş ortakları, ziyaretçilerin önceki internet ziyaretlerine dayanarak reklam sunmak ve reklam sıklığını sınırlamak amacıyla çerezler (örneğin <code>__gads</code>, <code>__gpi</code> vb.) ve cihaz tanıtıcıları kullanabilir.</li>
+        <li><strong>Google Consent Mode v2 Entegrasyonu:</strong> Sitemiz uluslararası gizlilik standartlarına ve Google Consent Mode v2 protokolüne tam uyumludur. Ziyaretiniz başladığında reklam kişiselleştirme ve depolama izinleri varsayılan olarak kapalı (denied) tutulur ve reklamlar kişiselleştirilmemiş modda (<code>requestNonPersonalizedAds = 1</code>) talep edilir.</li>
+        <li><strong>Kullanıcı İzni ve Tercih Yönetimi:</strong> Kişiselleştirilmiş reklam çerezleri yalnızca çerez bildirim panelimiz üzerinden açık onay vermeniz durumunda devreye girer. Tercihinizi istediğiniz an aşağıdaki butondan veya sayfa altlığındaki "Çerez Ayarları" bağlantısından güncelleyebilirsiniz. Ayrıca dilediğinizde <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">Google Reklam Ayarları <ExternalLink size={12} /></a> veya <a href="https://aboutads.info/choices" target="_blank" rel="noreferrer">aboutads.info <ExternalLink size={12} /></a> üzerinden kişiselleştirmeyi küresel olarak devre dışı bırakabilirsiniz.</li>
+      </ul>
+      <div style={{ marginTop: "14px" }}>
+        <button type="button" className="footer-link-button" onClick={openBanner}>
+          <Cookie size={14} /> Çerez ve Reklam Tercihlerini Değiştir
+        </button>
+      </div>
     </section>
     <section>
       <h2>5. Sunucu Güvenlik Kayıtları ve Hukuki Sebepler</h2>
@@ -181,7 +204,7 @@ function PrivacyContent() {
     </section>
     <section>
       <h2>6. İlgili Kişi Hakları (KVKK Madde 11)</h2>
-      <p>KVKK’nın 11. maddesi uyarınca herkes; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, verilerin işlenme amacına uygun kullanılıp kullanılmadığını öğrenme ve silinmesini talep etme haklarına sahiptir. Sitede kalıcı kişisel veri tutulmadığı için pratikte sorgulanabilecek bir kullanıcı kaydı bulunmamakla birlikte, yasal haklarınıza dair her türlü sorunuz için <Contact /> adresine başvurabilirsiniz.</p>
+      <p>KVKK’nın 11. maddesi uyarınca herkes; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, verilerin işlenme amacına uygun kullanılıp kullanılmadığını öğrenme ve silinmesini talep etme haklarına sahiptir. Sitede kalıcı kişisel veri tutulmadığı için pratikte sorgulanabilecek bir kullanıcı kaydı bulunmamakla birlikte, yasal haklarınıza dair her türlü sorunuz için <ProtectedContact /> adresine başvurabilirsiniz.</p>
     </section>
     <section>
       <h2>7. Yasal Dayanak ve Güncellik</h2>
@@ -213,7 +236,7 @@ function TermsContent() {
     </section>
     <section>
       <h2>5. İletişim</h2>
-      <p>Kullanım koşulları veya hizmetle ilgili teknik bildirimleriniz için <Contact /> üzerinden iletişim kurabilirsiniz.</p>
+      <p>Kullanım koşulları veya hizmetle ilgili teknik bildirimleriniz için <ProtectedContact /> üzerinden iletişim kurabilirsiniz.</p>
     </section>
   </div>;
 }

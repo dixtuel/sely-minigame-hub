@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, CircleHelp, Gamepad2, History, Menu, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, CircleHelp, Cookie, Gamepad2, History, Menu, ShieldCheck, Sparkles, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useCookieConsent } from "@/contexts/CookieConsentContext";
 import { trpc } from "@/lib/trpc";
 import { getGameCatalog, type GameId, type GameMeta } from "@/lib/catalog";
 import { copy, localePath, rememberLocale, type SiteLocale } from "@/lib/i18n";
@@ -17,6 +18,7 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
   const words = copy[locale];
   const catalog = getGameCatalog(locale);
   const [, navigate] = useLocation();
+  const { openBanner } = useCookieConsent();
   const [selected, setSelected] = useState<SelectedRun | null>(null);
   const [soundOn, setSoundOn] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -75,7 +77,7 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
     <section className="featured-block" id="daily"><div className="section-index"><span>{words.today}</span><b>{daily.data?.date ?? "…"}</b></div><article className="featured-poster"><img src={catalog[0].poster} alt={`${catalog[0].title} game poster`} /><div className="featured-overlay"><span>01 / {words.todayStart}</span><h2>{catalog[0].title}</h2><p>{catalog[0].mechanic}</p><button onClick={() => startGame(catalog[0])}>{words.enter} <ArrowUpRight size={18} /></button></div><div className="poster-number">01</div></article><aside className="daily-note"><span className="note-mark">✳</span><span className="daily-set-label">{words.dailySet}</span><p>{words.dailyCopy}</p><div className="daily-edition-list">{catalog.map(game => <button key={game.id} onClick={() => startGame(game)}><span>{game.number}</span>{game.title}</button>)}</div><div><History size={16} /><span>{daily.isLoading ? words.dailyLoading : words.dailyReady}</span></div></aside></section>
     <section className="catalog-section" id="games"><div className="catalog-heading"><span className="studio-kicker">{words.catalogKicker}</span><h2>{words.catalogLead}<br /><em>{words.catalogEmphasis}</em></h2><p>{words.catalogDescription}</p><div className="personal-note"><span>{words.personalKicker}</span><p>{words.personalDescription}</p></div></div><div className="catalog-grid">{catalog.map((game, index) => <GameCard key={game.id} game={game} locale={locale} score={scores[game.id]} mastery={masteryBand(scores[game.id])} index={index} onPlay={() => startGame(game)} />)}</div></section>
     <section className="principles"><div className="principle-icon"><Gamepad2 size={26} /></div><div><span className="studio-kicker">{words.rhythmKicker}</span><h2>{words.rhythmLead}<br />{words.rhythmBottom}</h2></div><p>{words.rhythmDescription}</p><a href="#daily">{words.backToDaily} <ArrowUpRight size={17} /></a></section>
-    <footer className="hub-footer"><div><a className="brand-lockup" href="#top"><img src="/manus-storage/sely-mark_de9c08a5.png" alt="" /><span>SELY<span className="brand-dot">.</span>TR</span></a><p>{words.footerDescription}</p></div><div className="footer-links"><Link href={localePath(locale, "/privacy")}><ShieldCheck size={15} /> {words.privacy}</Link><Link href={localePath(locale, "/terms")}><CircleHelp size={15} /> {words.terms}</Link><Link href={localePath(locale, "/accessibility")}>{words.accessibility}</Link><a href="/ads.txt">ads.txt</a></div><div className="footer-credit"><a href="https://dixtuel.tr/" target="_blank" rel="noreferrer">Made by <strong>dixtuel</strong> + <em>kiyici ;)</em><ArrowUpRight size={14} /></a><small>© 2026 SELY.TR · {words.titleSuffix}</small></div></footer>
+    <footer className="hub-footer"><div><a className="brand-lockup" href="#top"><img src="/manus-storage/sely-mark_de9c08a5.png" alt="" /><span>SELY<span className="brand-dot">.</span>TR</span></a><p>{words.footerDescription}</p></div><div className="footer-links"><Link href={localePath(locale, "/privacy")}><ShieldCheck size={15} /> {words.privacy}</Link><Link href={localePath(locale, "/terms")}><CircleHelp size={15} /> {words.terms}</Link><Link href={localePath(locale, "/accessibility")}>{words.accessibility}</Link><button type="button" className="footer-link-button" onClick={openBanner}><Cookie size={14} /> {locale === "en" ? "Cookie Settings" : "Çerez Ayarları"}</button><a href="/ads.txt">ads.txt</a></div><div className="footer-credit"><a href="https://dixtuel.tr/" target="_blank" rel="noreferrer">Made by <strong>dixtuel</strong> + <em>kiyici ;)</em><ArrowUpRight size={14} /></a><small>© 2026 SELY.TR · {words.titleSuffix}</small></div></footer>
   </main>;
 }
 

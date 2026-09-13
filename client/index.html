@@ -6,6 +6,33 @@
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+    <!-- Google Consent Mode v2 (AdSense Privacy Defaults) -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      try {
+        var _s = localStorage.getItem("sely-cookie-consent");
+        var _granted = _s === "accepted";
+        gtag("consent", "default", {
+          "ad_storage": _granted ? "granted" : "denied",
+          "ad_user_data": _granted ? "granted" : "denied",
+          "ad_personalization": _granted ? "granted" : "denied",
+          "analytics_storage": _granted ? "granted" : "denied",
+          "wait_for_update": 500
+        });
+        if (!_granted) {
+          (window.adsbygoogle = window.adsbygoogle || []).requestNonPersonalizedAds = 1;
+        }
+      } catch (e) {
+        gtag("consent", "default", {
+          "ad_storage": "denied",
+          "ad_user_data": "denied",
+          "ad_personalization": "denied",
+          "analytics_storage": "denied",
+          "wait_for_update": 500
+        });
+      }
+    </script>
     <meta name="description" content="SELY.TR — kısa turlarla başlayan, ustalıkla derinleşen yedi özgün mini oyun." />
     <meta name="theme-color" content="#f6f0e3" />
     <meta name="application-name" content="SELY.TR MiniGame Hub" />

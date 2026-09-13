@@ -5,7 +5,8 @@ const root = resolve(import.meta.dirname, "..");
 const sourceRoots = ["client", "server", "shared", "drizzle", "db"];
 const ignoredDirectories = new Set(["node_modules", "dist", ".git", "prod-overlay.example"]);
 const forbiddenFile = /^(google.+\.html|BingSiteAuth\.xml|yandex_.+\.html)$/i;
-const forbiddenLiteral = /asrinklcc@dixtuel\.tr/i;
+const forbiddenLiteral = /asrinklcc@(?:dixtuel|sely)\.tr/i;
+const forbiddenName = /Asr[ıi]n\s+K[ıi]l[ıi][çc]/i;
 const forbiddenIdentityBinding = /["'](?:@id|sameAs|creator|author)["']\s*:/;
 const findings = [];
 
@@ -19,6 +20,7 @@ async function walk(directory) {
     if (/\.(?:ts|tsx|js|mjs|json|html|xml|txt|css)$/i.test(entry.name)) {
       const content = await readFile(fullPath, "utf8");
       if (forbiddenLiteral.test(content)) findings.push(`${pathFromRoot}: real contact address`);
+      if (forbiddenName.test(content)) findings.push(`${pathFromRoot}: plaintext personal name`);
       if (forbiddenIdentityBinding.test(content)) findings.push(`${pathFromRoot}: structured identity binding`);
     }
   }
