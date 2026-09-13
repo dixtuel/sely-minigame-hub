@@ -88,7 +88,7 @@ Bu belge, **SELY MiniGame Hub** projesinde doğrudan veya dolaylı olarak kullan
 - **Açıklama:** Deterministik günlük seed tabanlı, çözülebilirliği matematiksel olarak garantilenen labirent algoritması.
 
 ### Deterministik Prosedürel Bulmaca Üreticileri
-- **Kullanım:** Knot (topolojik çizgi akışı), Cut (açısal dilimleme), Shadow (gecikmeli gölge matrisi), Vaka (çelişki grafı çözücüsü), Hane (harf/sayı kısıt motoru) ve Spark (kaçış şeridi akışı).
+- **Kullanım:** Knot (topolojik çizgi akışı), Cut (açısal dilimleme), Shadow (gecikmeli gölge matrisi), Vaka (çelişki grafı çözücüsü), Hane (harf/sayı kısıt motoru) ve Spark (elektrik arkı / pilon kaçış fiziği).
 - **Açıklama:** Seed ve mastery parametreleriyle her gün tekil ve kesinlikle çözülebilir seviyeler üreten algoritmalar.
 
 ### [ncarkaci/TDKDictionaryCrawler](https://github.com/ncarkaci/TDKDictionaryCrawler)

@@ -29,7 +29,7 @@ Görsel dil; editoryal poster tasarımı, kâğıt yüzeyleri ve baskı atölyes
 | Gölge Payı | 2D Canvas | Gecikmeli gölgeni iki pedde eşleştirip çıkışı yakala. |
 | Vaka | Metin/mantık | Şüpheliyi suçla, ifadesiyle çelişen ipucunu sun — yanlış ipucu davayı kapatmaz. |
 | Hane | Metin/mantık | Sayı veya kelime kaydını dene, makbuz işaretleriyle her satırda ihtimalleri daralt. |
-| Kıvılcım | 2D Canvas (sonsuz) | Sonsuz trafikte planörü yönet, her zaman açık olan şeridi zamanında yakala. |
+| Kıvılcım | 2D Canvas (arcade uçuş) | Elektrik arkı ve pilon kaçış oyunu; dinamik yerçekimi, darbe fiziği, toleranslı çarpışma kontrolü ve sentezlenmiş Web Audio sesleri. |
 
 Yankı Odası, projedeki tek gerçek-3D oyundur: `@babylonjs/core` üzerinde recursive-backtracker ile üretilen gerçek dallanan/çıkmaz sokaklı bir labirent, eksen-ayrık duvar çarpışması, `mastery`'ye göre ayarlanan zorluk (braiding), dinamik ışık/gölge ve yankı-dalgası tabanlı bir "sis perdesi" (fog-of-war) mekaniği kullanır.
 

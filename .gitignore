@@ -151,6 +151,9 @@ PRIVATE_DELIVERY_MANIFEST.md
 GAME_REVISION_PLAN_2026-08.md
 .vercel
 
+.manus-logs/
+
 # AI Assistant configs and memory
 .agents/
 .claude/
+.gemini/
