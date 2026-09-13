@@ -96,6 +96,11 @@ Bu belge, **SELY MiniGame Hub** projesinde doğrudan veya dolaylı olarak kullan
 - **Lisans:** MIT Lisansı / Açık Kaynak Referans
 - **Web Sitesi:** https://github.com/ncarkaci/TDKDictionaryCrawler
 
+### [Serkanbyx/flappy-bird](https://github.com/Serkanbyx/flappy-bird) & Açık Kaynak Arcade Uçuş Motorları
+- **Kullanım:** Kıvılcım (Spark) oyununun delta-time bağımsız fizik döngüsü, Web Audio API prosedürel ses sentezleyicisi (`sine`/`sawtooth`/`triangle` dalga osilatörleri) ve dokunmatik tuval entegrasyonu.
+- **İncelenen Referanslar:** Serkanbyx/flappy-bird (MIT), robert-kratz/flappy-bird (Apache-2.0), JohnDev19/Flappy-Ball (MIT).
+- **Lisans:** MIT Lisansı / Açık Kaynak
+
 ---
 
 ## 6. Lisans Bildirimi

@@ -1,406 +1,745 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { generateSparkLevel, generateSparkWorldSegment, sparkEscalationFor, type SparkEventType } from "@/lib/levelGenerators";
 import type { SiteLocale } from "@/lib/i18n";
-import { playComplete, playFail, playHit, playStamp } from "@/lib/sfx";
 
-type Outcome = "success" | "failure";
-type SparkResult = { score: number; label: string; detail: string; outcome: Outcome };
-type EntityKind = SparkEventType;
-type Entity = { id: string; kind: EntityKind; lane: number; z: number; resolved: boolean };
-type Player = { x: number; vx: number; lane: number; distance: number; speed: number; focus: number; pickups: number; clean: number; combo: number; maxCombo: number; hitCooldown: number };
-type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; size: number };
-type World = {
-  player: Player; entities: Entity[]; particles: Particle[]; shake: number; flash: number; hitStopFrames: number;
-  generatedSegments: Set<number>; width: number; height: number; startedAt: number; lastAt: number; ended: boolean;
+export type Outcome = "success" | "failure";
+export type SparkResult = { score: number; label: string; detail: string; outcome: Outcome };
+
+export const CANVAS_WIDTH = 420;
+export const CANVAS_HEIGHT = 600;
+export const GROUND_HEIGHT = 65;
+export const GROUND_Y = CANVAS_HEIGHT - GROUND_HEIGHT;
+
+export const SPARK_DEFAULTS = {
+  radius: 13,
+  hitRadius: 10, // 25% hitbox forgiveness for fair and satisfying arcade feel
+  startX: 88,
+  startY: 270,
+  gravity: 0.42,
+  flapImpulse: -7.2,
+  maxFallSpeed: 9.8,
+  pylonWidth: 54,
+  pylonSpacing: 210,
+  baseGap: 155,
+  minGap: 125,
+  minTopHeight: 60,
 };
 
-function spawnBurst(world: World, x: number, y: number, count: number, color: string, spread: number, speed: number) {
-  for (let index = 0; index < count; index += 1) {
-    const angle = (index / count) * Math.PI * 2 + Math.random() * .6;
-    const velocity = speed * (.5 + Math.random() * .7);
-    world.particles.push({
-      x, y, vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity - speed * .2,
-      life: .38 + Math.random() * .26, maxLife: .6, color, size: 2 + Math.random() * spread,
-    });
+export type Pylon = {
+  id: number;
+  x: number;
+  width: number;
+  topHeight: number;
+  gap: number;
+  bottomY: number;
+  bottomHeight: number;
+  passed: boolean;
+};
+
+export type SparkState = {
+  x: number;
+  y: number;
+  vy: number;
+  rotation: number;
+};
+
+export type SparkParticle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+};
+
+const clamp = (value: number, lower: number, upper: number) => Math.max(lower, Math.min(upper, value));
+
+/** Deterministik sözde rastlantısal sayı üreticisi (PRNG) */
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Pylon yüksekliğini deterministik seed ve index üzerinden hesaplar */
+export function sparkCalculatePylonHeight(seed: number, index: number, minHeight = SPARK_DEFAULTS.minTopHeight, maxAvailable = 320): number {
+  const prng = mulberry32(seed ^ Math.imul(index + 37, 0x1f351f) ^ 0x9e3779b9);
+  return Math.floor(minHeight + prng() * (maxAvailable - minHeight));
+}
+
+/** Zorluk kademesi: Skor arttıkça hız hafifçe yükselir, açıklık daralır */
+export function sparkDifficulty(score: number, mastery: number) {
+  const tiers = Math.min(18, score);
+  const speed = clamp(2.6 + mastery * 0.18 + tiers * 0.09, 2.6, 4.6);
+  const gap = clamp(SPARK_DEFAULTS.baseGap - mastery * 5 - Math.floor(tiers / 3) * 3, SPARK_DEFAULTS.minGap, 165);
+  return { speed, gap };
+}
+
+/** Tek bir fizik karesi adımı */
+export function sparkPhysicsStep(
+  spark: SparkState,
+  dt: number,
+  flap: boolean,
+  gravity = SPARK_DEFAULTS.gravity,
+  flapImpulse = SPARK_DEFAULTS.flapImpulse,
+  maxFall = SPARK_DEFAULTS.maxFallSpeed
+): SparkState {
+  let vy = spark.vy;
+  if (flap) {
+    vy = flapImpulse;
+  } else {
+    vy = Math.min(maxFall, vy + gravity * dt);
   }
+  const y = spark.y + vy * dt;
+  const rotation = clamp(vy * 6.5, -25, 70);
+  return { x: spark.x, y, vy, rotation };
+}
+
+/** Daire ile eksen-hizalı dikdörtgen (AABB) çarpışması */
+function circleRectCollide(cx: number, cy: number, cr: number, rx: number, ry: number, rw: number, rh: number): boolean {
+  const closestX = clamp(cx, rx, rx + rw);
+  const closestY = clamp(cy, ry, ry + rh);
+  const dx = cx - closestX;
+  const dy = cy - closestY;
+  return dx * dx + dy * dy < cr * cr;
+}
+
+/** Çarpışma denetimi: Tavan, zemin veya pylon direkleri */
+export function sparkFlightCollision(
+  sparkX: number,
+  sparkY: number,
+  hitRadius: number,
+  pylon: Pylon,
+  groundY = GROUND_Y
+): boolean {
+  if (sparkY - hitRadius <= 0) return true;
+  if (sparkY + hitRadius >= groundY) return true;
+
+  // Üst direk kontrolü
+  if (circleRectCollide(sparkX, sparkY, hitRadius, pylon.x, 0, pylon.width, pylon.topHeight)) {
+    return true;
+  }
+  // Alt direk kontrolü
+  if (circleRectCollide(sparkX, sparkY, hitRadius, pylon.x, pylon.bottomY, pylon.width, pylon.bottomHeight)) {
+    return true;
+  }
+  return false;
+}
+
+/* =========================================================================
+   Web Audio API Sentezleyicisi (Sıfır Dış Medya Varlığı)
+   ========================================================================= */
+let sharedAudioCtx: AudioContext | null = null;
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedAudioCtx) {
+    const CtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (CtxClass) sharedAudioCtx = new CtxClass();
+  }
+  if (sharedAudioCtx && sharedAudioCtx.state === "suspended") {
+    sharedAudioCtx.resume().catch(() => {});
+  }
+  return sharedAudioCtx;
+}
+
+function playSynthTone(freqStart: number, freqEnd: number, duration: number, type: OscillatorType, gainVal: number, delay = 0) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const t = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(freqStart, t);
+  if (freqEnd !== freqStart) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), t + duration);
+  }
+
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.linearRampToValueAtTime(gainVal, t + duration * 0.2);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + duration + 0.02);
+}
+
+function playSparkFlap(soundOn: boolean) {
+  if (!soundOn) return;
+  // Elektrik kıvılcım zıplama sesi: hızlı frekans yükselişi
+  playSynthTone(460, 840, 0.07, "sine", 0.16);
+}
+
+function playSparkScore(soundOn: boolean) {
+  if (!soundOn) return;
+  // Harmonik iki-tonlu geçiş sesi
+  playSynthTone(523.25, 523.25, 0.08, "triangle", 0.18, 0);
+  playSynthTone(659.25, 659.25, 0.10, "triangle", 0.16, 0.05);
+}
+
+function playSparkCrash(soundOn: boolean) {
+  if (!soundOn) return;
+  // Ark boşalması / çarpışma çıtırtısı
+  playSynthTone(160, 35, 0.28, "sawtooth", 0.22);
+  playSynthTone(90, 30, 0.22, "square", 0.15, 0.02);
+}
+
+function playSparkComplete(soundOn: boolean) {
+  if (!soundOn) return;
+  [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+    playSynthTone(freq, freq, 0.15, "triangle", 0.14, idx * 0.08);
+  });
 }
 
 const worldWord = (locale: SiteLocale, tr: string, en: string) => locale === "en" ? en : tr;
-const clamp = (value: number, lower: number, upper: number) => Math.max(lower, Math.min(upper, value));
-// Yolun ekran genişliğinin ne kadarını kapladığı — küçüldükçe şeritler daha dar/dikey bir
-// alanda toplanır, sağda solda daha çok boşluk kalır ("araba/yol çok geniş" geri bildirimi
-// üzerine .42'den düşürüldü). Tek kaynak: render'daki TÜM ekran-x hesapları buradan okur.
-const ROAD_SCREEN_SPAN = .3;
 
-/** Şerit i'nin merkez x'i (-1..1 aralığında) ve yarı-genişliği — üstten görünümde tek
- * doğruluk kaynağı: hem render hem çarpışma buradan okur. */
-export function sparkLaneBounds(laneCount: number): { center: number; half: number }[] {
-  const width = 2 / laneCount;
-  return Array.from({ length: laneCount }, (_, index) => ({ center: -1 + width * (index + .5), half: width * .43 }));
-}
-
-export function sparkLaneOf(x: number, laneCount: number): number {
-  const bounds = sparkLaneBounds(laneCount);
-  let closest = 0;
-  let bestDistance = Infinity;
-  bounds.forEach((bound, index) => { const distance = Math.abs(x - bound.center); if (distance < bestDistance) { bestDistance = distance; closest = index; } });
-  return closest;
-}
-
-/** Oyuncu, engelin şeridinin İÇİNDE ve aynı satırdaysa çarpışma sayılır — şerit sınırları
- * render ile aynı sparkLaneBounds'tan geldiği için "görünmez duvar" riski yok. */
-export function sparkCollision(playerX: number, playerDistance: number, entity: { lane: number; z: number }, laneCount: number, rowTolerance = .95): boolean {
-  if (Math.abs(entity.z - playerDistance) >= rowTolerance) return false;
-  const bound = sparkLaneBounds(laneCount)[entity.lane];
-  return Math.abs(playerX - bound.center) < bound.half;
-}
-
-/** 0 (taban hız) ile 1 (azami hız) arasında normalize edilmiş hız oranı — arabanın ekrandaki
- * ileri kayma miktarını buradan türetiyoruz, hem çizimde hem çarpışma efektlerinde aynı değer. */
-export function sparkSpeedRatio(speed: number, baseSpeed: number, maxSpeed: number): number {
-  return clamp((speed - baseSpeed) / Math.max(1, maxSpeed - baseSpeed), 0, 1);
-}
-
-/** Yalnız yol kaymıyor — araba da hız arttıkça ekranda hafifçe öne (yukarı) kayar, gerçek bir
- * ilerleme hissi verir. Sabit bir Y'de donup kalmak "araba hiç ilerlemiyor" hissi yaratıyordu. */
-export function sparkPlayerScreenY(height: number, speedRatio: number): number {
-  return height * (.82 - speedRatio * .1);
-}
-
-const SPRITE_SOURCES: Record<EntityKind, string> = {
-  traffic: "/manus-storage/spark-car-blue.png",
-  barrel: "/manus-storage/spark-barrel.png",
-  cone: "/manus-storage/spark-cone.png",
-  barrier: "/manus-storage/spark-barrier.png",
-  rock: "/manus-storage/spark-rock.png",
-  tires: "/manus-storage/spark-tires.png",
-  pickup: "/manus-storage/spark-arrow.png",
-};
-const TRAFFIC_VARIANTS = ["/manus-storage/spark-car-blue.png", "/manus-storage/spark-car-red.png", "/manus-storage/spark-car-green.png", "/manus-storage/spark-car-black.png"];
-// Gerçek sprite oranına göre (araba dar/uzun, varil/koni küçük, bariyer geniş) her tür için
-// render genişliği bir şerit payının kesri olarak — çarpışma sınırı sparkLaneBounds'tan
-// bağımsız kalır (o sınır şeridin TAMAMI), bu yalnız görsel boyut. Değerler kasıtlı olarak
-// küçük tutuluyor — şeridin tamamını dolduran dev sprite'lar hem çirkin duruyor hem de yolu
-// okumayı zorlaştırıyordu ("araba kocaman, engeller kocaman" geri bildirimi üzerine küçültüldü).
-const ENTITY_VISUAL_WIDTH: Record<EntityKind, number> = { traffic: .36, barrel: .2, cone: .17, barrier: .46, rock: .23, tires: .21, pickup: .19 };
-const PLAYER_VISUAL_WIDTH = .34;
-
-function loadSprite(src: string): HTMLImageElement {
-  const image = new Image();
-  image.decoding = "async";
-  image.src = src;
-  return image;
-}
-
-function entityForSegment(seed: number, mastery: number, segmentIndex: number): Entity[] {
-  const level = generateSparkLevel(seed, mastery);
-  return generateSparkWorldSegment(level, segmentIndex).events.map(event => ({
-    id: `${segmentIndex}-${event.id}`,
-    kind: event.type,
-    lane: event.lane,
-    z: event.z,
-    resolved: false,
-  }));
-}
-
-function trafficVariantFor(id: string) {
-  let hash = 0;
-  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return TRAFFIC_VARIANTS[hash % TRAFFIC_VARIANTS.length];
-}
-
-function drawScene(context: CanvasRenderingContext2D, world: World, locale: SiteLocale, laneCount: number, sprites: Map<string, HTMLImageElement>, speedRatio: number) {
-  const { width, height, player, entities } = world;
-  context.save();
-  if (world.shake > .002) {
-    const mag = world.shake * 7;
-    context.translate((Math.random() - .5) * mag, (Math.random() - .5) * mag);
-  }
-
-  context.fillStyle = "#2c2f33";
-  context.fillRect(0, 0, width, height);
-  context.fillStyle = "#3a3e42";
-  const bounds = sparkLaneBounds(laneCount);
-  context.fillRect(width * (.5 + (bounds[0].center - bounds[0].half) * ROAD_SCREEN_SPAN), 0, width * ((bounds[laneCount - 1].center + bounds[laneCount - 1].half) - (bounds[0].center - bounds[0].half)) * ROAD_SCREEN_SPAN, height);
-
-  // Şerit ayırıcı kesikli çizgiler — kaydırma efekti player.distance'a bağlı.
-  context.strokeStyle = "rgba(245,236,212,.55)";
-  context.lineWidth = 3;
-  context.setLineDash([26, 22]);
-  context.lineDashOffset = -(player.distance * 34) % 48;
-  for (let lane = 1; lane < laneCount; lane += 1) {
-    const x = width * (.5 + (bounds[lane].center - bounds[lane].half + .01) * ROAD_SCREEN_SPAN);
-    context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
-  }
-  context.setLineDash([]);
-
-  context.font = "10px DM Mono, monospace";
-  context.fillStyle = "rgba(245,236,212,.82)";
-  context.fillText(`SELY TRAFİK / ${String(Math.floor(player.distance / 100) + 1).padStart(2, "0")}`, width - 150, 20);
-  context.fillText(worldWord(locale, "SOL/SAĞ: ŞERİT DEĞİŞTİR", "LEFT/RIGHT: CHANGE LANE"), 14, height - 14);
-
-  const pixelsPerUnit = height * .052;
-  const playerScreenY = sparkPlayerScreenY(height, speedRatio);
-  const laneScreenX = (lane: number) => width * (.5 + bounds[lane].center * ROAD_SCREEN_SPAN);
-
-  const visible = entities.filter(entity => !entity.resolved && entity.z > player.distance - 3 && entity.z < player.distance + 22).sort((a, b) => b.z - a.z);
-  for (const entity of visible) {
-    const screenY = playerScreenY - (entity.z - player.distance) * pixelsPerUnit;
-    if (screenY < -60 || screenY > height + 60) continue;
-    const screenX = laneScreenX(entity.lane);
-    const spriteKey = entity.kind === "traffic" ? trafficVariantFor(entity.id) : SPRITE_SOURCES[entity.kind];
-    const sprite = sprites.get(spriteKey);
-    const laneWidthPx = width * (bounds[entity.lane].half * 2) * ROAD_SCREEN_SPAN;
-    const drawWidth = laneWidthPx * ENTITY_VISUAL_WIDTH[entity.kind];
-    if (sprite?.complete && sprite.naturalWidth > 0) {
-      const drawHeight = drawWidth * (sprite.naturalHeight / sprite.naturalWidth);
-      context.save();
-      if (entity.kind === "pickup") {
-        const pulse = 1 + Math.sin(world.lastAt * .006 + entity.z) * .08;
-        context.translate(screenX, screenY);
-        context.scale(pulse, pulse);
-        context.shadowColor = "rgba(228,181,69,.65)";
-        context.shadowBlur = 12;
-        context.drawImage(sprite, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-        context.restore();
-      } else {
-        context.drawImage(sprite, screenX - drawWidth / 2, screenY - drawHeight / 2, drawWidth, drawHeight);
-      }
-    }
-  }
-
-  for (const particle of world.particles) {
-    const alpha = clamp(particle.life / particle.maxLife, 0, 1);
-    context.save();
-    context.globalAlpha = alpha;
-    context.fillStyle = particle.color;
-    context.beginPath();
-    context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-    context.fill();
-    context.restore();
-  }
-
-  const playerScreenX = laneScreenX(0) + (player.x - bounds[0].center) * (width * ROAD_SCREEN_SPAN);
-  const playerSprite = sprites.get("/manus-storage/spark-car-player.png");
-  if (player.speed > 9) {
-    context.save();
-    context.globalAlpha = .5 + Math.sin(world.lastAt * .03) * .15;
-    const flameGradient = context.createRadialGradient(playerScreenX, playerScreenY + 26, 1, playerScreenX, playerScreenY + 26, 16);
-    flameGradient.addColorStop(0, "#f8d77a");
-    flameGradient.addColorStop(1, "rgba(240,93,71,0)");
-    context.fillStyle = flameGradient;
-    context.beginPath(); context.arc(playerScreenX, playerScreenY + 26, 15, 0, Math.PI * 2); context.fill();
-    context.restore();
-  }
-  context.save();
-  context.translate(playerScreenX, playerScreenY);
-  context.rotate(clamp(player.vx * .3, -.22, .22));
-  context.shadowColor = "rgba(0,0,0,.35)";
-  context.shadowBlur = 6;
-  context.shadowOffsetY = 3;
-  const laneWidthPx = width * (bounds[0].half * 2) * ROAD_SCREEN_SPAN;
-  const playerWidth = laneWidthPx * PLAYER_VISUAL_WIDTH;
-  if (playerSprite?.complete && playerSprite.naturalWidth > 0) {
-    const playerHeight = playerWidth * (playerSprite.naturalHeight / playerSprite.naturalWidth);
-    context.drawImage(playerSprite, -playerWidth / 2, -playerHeight / 2, playerWidth, playerHeight);
-  }
-  context.restore();
-  context.restore();
-
-  if (world.flash > .002) {
-    context.save();
-    context.globalAlpha = world.flash;
-    context.fillStyle = "#e9563f";
-    context.fillRect(0, 0, width, height);
-    context.restore();
-  }
-}
-
-export default function SparkCanvasGame({ locale, seed, mastery, demo, soundOn = true, onFinish }: { locale: SiteLocale; seed: number; mastery: number; demo?: "success" | "fail"; soundOn?: boolean; onFinish: (result: SparkResult) => void }) {
-  const level = useMemo(() => generateSparkLevel(seed, mastery), [seed, mastery]);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const spritesRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  const inputRef = useRef({ left: false, right: false });
-  const doneRef = useRef(false);
+/* =========================================================================
+   Kıvılcım Canvas Bileşeni
+   ========================================================================= */
+export default function SparkCanvasGame({
+  locale = "tr",
+  seed,
+  mastery,
+  demo,
+  soundOn = true,
+  onFinish,
+}: {
+  locale?: SiteLocale;
+  seed: number;
+  mastery: number;
+  demo?: "success" | "fail";
+  soundOn?: boolean;
+  onFinish: (result: SparkResult) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const soundOnRef = useRef(soundOn);
   soundOnRef.current = soundOn;
-  const [hud, setHud] = useState({ distance: 0, focus: level.focus, pickups: 0, clean: 0, combo: 0, speed: 0, sheet: 1, notice: level.lesson });
 
-  useEffect(() => {
-    const sources = Array.from(new Set([...Object.values(SPRITE_SOURCES), ...TRAFFIC_VARIANTS, "/manus-storage/spark-car-player.png"]));
-    for (const src of sources) if (!spritesRef.current.has(src)) spritesRef.current.set(src, loadSprite(src));
-  }, []);
+  const finishedRef = useRef(false);
+  const flapRequestedRef = useRef(false);
+
+  const [hud, setHud] = useState({
+    score: 0,
+    voltage: 100,
+    speed: 2.6,
+    notice: worldWord(locale, "Boşluk, tıkla veya dokunarak süzül.", "Press space, click or tap to glide."),
+  });
+
+  const levelMeta = useMemo(() => {
+    return {
+      seed,
+      mastery,
+      initialDiff: sparkDifficulty(0, mastery),
+    };
+  }, [seed, mastery]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const bounds = sparkLaneBounds(level.laneCount);
-    const startLane = Math.floor(level.laneCount / 2);
-    const world: World = {
-      player: { x: bounds[startLane].center, vx: 0, lane: startLane, distance: 0, speed: level.baseSpeed * (reducedMotion ? .72 : 1), focus: level.focus, pickups: 0, clean: 0, combo: 0, maxCombo: 0, hitCooldown: 0 },
-      entities: [], particles: [], shake: 0, flash: 0, hitStopFrames: 0, generatedSegments: new Set<number>(), width: 1, height: 1, startedAt: performance.now(), lastAt: performance.now(), ended: false,
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const reducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    finishedRef.current = false;
+    flapRequestedRef.current = false;
+
+    // Oyun İçi Durum Değişkenleri
+    let spark: SparkState = {
+      x: SPARK_DEFAULTS.startX,
+      y: SPARK_DEFAULTS.startY,
+      vy: 0,
+      rotation: 0,
     };
-    let frame = 0;
-    let lastHudAt = 0;
-    const finish = (result: SparkResult) => {
-      if (doneRef.current) return;
-      doneRef.current = true;
-      world.ended = true;
+
+    let score = 0;
+    let nextPylonIndex = 0;
+    let pylons: Pylon[] = [];
+    let particles: SparkParticle[] = [];
+    let groundOffset = 0;
+    let shake = 0;
+    let flash = 0;
+    let gameEnded = false;
+    let lastTime = performance.now();
+    let frameId = 0;
+    let arcPhase = 0;
+
+    // İlk 3 pylon oluşturulur
+    function spawnPylon(index: number, startX: number) {
+      const { gap } = sparkDifficulty(score, mastery);
+      const topHeight = sparkCalculatePylonHeight(seed, index, SPARK_DEFAULTS.minTopHeight, GROUND_Y - gap - 50);
+      const bottomY = topHeight + gap;
+      const bottomHeight = GROUND_Y - bottomY;
+      return {
+        id: index,
+        x: startX,
+        width: SPARK_DEFAULTS.pylonWidth,
+        topHeight,
+        gap,
+        bottomY,
+        bottomHeight,
+        passed: false,
+      };
+    }
+
+    pylons.push(spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60));
+    pylons.push(spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60 + SPARK_DEFAULTS.pylonSpacing));
+    pylons.push(spawnPylon(nextPylonIndex++, CANVAS_WIDTH + 60 + SPARK_DEFAULTS.pylonSpacing * 2));
+
+    // Parçacık patlaması üretici
+    function createSparks(x: number, y: number, count: number, color = "#f8d77a", speed = 140) {
+      if (reducedMotion) count = Math.min(count, 4);
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+        const vel = speed * (0.4 + Math.random() * 0.8);
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * vel,
+          vy: Math.sin(angle) * vel - 30,
+          life: 0.35 + Math.random() * 0.25,
+          maxLife: 0.6,
+          color,
+          size: 1.5 + Math.random() * 2.5,
+        });
+      }
+    }
+
+    // Tuval Boyutlandırma ve Retina/DPR Yönetimi
+    const handleResize = () => {
+      const container = containerRef.current;
+      if (!container || !canvas) return;
+      const rect = container.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      canvas.width = Math.floor(CANVAS_WIDTH * dpr);
+      canvas.height = Math.floor(CANVAS_HEIGHT * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    handleResize();
+    const resizeObserver = new ResizeObserver(handleResize);
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+
+    // Giriş (Input) Tetikleyici
+    const doFlap = () => {
+      if (gameEnded) return;
+      flapRequestedRef.current = true;
+      playSparkFlap(soundOnRef.current);
+      // Zıplama anında aşağıya dökülen minik kıvılcım pırıltıları
+      createSparks(spark.x - 6, spark.y + 8, 3, "#f8d77a", 60);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+        e.preventDefault();
+        doFlap();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { passive: false });
+
+    // Oyun Bitiriş Fonksiyonu
+    const finishGame = (result: SparkResult) => {
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      gameEnded = true;
       onFinish(result);
     };
-    const streamWorld = () => {
-      const current = Math.floor(world.player.distance / level.segmentDistance);
-      for (const segment of [current, current + 1]) {
-        if (!world.generatedSegments.has(segment)) {
-          world.generatedSegments.add(segment);
-          const generated = entityForSegment(seed, mastery, segment);
-          if (demo === "success") {
-            let lastThreatZ = -Infinity;
-            const safeDemoEntities = generated.filter((entity, index) => {
-              if (entity.kind === "pickup") return true;
-              if (index % 2 !== 0 || entity.z - lastThreatZ < 6.4) return false;
-              lastThreatZ = entity.z;
-              return true;
-            }).map((entity, index) => entity.kind === "pickup" ? entity : { ...entity, lane: index % 2 === 0 ? 0 : level.laneCount - 1 });
-            world.entities.push(...safeDemoEntities);
-          } else if (demo === "fail" && segment === 0) {
-            world.entities.push(
-              { id: "demo-fail-1", kind: "barrier", lane: world.player.lane, z: 12, resolved: false },
-              { id: "demo-fail-2", kind: "barrier", lane: world.player.lane, z: 21, resolved: false },
-              { id: "demo-fail-3", kind: "barrier", lane: world.player.lane, z: 30, resolved: false },
-            );
-          } else {
-            world.entities.push(...generated);
+
+    // Ana Oyun Döngüsü
+    const tick = (now: number) => {
+      if (gameEnded) return;
+      const rawDt = clamp((now - lastTime) / 1000, 0, 0.04);
+      lastTime = now;
+      arcPhase += rawDt * 12;
+
+      // 60fps normalize katsayısı (dt = 1 @ 60fps)
+      const simDt = rawDt * 60;
+
+      const { speed, gap } = sparkDifficulty(score, mastery);
+
+      // Sarsıntı ve parlama sönümleme
+      shake = Math.max(0, shake - rawDt * 3.6);
+      flash = Math.max(0, flash - rawDt * 2.8);
+
+      // Parçacık güncelleme
+      for (const p of particles) {
+        p.x += p.vx * rawDt;
+        p.y += p.vy * rawDt;
+        p.vy += 180 * rawDt;
+        p.life -= rawDt;
+      }
+      particles = particles.filter(p => p.life > 0);
+
+      // Kıvılcım iz parçacığı (arka kuyruk)
+      if (!reducedMotion && Math.random() > 0.45) {
+        particles.push({
+          x: spark.x - 10 + (Math.random() - 0.5) * 4,
+          y: spark.y + (Math.random() - 0.5) * 4,
+          vx: -speed * 25 + (Math.random() - 0.5) * 20,
+          vy: (Math.random() - 0.5) * 30 - 10,
+          life: 0.22 + Math.random() * 0.18,
+          maxLife: 0.4,
+          color: Math.random() > 0.4 ? "#f8d77a" : "#e9563f",
+          size: 1.5 + Math.random() * 2,
+        });
+      }
+
+      // Demo Autopilot Kontrolü
+      if (demo === "success") {
+        // En yakın önümüzdeki pylon'u bul
+        const targetPylon = pylons.find(p => p.x + p.width > spark.x - 10) ?? pylons[0];
+        if (targetPylon) {
+          const targetCenterY = targetPylon.topHeight + targetPylon.gap * 0.5;
+          if (spark.y > targetCenterY + 12 && spark.vy > -1.5) {
+            doFlap();
           }
         }
+      } else if (demo === "fail") {
+        // demo fail: dokunma ve direğe çarp
       }
-      world.entities = world.entities.filter(entity => entity.z > world.player.distance - 4);
-    };
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.max(1, Math.floor(rect.width * pixelRatio));
-      canvas.height = Math.max(1, Math.floor(rect.height * pixelRatio));
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      world.width = rect.width; world.height = rect.height;
-    };
-    const observer = new ResizeObserver(resize);
-    observer.observe(canvas);
-    resize();
-    const key = (event: KeyboardEvent, down: boolean) => {
-      const controls: Record<string, keyof typeof inputRef.current> = { ArrowLeft: "left", ArrowRight: "right", a: "left", d: "right" };
-      const control = controls[event.key];
-      if (!control) return;
-      event.preventDefault();
-      inputRef.current[control] = down;
-    };
-    const keydown = (event: KeyboardEvent) => key(event, true);
-    const keyup = (event: KeyboardEvent) => key(event, false);
-    window.addEventListener("keydown", keydown, { passive: false });
-    window.addEventListener("keyup", keyup, { passive: false });
-    const tick = (now: number) => {
-      if (world.ended) return;
-      const rawDt = clamp((now - world.lastAt) / 1000, 0, .034);
-      const hitStopping = world.hitStopFrames > 0;
-      if (hitStopping) world.hitStopFrames -= 1;
-      const dt = hitStopping ? rawDt * .12 : rawDt;
-      world.lastAt = now;
-      world.shake = Math.max(0, world.shake - rawDt * 3.4);
-      world.flash = Math.max(0, world.flash - rawDt * 2.6);
-      for (const particle of world.particles) {
-        particle.x += particle.vx * rawDt;
-        particle.y += particle.vy * rawDt;
-        particle.vy += 240 * rawDt;
-        particle.life -= rawDt;
-      }
-      world.particles = world.particles.filter(particle => particle.life > 0);
-      streamWorld();
-      const input = inputRef.current;
-      const upcomingThreats = world.entities.filter(entity => entity.kind !== "pickup" && !entity.resolved && entity.z > world.player.distance - .4 && entity.z - world.player.distance < 9);
-      const laneOpen = (lane: number) => upcomingThreats.every(entity => entity.lane !== lane);
-      const autoTargetLane = demo === "success"
-        ? (laneOpen(world.player.lane) ? world.player.lane : Array.from({ length: level.laneCount }, (_, i) => i).find(laneOpen) ?? world.player.lane)
-        : world.player.lane;
-      const autoAxis = demo === "success" ? Math.sign(bounds[autoTargetLane].center - world.player.x) : 0;
-      const axis = (input.right ? 1 : 0) - (input.left ? 1 : 0) || autoAxis;
-      const acceleration = 6.4;
-      world.player.vx += axis * acceleration * dt;
-      world.player.vx *= Math.pow(.0006, dt);
-      world.player.vx = clamp(world.player.vx, -1.9, 1.9);
-      world.player.x = clamp(world.player.x + world.player.vx * dt, -1 + bounds[0].half * .2, 1 - bounds[0].half * .2);
-      world.player.lane = sparkLaneOf(world.player.x, level.laneCount);
-      const speedTarget = clamp(level.baseSpeed + level.acceleration * world.player.distance, level.baseSpeed, level.maxSpeed);
-      world.player.speed += (speedTarget - world.player.speed) * Math.min(1, dt * 4.8);
-      world.player.distance += world.player.speed * dt;
-      world.player.hitCooldown = Math.max(0, world.player.hitCooldown - dt);
 
-      const speedRatio = sparkSpeedRatio(world.player.speed, level.baseSpeed, level.maxSpeed);
-      const laneScreenX = (lane: number) => world.width * (.5 + bounds[lane].center * ROAD_SCREEN_SPAN);
-      const playerScreenX = laneScreenX(0) + (world.player.x - bounds[0].center) * (world.width * ROAD_SCREEN_SPAN);
-      const playerScreenY = sparkPlayerScreenY(world.height, speedRatio);
+      // Fizik Güncellemesi
+      const shouldFlap = flapRequestedRef.current;
+      flapRequestedRef.current = false;
+      spark = sparkPhysicsStep(spark, simDt, shouldFlap);
 
-      for (const entity of world.entities) {
-        if (entity.resolved || entity.z > world.player.distance + .9) continue;
-        const collision = sparkCollision(world.player.x, world.player.distance, entity, level.laneCount);
-        if (entity.kind === "pickup") {
-          if (collision) {
-            entity.resolved = true;
-            world.player.pickups += 1;
-            world.player.combo = Math.min(9, world.player.combo + 1);
-            world.player.maxCombo = Math.max(world.player.maxCombo, world.player.combo);
-            playStamp(soundOnRef.current, world.player.combo);
-            spawnBurst(world, playerScreenX, playerScreenY - 24, 8, "#e4b545", 2, 120);
-          } else if (entity.z < world.player.distance - .9) { entity.resolved = true; world.player.combo = 0; }
-          continue;
-        }
-        if (collision && world.player.hitCooldown <= 0) {
-          entity.resolved = true;
-          world.player.hitCooldown = 1;
-          world.player.focus -= 1;
-          world.player.combo = 0;
-          world.shake = 1;
-          world.flash = .38;
-          world.hitStopFrames = 4;
-          playHit(soundOnRef.current);
-          spawnBurst(world, playerScreenX, playerScreenY, 12, "#172842", 3, 170);
-          if (world.player.focus <= 0) {
-            playFail(soundOnRef.current);
-            finish({ outcome: "failure", score: Math.round(world.player.distance * 19 + world.player.pickups * 130 + world.player.clean * 28 + world.player.maxCombo * 40), label: worldWord(locale, "Trafik seni durdurdu", "Traffic stopped you"), detail: worldWord(locale, "Şeritler arasında en az biri her zaman açık — erken göç et, son ana bırakma.", "One lane is always open — change lanes early, not at the last moment.") });
+      // Pylon Hareketi & Doğurma
+      groundOffset = (groundOffset + speed * simDt) % 24;
+      for (const pylon of pylons) {
+        pylon.x -= speed * simDt;
+
+        // Puan Kazanımı (Pylon geçildi)
+        if (!pylon.passed && pylon.x + pylon.width < spark.x) {
+          pylon.passed = true;
+          score += 1;
+          playSparkScore(soundOnRef.current);
+          createSparks(spark.x + 8, spark.y, 6, "#e5b341", 80);
+
+          setHud({
+            score,
+            voltage: Math.min(100, 80 + score * 2),
+            speed: Number(speed.toFixed(1)),
+            notice: worldWord(locale, "Akım dengede! Bir sonraki hatta ilerle.", "Current stable! Advance to the next line."),
+          });
+
+          // Demo başarı sonlandırma
+          if (demo === "success" && score >= 5) {
+            playSparkComplete(soundOnRef.current);
+            finishGame({
+              outcome: "success",
+              score: 850 + score * 85,
+              label: worldWord(locale, "Şebeke Hattı Aşıldı", "Grid Stretch Cleared"),
+              detail: worldWord(locale, `${score} gerilim direği hatasız aşıldı.`, `Successfully cleared ${score} voltage pylons.`),
+            });
             return;
           }
-        } else if (entity.z < world.player.distance - .9) {
-          entity.resolved = true;
-          if (entity.lane !== world.player.lane) world.player.clean += 1;
         }
       }
-      if (demo === "success" && world.player.distance >= level.segmentDistance * 2) {
-        playComplete(soundOnRef.current);
-        finish({ outcome: "success", score: Math.round(world.player.distance * 19 + world.player.pickups * 130 + world.player.clean * 28 + world.player.focus * 90 + world.player.maxCombo * 40), label: worldWord(locale, "İki yol kesimi aşıldı", "Two road stretches cleared"), detail: worldWord(locale, `${world.player.pickups} bonus ve ${world.player.clean} temiz geçişle yolu tamamladın.`, `You completed the road with ${world.player.pickups} bonuses and ${world.player.clean} clean passes.`) });
-        return;
-      }
-      drawScene(context, world, locale, level.laneCount, spritesRef.current, speedRatio);
-      if (now - lastHudAt > 100) {
-        lastHudAt = now;
-        setHud({ distance: Math.floor(world.player.distance), focus: world.player.focus, pickups: world.player.pickups, clean: world.player.clean, combo: world.player.combo, speed: Number(world.player.speed.toFixed(1)), sheet: Math.floor(world.player.distance / level.segmentDistance) + 1, notice: worldWord(locale, "Yol ileriden hazırlanır; sol/sağ ile açık şeride geç.", "The road is prepared ahead; steer left/right into an open lane.") });
-      }
-      frame = window.requestAnimationFrame(tick);
-    };
-    frame = window.requestAnimationFrame(tick);
-    return () => { world.ended = true; window.cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup); };
-  }, [demo, level, locale, mastery, onFinish, seed]);
 
-  const hold = (control: keyof typeof inputRef.current, active: boolean) => { inputRef.current[control] = active; };
-  const controls = [
-    { key: "left" as const, label: worldWord(locale, "Sol", "Left"), glyph: "←" },
-    { key: "right" as const, label: worldWord(locale, "Sağ", "Right"), glyph: "→" },
-  ];
-  return <div className="spark-canvas-game">
-    <div className="spark-canvas-hud" aria-live="polite"><span>{worldWord(locale, "MESAFE", "DISTANCE")} <b>{hud.distance}m</b></span><span>{worldWord(locale, "ODAK", "FOCUS")} <b>{hud.focus}/{level.focus}</b></span><span>{worldWord(locale, "BONUS", "BONUS")} <b>{hud.pickups}</b></span><span>{worldWord(locale, "ZİNCİR", "COMBO")} <b>×{hud.combo}</b></span><span>{worldWord(locale, "HIZ", "SPEED")} <b>{hud.speed}</b></span><span>{worldWord(locale, "KESİM", "STRETCH")} <b>{String(hud.sheet).padStart(2, "0")}</b></span></div>
-    <canvas ref={canvasRef} className="spark-canvas" tabIndex={0} aria-label={worldWord(locale, "Kıvılcım trafik kaçışı. Sol ve sağ ile şerit değiştir.", "Spark traffic escape. Steer left and right to change lanes.")} />
-    <p className="spark-canvas-tip">{hud.notice}</p>
-    <div className="spark-canvas-controls" aria-label={worldWord(locale, "Kıvılcım dokunmatik kontrolleri", "Spark touch controls")}>{controls.map(control => <button type="button" key={control.key} onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); hold(control.key, true); }} onPointerUp={() => hold(control.key, false)} onPointerCancel={() => hold(control.key, false)} onPointerLeave={() => hold(control.key, false)} aria-label={control.label}><b>{control.glyph}</b><span>{control.label}</span></button>)}</div>
-  </div>;
+      // Ekrandan çıkan pylonları sil ve yenisini ekle
+      pylons = pylons.filter(p => p.x + p.width > -50);
+      const lastPylon = pylons[pylons.length - 1];
+      if (lastPylon && lastPylon.x < CANVAS_WIDTH) {
+        pylons.push(spawnPylon(nextPylonIndex++, lastPylon.x + SPARK_DEFAULTS.pylonSpacing));
+      }
+
+      // Çarpışma Denetimi
+      for (const pylon of pylons) {
+        if (sparkFlightCollision(spark.x, spark.y, SPARK_DEFAULTS.hitRadius, pylon, GROUND_Y)) {
+          // Çarpışma!
+          shake = reducedMotion ? 0.2 : 1.0;
+          flash = 0.45;
+          playSparkCrash(soundOnRef.current);
+          createSparks(spark.x, spark.y, 22, "#e9563f", 200);
+
+          const finalScore = Math.max(0, score * 110 + Math.floor(spark.x * 0.5));
+          finishGame({
+            outcome: "failure",
+            score: finalScore,
+            label: worldWord(locale, "Kıvılcım Söndü", "Spark Extinguished"),
+            detail: worldWord(
+              locale,
+              `Yüksek gerilim hattında ${score} direk geçtin. Ritmik dokunuşlarla voltajı koru.`,
+              `Cleared ${score} pylons in the high-voltage grid. Keep voltage balanced with rhythmic taps.`
+            ),
+          });
+          return;
+        }
+      }
+
+      // -------------------------------------------------------------
+      // ÇİZİM (RENDERING)
+      // -------------------------------------------------------------
+      ctx.save();
+
+      // Ekran sarsıntısı
+      if (shake > 0.002) {
+        const mag = shake * 6;
+        ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+      }
+
+      // 1. Gökyüzü Degradesi (Sely Risograph Gece Mavisi)
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+      bgGrad.addColorStop(0, "#121829");
+      bgGrad.addColorStop(0.65, "#1c2540");
+      bgGrad.addColorStop(1, "#293b75");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      // 2. Arka Plan Şehir / Trafo Silüeti
+      ctx.fillStyle = "rgba(18, 24, 41, 0.45)";
+      ctx.beginPath();
+      ctx.moveTo(0, GROUND_Y);
+      ctx.lineTo(0, GROUND_Y - 40);
+      ctx.lineTo(40, GROUND_Y - 40);
+      ctx.lineTo(50, GROUND_Y - 80);
+      ctx.lineTo(70, GROUND_Y - 80);
+      ctx.lineTo(80, GROUND_Y - 30);
+      ctx.lineTo(130, GROUND_Y - 30);
+      ctx.lineTo(150, GROUND_Y - 65);
+      ctx.lineTo(180, GROUND_Y - 65);
+      ctx.lineTo(190, GROUND_Y - 35);
+      ctx.lineTo(260, GROUND_Y - 35);
+      ctx.lineTo(280, GROUND_Y - 95);
+      ctx.lineTo(310, GROUND_Y - 95);
+      ctx.lineTo(320, GROUND_Y - 40);
+      ctx.lineTo(380, GROUND_Y - 40);
+      ctx.lineTo(400, GROUND_Y - 60);
+      ctx.lineTo(CANVAS_WIDTH, GROUND_Y - 60);
+      ctx.lineTo(CANVAS_WIDTH, GROUND_Y);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3. Pylonlar (Yüksek Gerilim Direkleri)
+      for (const p of pylons) {
+        // Üst Direk
+        const pylonGrad = ctx.createLinearGradient(p.x, 0, p.x + p.width, 0);
+        pylonGrad.addColorStop(0, "#172842");
+        pylonGrad.addColorStop(0.2, "#243a60");
+        pylonGrad.addColorStop(0.5, "#2f4b7c");
+        pylonGrad.addColorStop(0.85, "#1e3355");
+        pylonGrad.addColorStop(1, "#172842");
+
+        ctx.fillStyle = pylonGrad;
+        ctx.fillRect(p.x, 0, p.width, p.topHeight);
+
+        // Üst Direk Sınır Çizgisi
+        ctx.strokeStyle = "#415f94";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(p.x, 0, p.width, p.topHeight);
+
+        // Üst Uç Başlığı (İzolatör)
+        ctx.fillStyle = "#e9563f";
+        ctx.fillRect(p.x - 4, p.topHeight - 16, p.width + 8, 16);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(p.x - 4, p.topHeight - 16, p.width + 8, 16);
+
+        // Alt Direk
+        ctx.fillStyle = pylonGrad;
+        ctx.fillRect(p.x, p.bottomY, p.width, p.bottomHeight);
+        ctx.strokeStyle = "#415f94";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(p.x, p.bottomY, p.width, p.bottomHeight);
+
+        // Alt Uç Başlığı (İzolatör)
+        ctx.fillStyle = "#e9563f";
+        ctx.fillRect(p.x - 4, p.bottomY, p.width + 8, 16);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(p.x - 4, p.bottomY, p.width + 8, 16);
+
+        // Uçlar Arasındaki Elektrik Arkı (Lightning crackle)
+        if (Math.sin(arcPhase + p.id * 1.7) > 0.25) {
+          ctx.save();
+          ctx.strokeStyle = "rgba(248, 215, 122, 0.75)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          const startArcY = p.topHeight;
+          const endArcY = p.bottomY;
+          const midX = p.x + p.width * 0.5;
+          ctx.moveTo(midX, startArcY);
+          const steps = 4;
+          for (let s = 1; s < steps; s++) {
+            const sy = startArcY + (endArcY - startArcY) * (s / steps);
+            const sx = midX + (Math.sin(arcPhase * 2 + s * 3) * 6);
+            ctx.lineTo(sx, sy);
+          }
+          ctx.lineTo(midX, endArcY);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      // 4. Zemin Hattı (Yüksek Gerilim Izgarası)
+      const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, CANVAS_HEIGHT);
+      groundGrad.addColorStop(0, "#1b1a1b");
+      groundGrad.addColorStop(0.15, "#23262d");
+      groundGrad.addColorStop(1, "#17181c");
+      ctx.fillStyle = groundGrad;
+      ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, GROUND_HEIGHT);
+
+      ctx.strokeStyle = "#e9563f";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(0, GROUND_Y);
+      ctx.lineTo(CANVAS_WIDTH, GROUND_Y);
+      ctx.stroke();
+
+      // Kayan elektrik iletken çizgisi
+      ctx.strokeStyle = "rgba(248, 215, 122, 0.45)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([14, 10]);
+      ctx.lineDashOffset = -groundOffset;
+      ctx.beginPath();
+      ctx.moveTo(0, GROUND_Y + 12);
+      ctx.lineTo(CANVAS_WIDTH, GROUND_Y + 12);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 5. Parçacıklar
+      for (const p of particles) {
+        const alpha = clamp(p.life / p.maxLife, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 6. Kıvılcım (Oyuncu Enerji Küresi)
+      ctx.save();
+      ctx.translate(spark.x, spark.y);
+      ctx.rotate((spark.rotation * Math.PI) / 180);
+
+      // Dış Plazma Halesi (Glow)
+      const pulse = Math.sin(now * 0.012) * 2;
+      const glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, SPARK_DEFAULTS.radius * 1.8 + pulse);
+      glowGrad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+      glowGrad.addColorStop(0.3, "rgba(248, 215, 122, 0.85)");
+      glowGrad.addColorStop(0.7, "rgba(233, 86, 63, 0.5)");
+      glowGrad.addColorStop(1, "rgba(233, 86, 63, 0)");
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, SPARK_DEFAULTS.radius * 1.8 + pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Enerji Gövdesi
+      ctx.fillStyle = "#f8d77a";
+      ctx.beginPath();
+      ctx.arc(0, 0, SPARK_DEFAULTS.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Parlak Çekirdek
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(2, -1, SPARK_DEFAULTS.radius * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+      // 7. Canlı Skor Metni (Orta Üst)
+      ctx.font = '700 32px "DM Mono", monospace';
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillText(String(score), CANVAS_WIDTH / 2 + 2, 54);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(String(score), CANVAS_WIDTH / 2, 52);
+
+      ctx.restore();
+
+      // Flaş Efekti
+      if (flash > 0.002) {
+        ctx.save();
+        ctx.globalAlpha = flash;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.restore();
+      }
+
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+
+    return () => {
+      gameEnded = true;
+      window.cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [demo, locale, mastery, onFinish, seed]);
+
+  // Dokunmatik ve Fare Tıklama İşleyicisi
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    if (e.currentTarget.setPointerCapture) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // pointer capture optional
+      }
+    }
+    flapRequestedRef.current = true;
+    playSparkFlap(soundOnRef.current);
+  };
+
+  return (
+    <div className="spark-canvas-game" ref={containerRef}>
+      {/* 390px Mobil Uyumlu HUD */}
+      <div className="spark-canvas-hud" aria-live="polite">
+        <span>
+          {worldWord(locale, "SKOR", "SCORE")} <b>{hud.score}</b>
+        </span>
+        <span>
+          {worldWord(locale, "VOLTAJ", "VOLTAGE")} <b>%{hud.voltage}</b>
+        </span>
+        <span>
+          {worldWord(locale, "HIZ", "SPEED")} <b>{hud.speed}x</b>
+        </span>
+        <span>
+          {worldWord(locale, "MOD", "MODE")} <b>{worldWord(locale, "ARK", "ARC")}</b>
+        </span>
+      </div>
+
+      {/* Ana Tuval */}
+      <canvas
+        ref={canvasRef}
+        className="spark-canvas"
+        tabIndex={0}
+        onPointerDown={handlePointerDown}
+        style={{ touchAction: "none" }}
+        aria-label={worldWord(
+          locale,
+          "Kıvılcım uçuş oyunu. Boşluk tuşu, tıkla veya dokunarak kıvılcımı havada tut.",
+          "Spark flight game. Press space, click or tap to keep the spark airborne."
+        )}
+      />
+
+      <p className="spark-canvas-tip">{hud.notice}</p>
+
+      {/* Mobil Dostu Büyük Dokunmatik Kontrol Butonu */}
+      <div className="spark-canvas-controls" aria-label={worldWord(locale, "Kıvılcım kontrolleri", "Spark controls")}>
+        <button
+          type="button"
+          onPointerDown={handlePointerDown}
+          className="spark-flap-button"
+          aria-label={worldWord(locale, "Kıvılcımı uçur", "Flap spark")}
+        >
+          <b>✦</b>
+          <span>{worldWord(locale, "DOKUN / SÜZÜL (BOŞLUK)", "TAP / GLIDE (SPACE)")}</span>
+        </button>
+      </div>
+    </div>
+  );
 }

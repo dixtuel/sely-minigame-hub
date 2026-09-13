@@ -5,4 +5,4 @@
  */
 export const publicContactEmail =
   (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_PUBLIC_CONTACT_EMAIL) ||
-  "your-email@example.com";
+  "asrinklcc@sely.tr";

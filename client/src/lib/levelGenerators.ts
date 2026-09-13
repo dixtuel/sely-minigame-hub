@@ -1042,7 +1042,7 @@ export function generateSparkLevel(seed: number, mastery: number): SparkLevel {
     maxSpeed: 15 + mastery,
     focus: Math.max(2, 5 - Math.floor(mastery / 2)),
     events: buildSparkChapterEvents(seed, mastery, laneCount, rowsPerChapter, rowSpacing, 0),
-    lesson: mastery >= 3 ? "Trafik yoğunlaştıkça birden fazla şerit kapanabilir; her zaman en az bir açık şerit vardır, onu erkenden gör." : "Şeritler arada boş kalır; erkenden geç, son ana bırakma.",
+    lesson: mastery >= 3 ? "Yüksek voltaj hatları daralıyor; kıvılcımı ritmik dokunuşlarla dengede tut, elektrik arklarına çarpma." : "Ekrana dokunarak veya boşluk tuşuyla kıvılcımı havada tut; yüksek gerilim direklerinin arasından süzül.",
   };
 }
 
