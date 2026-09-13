@@ -108,6 +108,10 @@ Tam liste `server/_core/env.ts` ve `server/dailyContent.ts` içinde okunur; en �
 
 Production ortam değişkenleri, gerçek iletişim bilgileri, arama motoru doğrulama dosyaları ve ajana özel çalışma notları bu depoda bulunmaz — `npm run audit:public` bunu commit öncesi otomatik denetler.
 
+## Açık Kaynak Atıfları
+
+Bu projede kullanılan 3D motoru (Babylon.js), kullanıcı arayüzü çerçeveleri (React, Radix UI, Tailwind CSS), ikonlar (Lucide), tRPC, Drizzle ORM ve algoritmik referanslar hakkında ayrıntılı bilgi için [ATTRIBUTION.md](ATTRIBUTION.md) dosyasını inceleyebilirsiniz.
+
 ## Lisans ve marka
 
 Kaynak kodu [GNU Affero General Public License v3.0](LICENSE) kapsamında sunulur. Bu lisans, değiştirilmiş veya ağ üzerinden kullanıma sunulan türevlerin de aynı AGPL-3.0 koşullarıyla kaynak kodunu erişilebilir kılmasını gerektirir.
