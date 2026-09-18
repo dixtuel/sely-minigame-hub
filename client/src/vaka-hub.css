@@ -685,6 +685,75 @@
   transform: scale(0.97);
 }
 
+/* Aksiyon Konsolu (Segmented Bar) */
+.vaka-action-console {
+  background: var(--vaka-card);
+  border: 1.5px solid var(--vaka-border);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: var(--vaka-radius);
+  box-shadow: 3px 3px 0 var(--vaka-ink);
+}
+
+.vaka-action-segmented-bar {
+  display: flex;
+  gap: 6px;
+  background: rgba(27, 26, 27, 0.07);
+  padding: 4px;
+  border-radius: var(--vaka-radius);
+  border: 1px solid var(--vaka-border-subtle);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vaka-action-segmented-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.vaka-segmented-tab {
+  flex: 1;
+  min-width: 80px;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vaka-ink);
+  cursor: pointer;
+  border-radius: var(--vaka-radius);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: background 140ms ease, color 140ms ease, transform 120ms ease;
+  user-select: none;
+}
+
+.vaka-segmented-tab:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.vaka-segmented-tab.is-active {
+  background: var(--vaka-ink);
+  color: var(--vaka-paper);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.vaka-action-body {
+  padding: 4px 0 0;
+}
+
+.vaka-tactical-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* Alt Aksiyon Panelleri: Delil ve Çapraz Sorgu */
 .vaka-action-subpanels {
   display: grid;
@@ -1404,81 +1473,334 @@
    ========================================================================= */
 @media (max-width: 800px) {
   .vaka-hub-container {
-    margin: 5px auto 24px;
-    gap: 12px;
+    margin: 4px auto 20px;
+    gap: 10px;
+    padding: 0 4px;
   }
 
+  /* Üst Bar: Kompakt ve Tam Görünür */
   .vaka-hub-topbar {
-    padding: 14px 16px;
+    padding: 12px 14px;
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 10px;
+  }
+
+  .vaka-hub-title-block h2 {
+    font-size: 19px;
+  }
+
+  .vaka-hub-meta {
+    font-size: 10px;
+    gap: 6px;
   }
 
   .vaka-case-select {
     width: 100%;
     min-width: 0;
+    font-size: 11px;
+    padding: 10px;
   }
 
+  /* Sekme Çubuğu: Yatay Kaydırılabilir, Butonlar Asla Ezilmez */
+  .vaka-hub-nav-tabs {
+    gap: 6px;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+
+  .vaka-nav-tab {
+    padding: 8px 12px;
+    font-size: 10px;
+    min-height: 40px;
+    flex-shrink: 0;
+  }
+
+  .vaka-flow-indicator {
+    padding: 6px 10px;
+    font-size: 10px;
+    gap: 6px;
+  }
+
+  .vaka-step-chip {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  /* Dosya Görünümü */
   .vaka-dossier-layout {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .vaka-dossier-card {
+    padding: 14px 16px;
+  }
+
+  /* Şüpheli Seçimi: Yatay Kaydırma Kartları */
+  .vaka-suspect-tabs {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .vaka-suspect-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .vaka-suspect-tab {
+    min-width: 175px;
+    flex-shrink: 0;
+    padding: 10px 12px;
+    min-height: 52px;
+  }
+
+  .vaka-tab-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .vaka-tab-name {
+    font-size: 13px;
+  }
+
+  .vaka-tab-role {
+    font-size: 9px;
+  }
+
+  /* Psikolojik Baskı Barı */
+  .vaka-pressure-panel {
+    padding: 10px 14px;
+    gap: 6px;
+  }
+
+  .vaka-pressure-title span {
+    font-size: 10px;
+  }
+
+  .vaka-pressure-header b {
+    font-size: 10px;
+  }
+
+  /* Sohbet Akışı */
+  .vaka-chat-transcript {
+    min-height: 220px;
+    max-height: 280px;
+    padding: 12px 10px;
+    gap: 10px;
+  }
+
+  .vaka-chat-bubble {
+    max-width: 92%;
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  /* Mobil Aksiyon Konsolu */
+  .vaka-action-console {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .vaka-action-segmented-bar {
+    gap: 4px;
+    padding: 3px;
+  }
+
+  .vaka-segmented-tab {
+    padding: 7px 8px;
+    font-size: 10px;
+    min-width: 65px;
+  }
+
+  .vaka-quick-chips {
+    gap: 6px;
+  }
+
+  .vaka-chip-btn {
+    font-size: 11px;
+    padding: 8px 10px;
+    width: 100%;
+    text-align: left;
+    white-space: normal;
+    line-height: 1.35;
   }
 
   .vaka-action-subpanels {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
-  .vaka-suspect-tabs {
-    grid-template-columns: 1fr;
+  .vaka-evidence-subpanel,
+  .vaka-cross-subpanel {
+    padding: 10px 12px;
   }
 
-  .vaka-chat-transcript {
-    min-height: 240px;
-    max-height: 320px;
-    padding: 12px;
+  .vaka-evidence-pills,
+  .vaka-cross-pills {
+    gap: 5px;
   }
 
-  .vaka-chat-bubble {
-    max-width: 90%;
-    font-size: 13px;
+  .vaka-evidence-pill,
+  .vaka-cross-pill {
+    padding: 6px 10px;
+    font-size: 10px;
+    flex: 1 1 calc(50% - 6px);
+    text-align: center;
+    justify-content: center;
+  }
+
+  .vaka-tactical-options {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .vaka-tactic-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px;
+    font-size: 11px;
   }
 
   .vaka-input-row {
     flex-direction: column;
+    gap: 6px;
+  }
+
+  .vaka-text-input {
+    width: 100%;
+    font-size: 13px;
+    padding: 10px 12px;
   }
 
   .vaka-send-btn {
     width: 100%;
+    min-height: 42px;
+    font-size: 12px;
+  }
+
+  /* Çelişki Avı Mobil */
+  .vaka-sentence-card {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .vaka-sentence-text {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .vaka-clues-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .vaka-clue-item-card {
+    padding: 10px 12px;
+    min-height: auto;
+  }
+
+  .vaka-objection-action-bar {
+    position: sticky;
+    bottom: 10px;
+    z-index: 10;
+  }
+
+  .vaka-objection-btn {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 13px;
+    box-shadow: 0 4px 12px rgba(233, 86, 63, 0.45);
+  }
+
+  /* Mahkeme İddianamesi Modal: Mobilde Tam Ekran Sheet */
+  .vaka-modal-overlay {
+    padding: 0;
+    align-items: flex-end;
   }
 
   .vaka-modal-container {
-    padding: 18px;
-    max-height: 94vh;
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    padding: 16px 14px 24px;
+    gap: 12px;
+  }
+
+  .vaka-modal-header h2 {
+    font-size: 17px;
+  }
+
+  .vaka-modal-close {
+    font-size: 24px;
+    padding: 6px 10px;
   }
 
   .vaka-suspect-radio-grid,
   .vaka-clue-radio-grid {
     grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .vaka-suspect-pill-btn,
+  .vaka-clue-pill-btn {
+    padding: 8px 10px;
+    min-height: auto;
+  }
+
+  .vaka-submit-indictment-btn {
+    padding: 14px;
+    font-size: 12px;
+    min-height: 48px;
   }
 
   .vaka-confession-footer-bar {
     flex-direction: column;
     align-items: stretch;
     text-align: center;
+    padding: 12px 14px;
   }
 
   .vaka-indict-giant-btn {
     width: 100%;
+    padding: 12px;
+    font-size: 11px;
+    white-space: normal;
   }
 
   .vaka-verdict-actions-grid {
     flex-direction: column;
+    gap: 8px;
   }
 
   .vaka-verdict-next-btn,
   .vaka-verdict-finish-btn,
   .vaka-verdict-close-btn {
     width: 100%;
+    font-size: 11px;
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+
+  .vaka-scorecard-box {
+    padding: 12px;
+  }
+
+  .vaka-score-grade b {
+    font-size: 38px;
+  }
+
+  .vaka-score-points b {
+    font-size: 28px;
   }
 }
 

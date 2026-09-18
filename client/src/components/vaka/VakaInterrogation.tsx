@@ -41,6 +41,7 @@ export default function VakaInterrogation({
   const [crossSuspectId, setCrossSuspectId] = useState<string>("");
   const [solved, setSolved] = useState(false);
   const [verdictText, setVerdictText] = useState<string | null>(null);
+  const [activeActionTab, setActiveActionTab] = useState<"chips" | "clues" | "cross" | "tactics">("chips");
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const activeSuspect = vakaCase.suspects.find((s) => s.id === selectedSuspectId) || vakaCase.suspects[0];
@@ -263,34 +264,7 @@ export default function VakaInterrogation({
         </div>
       )}
 
-      {/* Taktiksel Hamle Çubuğu (6 Aksiyon) */}
-      {!solved && (
-        <div className="vaka-tactical-bar">
-          <button
-            type="button"
-            className="vaka-tactic-btn"
-            disabled={interrogateMutation.isPending}
-            onClick={() => dispatchAction("stay_silent")}
-          >
-            🤫 {isEn ? "Stay Silent (Stare)" : "Sessiz Kal (Baskı Kur)"}
-          </button>
-          <button
-            type="button"
-            className="vaka-tactic-btn"
-            disabled={interrogateMutation.isPending}
-            onClick={() => dispatchAction("bluff")}
-          >
-            🃏 {isEn ? "Tactical Bluff" : "Taktiksel Blöf"}
-          </button>
-          <button
-            type="button"
-            className="vaka-tactic-btn vaka-tactic-accuse"
-            onClick={() => onOpenVerdict(selectedSuspectId)}
-          >
-            ⚖️ {isEn ? "Indict Suspect" : "Mahkemede Suçla"}
-          </button>
-        </div>
-      )}
+
 
       {/* Sohbet / Tutanak Akışı */}
       <div className="vaka-chat-transcript">
@@ -319,63 +293,129 @@ export default function VakaInterrogation({
         <div ref={chatEndRef} />
       </div>
 
-      {/* Hazır Soru Çipleri */}
+      {/* Mobil ve Masaüstü Aksiyon Konsolu (Segmented Tab Bar) */}
       {!solved && (
-        <div className="vaka-quick-chips">
-          {quickPrompts.map((q, idx) => (
+        <div className="vaka-action-console">
+          <div className="vaka-action-segmented-bar">
             <button
-              key={idx}
               type="button"
-              className="vaka-chip-btn"
-              disabled={interrogateMutation.isPending}
-              onClick={() => dispatchAction("question", { question: q })}
+              className={`vaka-segmented-tab ${activeActionTab === "chips" ? "is-active" : ""}`}
+              onClick={() => setActiveActionTab("chips")}
             >
-              {q}
+              💬 {isEn ? "Questions" : "Sorular"}
             </button>
-          ))}
-        </div>
-      )}
-
-      {/* Çapraz Sorgu & Delil Masası Seçicisi */}
-      {!solved && (
-        <div className="vaka-action-subpanels">
-          {/* Delil Yüzleştirme */}
-          <div className="vaka-evidence-subpanel">
-            <label>{isEn ? "Confront with Clue:" : "Delil Yüzleştir:"}</label>
-            <div className="vaka-evidence-pills">
-              {vakaCase.clues.map((clue) => (
-                <button
-                  key={clue.id}
-                  type="button"
-                  className={`vaka-evidence-pill ${selectedClueId === clue.id ? "is-selected" : ""}`}
-                  onClick={() => {
-                    setSelectedClueId(clue.id);
-                    dispatchAction("present_evidence", { clueId: clue.id });
-                  }}
-                >
-                  🔍 {isEn ? clue.labelEn : clue.label}
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              className={`vaka-segmented-tab ${activeActionTab === "clues" ? "is-active" : ""}`}
+              onClick={() => setActiveActionTab("clues")}
+            >
+              🔍 {isEn ? "Clues" : "Deliller"} ({vakaCase.clues.length})
+            </button>
+            <button
+              type="button"
+              className={`vaka-segmented-tab ${activeActionTab === "cross" ? "is-active" : ""}`}
+              onClick={() => setActiveActionTab("cross")}
+            >
+              🗣️ {isEn ? "Cross-Exam" : "Çapraz"}
+            </button>
+            <button
+              type="button"
+              className={`vaka-segmented-tab ${activeActionTab === "tactics" ? "is-active" : ""}`}
+              onClick={() => setActiveActionTab("tactics")}
+            >
+              ⚡ {isEn ? "Tactics" : "Taktikler"}
+            </button>
           </div>
 
-          {/* Çapraz Sorgu (Diğer Şüpheli İfadesi) */}
-          <div className="vaka-cross-subpanel">
-            <label>{isEn ? "Cross-Examine with Testimony:" : "Çapraz Sorgu (Tanıkla Yüzleştir):"}</label>
-            <div className="vaka-cross-pills">
-              {vakaCase.suspects
-                .filter((s) => s.id !== selectedSuspectId)
-                .map((other) => (
+          <div className="vaka-action-body">
+            {/* 1. Hazır Soru Çipleri */}
+            {activeActionTab === "chips" && (
+              <div className="vaka-quick-chips">
+                {quickPrompts.map((q, idx) => (
                   <button
-                    key={other.id}
+                    key={idx}
                     type="button"
-                    className="vaka-cross-pill"
-                    onClick={() => dispatchAction("cross_examine", { crossId: other.id })}
+                    className="vaka-chip-btn"
+                    disabled={interrogateMutation.isPending}
+                    onClick={() => dispatchAction("question", { question: q })}
                   >
-                    🗣️ {other.name} ({isEn ? other.roleEn : other.role})
+                    {q}
                   </button>
                 ))}
-            </div>
+              </div>
+            )}
+
+            {/* 2. Delil Masası */}
+            {activeActionTab === "clues" && (
+              <div className="vaka-evidence-subpanel">
+                <label>{isEn ? "Tap a clue to confront the suspect:" : "Şüpheliyle yüzleştirmek için bir delile dokunun:"}</label>
+                <div className="vaka-evidence-pills">
+                  {vakaCase.clues.map((clue) => (
+                    <button
+                      key={clue.id}
+                      type="button"
+                      className={`vaka-evidence-pill ${selectedClueId === clue.id ? "is-selected" : ""}`}
+                      onClick={() => {
+                        setSelectedClueId(clue.id);
+                        dispatchAction("present_evidence", { clueId: clue.id });
+                      }}
+                    >
+                      🔍 {isEn ? clue.labelEn : clue.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Çapraz Sorgu */}
+            {activeActionTab === "cross" && (
+              <div className="vaka-cross-subpanel">
+                <label>{isEn ? "Quote another suspect's testimony:" : "Diğer şüphelinin ifadesiyle köşeye sıkıştır:"}</label>
+                <div className="vaka-cross-pills">
+                  {vakaCase.suspects
+                    .filter((s) => s.id !== selectedSuspectId)
+                    .map((other) => (
+                      <button
+                        key={other.id}
+                        type="button"
+                        className="vaka-cross-pill"
+                        onClick={() => dispatchAction("cross_examine", { crossId: other.id })}
+                      >
+                        🗣️ {other.name} ({isEn ? other.roleEn : other.role})
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* 4. Taktikler & Suçlama */}
+            {activeActionTab === "tactics" && (
+              <div className="vaka-tactical-options">
+                <button
+                  type="button"
+                  className="vaka-tactic-btn"
+                  disabled={interrogateMutation.isPending}
+                  onClick={() => dispatchAction("stay_silent")}
+                >
+                  🤫 {isEn ? "Stay Silent (Stare)" : "Sessiz Kal (Baskı Kur)"}
+                </button>
+                <button
+                  type="button"
+                  className="vaka-tactic-btn"
+                  disabled={interrogateMutation.isPending}
+                  onClick={() => dispatchAction("bluff")}
+                >
+                  🃏 {isEn ? "Tactical Bluff" : "Taktiksel Blöf"}
+                </button>
+                <button
+                  type="button"
+                  className="vaka-tactic-btn vaka-tactic-accuse"
+                  onClick={() => onOpenVerdict(selectedSuspectId)}
+                >
+                  🏛️ {isEn ? "Indict in Court" : "Mahkemede Suçla"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
