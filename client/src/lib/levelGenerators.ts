@@ -662,14 +662,15 @@ export type ShadowLevel = {
 /**
  * Gölge Payı (Shadow) seviye üreteci:
  * Oyuncu ile gecikmeli gölge (lag: 2 veya 3 adım) koordineli olarak tahtadaki iki baskı pedine
- * aynı anda basmalıdır. Yerinde bekleme ([0, 0] / Space / ⏸️) mekaniği sayesinde pedler
- * artık hem dikey hem yatay hem de serbest 2D olarak yerleştirilebilir. Çözücü (BFS) seviyenin
+ * aynı anda basmalıdır. Ped B, Ped A'dan tam olarak `lag` adımda erişilebilecek konumlara
+ * yerleştirilir. Böylece oyuncu bir pedden diğerine kesintisiz yürüdüğünde gölge ilk pede varır
+ * ve kapı doğal olarak açılır (yapay bekleme hamlesi gerekmez). Çözücü (BFS) 4 yönde seviyenin
  * 12 denemede kesinlikle kazanılabilir olduğunu doğrular.
  */
 function buildShadowLevelCandidate(seed: number, mastery: number): ShadowLevel {
   const size = mastery >= 3 ? 6 : 5;
   const random = rng(seed ^ 0x5bd1e995);
-  const inner = () => 1 + Math.floor(random() * (size - 2));
+  const lag = mastery >= 4 ? 3 : 2;
 
   // Çıkış noktası kenar boyunca seçilir
   const exitCandidates: Point[] = [];
@@ -679,35 +680,55 @@ function buildShadowLevelCandidate(seed: number, mastery: number): ShadowLevel {
   }
   const exit = exitCandidates[indexFor(seed, 211, exitCandidates.length)];
 
-  // İki ped: Başlangıç (0,0) ve çıkış harici, aralarında mesafe >= 2 olan serbest 2D noktalar
-  let colA = inner();
-  let rowA = inner();
-  let colB = inner();
-  let rowB = inner();
+  const inner = () => 1 + Math.floor(random() * (size - 2));
+  const colA = inner();
+  const rowA = inner();
 
-  for (let tries = 0; tries < 24; tries += 1) {
-    const dist = Math.abs(colA - colB) + Math.abs(rowA - rowB);
-    const notOrigin = (colA !== 0 || rowA !== 0) && (colB !== 0 || rowB !== 0);
-    const notExit = (colA !== exit.x || rowA !== exit.y) && (colB !== exit.x || rowB !== exit.y);
-    if (dist >= 2 && dist <= size + 1 && notOrigin && notExit) break;
-    colB = inner();
-    rowB = inner();
+  // Ped B: lag mesafesinde erişilebilir noktalar
+  let offsets: Array<{ dx: number; dy: number }> = [];
+  if (lag === 2) {
+    offsets = [
+      { dx: 2, dy: 0 }, { dx: -2, dy: 0 }, { dx: 0, dy: 2 }, { dx: 0, dy: -2 },
+      { dx: 1, dy: 1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 },
+    ];
+  } else {
+    // lag === 3
+    offsets = [
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+      { dx: 3, dy: 0 }, { dx: -3, dy: 0 }, { dx: 0, dy: 3 }, { dx: 0, dy: -3 },
+      { dx: 2, dy: 1 }, { dx: 2, dy: -1 }, { dx: -2, dy: 1 }, { dx: -2, dy: -1 },
+      { dx: 1, dy: 2 }, { dx: 1, dy: -2 }, { dx: -1, dy: 2 }, { dx: -1, dy: -2 },
+    ];
   }
 
+  const validPadsB: Point[] = [];
+  for (const off of offsets) {
+    const bx = colA + off.dx;
+    const by = rowA + off.dy;
+    if (bx >= 0 && bx < size && by >= 0 && by < size) {
+      if ((bx !== 0 || by !== 0) && (bx !== exit.x || by !== exit.y) && (bx !== colA || by !== rowA)) {
+        validPadsB.push({ x: bx, y: by });
+      }
+    }
+  }
+
+  const padB = validPadsB.length > 0
+    ? validPadsB[indexFor(seed, 937, validPadsB.length)]
+    : { x: colA, y: clamp(rowA + (lag === 2 ? 2 : 1), 0, size - 1) };
+
   const inverseTiles: Point[] = mastery >= 3 ? [{ x: inner(), y: inner() }] : [];
-  const lag = mastery >= 4 ? 3 : 2;
 
   const lesson = mastery >= 3
-    ? "Işık plağından geçen gölgenin yönü tersine döner. Gecikmeli rotanı ve yerinde bekleme (⏸️) anlarını iyi hesapla."
-    : `Gölgen ${lag} hamle geriden gelir. İki pedi AYNI ANDA (biri sen, diğeri gölge) aktif et. Yerinde beklemek için ⏸️ veya Boşluk tuşunu kullan.`;
+    ? "Işık prizmasından geçen gölgenin yönü tersine döner. Gecikmeli gölgeni arkandan sürükleyerek iki pedi aynı anda aktif et."
+    : `Gölgen ${lag} hamle geriden gelir. İki pedi eşleştirmek için bir pedden diğerine ${lag} adımda kesintisiz geç.`;
 
   const lessonEn = mastery >= 3
-    ? "Crossing light prisms inverts the shadow's direction. Time your moves and wait (⏸️) pauses strategically."
-    : `Your shadow moves ${lag} steps behind. Activate both pads SIMULTANEOUSLY. Use ⏸️ or Space to wait in place.`;
+    ? "Crossing light prisms inverts the shadow's direction. Trace your steps so your delayed shadow matches both pads."
+    : `Your shadow follows ${lag} steps behind. Walk from one pad to the other in exactly ${lag} steps to match both.`;
 
   return {
     size,
-    pads: [{ x: colA, y: rowA }, { x: colB, y: rowB }],
+    pads: [{ x: colA, y: rowA }, padB],
     exit,
     inverseTiles,
     lag,
@@ -734,21 +755,21 @@ export function isShadowLevelSolvable(level: ShadowLevel) {
   const queue: Array<State & { steps: number }> = [{ player: { r: 0, c: 0 }, shadow: { r: 0, c: 0 }, history: [], open: false, steps: 0 }];
   const seen = new Set([keyFor(queue[0])]);
 
-  // 4 yön + [0, 0] yerinde bekleme
-  const moves: Array<[number, number]> = [[-1, 0], [1, 0], [0, -1], [0, 1], [0, 0]];
+  // Sadece 4 yön (doğal ızgara hareketi, bekleme yok)
+  const moves: Array<[number, number]> = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
   while (queue.length) {
     const current = queue.shift()!;
     if (current.open && at(current.player, level.exit)) return true;
-    if (current.steps >= 40) continue;
+    if (current.steps >= 36) continue;
 
     for (const [dr, dc] of moves) {
-      const isWait = dr === 0 && dc === 0;
-      const player = isWait
-        ? current.player
-        : { r: clamp(current.player.r + dr, 0, level.size - 1), c: clamp(current.player.c + dc, 0, level.size - 1) };
+      const player = {
+        r: clamp(current.player.r + dr, 0, level.size - 1),
+        c: clamp(current.player.c + dc, 0, level.size - 1),
+      };
 
-      if (!isWait && player.r === current.player.r && player.c === current.player.c) continue;
+      if (player.r === current.player.r && player.c === current.player.c) continue;
 
       let shadow = current.shadow;
       if (current.history.length >= level.lag) {

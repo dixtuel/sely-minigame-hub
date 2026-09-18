@@ -54,8 +54,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--coral); outline
 .shadow-tool-btn:hover:not(:disabled) { background: rgba(246,240,227,.28); transform: translateY(-1px); }
 .shadow-tool-btn:active:not(:disabled) { transform: scale(0.96); }
 .shadow-tool-btn:disabled { opacity: .35; cursor: default; }
-.shadow-wait-btn { background: rgba(229,179,65,.35); border-color: rgba(229,179,65,.8); }
-.shadow-wait-btn:hover:not(:disabled) { background: rgba(229,179,65,.55); }
 .shadow-exit-glyph { position: absolute; inset: 0; display: grid; place-items: center; font-size: clamp(14px, 2.5vw, 22px); }
 .shadow-pad-glyph { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: rgba(246,240,227,.4); }
 .shadow-pad-glyph.is-pressed { color: var(--paper); font-size: 13px; text-shadow: 0 0 6px rgba(229,179,65,.8); }

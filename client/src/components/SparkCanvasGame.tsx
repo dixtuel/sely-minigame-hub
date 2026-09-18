@@ -233,6 +233,9 @@ export default function SparkCanvasGame({
   const soundOnRef = useRef(soundOn);
   soundOnRef.current = soundOn;
 
+  const onFinishRef = useRef(onFinish);
+  onFinishRef.current = onFinish;
+
   const finishedRef = useRef(false);
   const flapRequestedRef = useRef(false);
 
@@ -274,7 +277,8 @@ export default function SparkCanvasGame({
     let nextPylonIndex = 0;
     let pylons: Pylon[] = [];
     let particles: SparkParticle[] = [];
-    let groundOffset = 0;
+    let groundScrollX = 0;
+    let bgScrollX = 0;
     let shake = 0;
     let flash = 0;
     let gameEnded = false;
@@ -352,6 +356,7 @@ export default function SparkCanvasGame({
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (finishedRef.current || gameEnded) return;
       if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
         e.preventDefault();
         doFlap();
@@ -365,12 +370,14 @@ export default function SparkCanvasGame({
       if (finishedRef.current) return;
       finishedRef.current = true;
       gameEnded = true;
-      onFinish(result);
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("keydown", handleKeyDown);
+      onFinishRef.current(result);
     };
 
     // Ana Oyun Döngüsü
     const tick = (now: number) => {
-      if (gameEnded) return;
+      if (gameEnded || finishedRef.current) return;
       const rawDt = clamp((now - lastTime) / 1000, 0, 0.04);
       lastTime = now;
       arcPhase += rawDt * 12;
@@ -426,8 +433,12 @@ export default function SparkCanvasGame({
       flapRequestedRef.current = false;
       spark = sparkPhysicsStep(spark, simDt, shouldFlap);
 
+      // Zemin ve Arka Plan Paralaks Hareketi (Pylonlarla Tam Senkron)
+      groundScrollX = (groundScrollX + speed * 60 * rawDt) % 40;
+      bgScrollX = (bgScrollX + speed * 12 * rawDt) % CANVAS_WIDTH;
+      arcPhase += rawDt * 16;
+
       // Pylon Hareketi & Doğurma
-      groundOffset = (groundOffset + speed * simDt) % 24;
       for (const pylon of pylons) {
         pylon.x -= speed * simDt;
 
@@ -503,124 +514,241 @@ export default function SparkCanvasGame({
 
       // 1. Gökyüzü Degradesi (Sely Risograph Gece Mavisi)
       const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-      bgGrad.addColorStop(0, "#121829");
-      bgGrad.addColorStop(0.65, "#1c2540");
-      bgGrad.addColorStop(1, "#293b75");
+      bgGrad.addColorStop(0, "#0e1422");
+      bgGrad.addColorStop(0.65, "#18223a");
+      bgGrad.addColorStop(1, "#223363");
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // 2. Arka Plan Şehir / Trafo Silüeti
-      ctx.fillStyle = "rgba(18, 24, 41, 0.45)";
-      ctx.beginPath();
-      ctx.moveTo(0, GROUND_Y);
-      ctx.lineTo(0, GROUND_Y - 40);
-      ctx.lineTo(40, GROUND_Y - 40);
-      ctx.lineTo(50, GROUND_Y - 80);
-      ctx.lineTo(70, GROUND_Y - 80);
-      ctx.lineTo(80, GROUND_Y - 30);
-      ctx.lineTo(130, GROUND_Y - 30);
-      ctx.lineTo(150, GROUND_Y - 65);
-      ctx.lineTo(180, GROUND_Y - 65);
-      ctx.lineTo(190, GROUND_Y - 35);
-      ctx.lineTo(260, GROUND_Y - 35);
-      ctx.lineTo(280, GROUND_Y - 95);
-      ctx.lineTo(310, GROUND_Y - 95);
-      ctx.lineTo(320, GROUND_Y - 40);
-      ctx.lineTo(380, GROUND_Y - 40);
-      ctx.lineTo(400, GROUND_Y - 60);
-      ctx.lineTo(CANVAS_WIDTH, GROUND_Y - 60);
-      ctx.lineTo(CANVAS_WIDTH, GROUND_Y);
-      ctx.closePath();
-      ctx.fill();
+      // 2. Arka Plan: Yumuşak Paralaks Endüstriyel Şehir & Trafo Silüeti (Kesintisiz Çift Döngü)
+      ctx.save();
+      const drawCitySilhouette = (offsetX: number) => {
+        ctx.fillStyle = "rgba(14, 20, 34, 0.55)";
+        ctx.beginPath();
+        ctx.moveTo(offsetX, GROUND_Y);
+        ctx.lineTo(offsetX, GROUND_Y - 35);
+        ctx.lineTo(offsetX + 35, GROUND_Y - 35);
+        ctx.lineTo(offsetX + 45, GROUND_Y - 75);
+        ctx.lineTo(offsetX + 65, GROUND_Y - 75);
+        ctx.lineTo(offsetX + 75, GROUND_Y - 30);
+        ctx.lineTo(offsetX + 120, GROUND_Y - 30);
+        ctx.lineTo(offsetX + 140, GROUND_Y - 60);
+        ctx.lineTo(offsetX + 170, GROUND_Y - 60);
+        ctx.lineTo(offsetX + 180, GROUND_Y - 35);
+        ctx.lineTo(offsetX + 245, GROUND_Y - 35);
+        ctx.lineTo(offsetX + 265, GROUND_Y - 90);
+        ctx.lineTo(offsetX + 295, GROUND_Y - 90);
+        ctx.lineTo(offsetX + 305, GROUND_Y - 40);
+        ctx.lineTo(offsetX + 360, GROUND_Y - 40);
+        ctx.lineTo(offsetX + 380, GROUND_Y - 55);
+        ctx.lineTo(offsetX + CANVAS_WIDTH, GROUND_Y - 55);
+        ctx.lineTo(offsetX + CANVAS_WIDTH, GROUND_Y);
+        ctx.closePath();
+        ctx.fill();
 
-      // 3. Pylonlar (Yüksek Gerilim Direkleri)
+        // Kule anten uçlarında yanıp sönen kırmızı ikaz LED'leri
+        const beaconY = GROUND_Y - 92;
+        const beaconX = offsetX + 280;
+        if (beaconX >= -10 && beaconX <= CANVAS_WIDTH + 10) {
+          const blink = Math.sin(now * 0.006) > 0.1;
+          ctx.fillStyle = blink ? "#ef4444" : "rgba(239, 68, 68, 0.25)";
+          ctx.beginPath();
+          ctx.arc(beaconX, beaconY, blink ? 2.5 : 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      };
+
+      drawCitySilhouette(-bgScrollX);
+      drawCitySilhouette(-bgScrollX + CANVAS_WIDTH);
+      ctx.restore();
+
+      // 3. Yüksek Gerilim Pylonları (Lattice Truss Kuleleri & Seramik İzolatörler)
       for (const p of pylons) {
-        // Üst Direk
-        const pylonGrad = ctx.createLinearGradient(p.x, 0, p.x + p.width, 0);
-        pylonGrad.addColorStop(0, "#172842");
-        pylonGrad.addColorStop(0.2, "#243a60");
-        pylonGrad.addColorStop(0.5, "#2f4b7c");
-        pylonGrad.addColorStop(0.85, "#1e3355");
-        pylonGrad.addColorStop(1, "#172842");
+        ctx.save();
 
+        // Üst Kule Gövdesi
+        const pylonGrad = ctx.createLinearGradient(p.x, 0, p.x + p.width, 0);
+        pylonGrad.addColorStop(0, "#131f33");
+        pylonGrad.addColorStop(0.2, "#1e314f");
+        pylonGrad.addColorStop(0.5, "#2a436c");
+        pylonGrad.addColorStop(0.85, "#1c2e4b");
+        pylonGrad.addColorStop(1, "#111b2d");
+
+        // Üst Direk Gövdesi
         ctx.fillStyle = pylonGrad;
         ctx.fillRect(p.x, 0, p.width, p.topHeight);
-
-        // Üst Direk Sınır Çizgisi
-        ctx.strokeStyle = "#415f94";
+        ctx.strokeStyle = "#38527d";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(p.x, 0, p.width, p.topHeight);
 
-        // Üst Uç Başlığı (İzolatör)
-        ctx.fillStyle = "#e9563f";
-        ctx.fillRect(p.x - 4, p.topHeight - 16, p.width + 8, 16);
-        ctx.strokeStyle = "#ffffff";
+        // Üst Direk İçi Kafes Kiriş Deseni (Truss Bracing)
+        ctx.strokeStyle = "rgba(100, 140, 200, 0.28)";
         ctx.lineWidth = 1;
-        ctx.strokeRect(p.x - 4, p.topHeight - 16, p.width + 8, 16);
+        ctx.beginPath();
+        for (let y = 16; y < p.topHeight - 20; y += 22) {
+          ctx.moveTo(p.x + 2, y);
+          ctx.lineTo(p.x + p.width - 2, y + 18);
+          ctx.moveTo(p.x + p.width - 2, y);
+          ctx.lineTo(p.x + 2, y + 18);
+        }
+        ctx.stroke();
 
-        // Alt Direk
+        // Üst Seramik İzolatör Boğumları (3 Kademeli Disk)
+        const topIsoY = p.topHeight - 18;
+        for (let d = 0; d < 3; d++) {
+          const dy = topIsoY + d * 5;
+          const dw = p.width + (2 - d) * 4;
+          const dx = p.x + (p.width - dw) / 2;
+          ctx.fillStyle = d === 2 ? "#e9563f" : "#d9442e";
+          ctx.fillRect(dx, dy, dw, 4);
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 0.8;
+          ctx.strokeRect(dx, dy, dw, 4);
+        }
+
+        // Üst Pirinç Kondansatör Terminali (Arkın Çıktığı Nokta)
+        ctx.fillStyle = "#e5b341";
+        ctx.beginPath();
+        ctx.arc(p.x + p.width * 0.5, p.topHeight, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Alt Kule Gövdesi
         ctx.fillStyle = pylonGrad;
         ctx.fillRect(p.x, p.bottomY, p.width, p.bottomHeight);
-        ctx.strokeStyle = "#415f94";
+        ctx.strokeStyle = "#38527d";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(p.x, p.bottomY, p.width, p.bottomHeight);
 
-        // Alt Uç Başlığı (İzolatör)
-        ctx.fillStyle = "#e9563f";
-        ctx.fillRect(p.x - 4, p.bottomY, p.width + 8, 16);
-        ctx.strokeStyle = "#ffffff";
+        // Alt Direk İçi Kafes Kiriş Deseni
+        ctx.strokeStyle = "rgba(100, 140, 200, 0.28)";
         ctx.lineWidth = 1;
-        ctx.strokeRect(p.x - 4, p.bottomY, p.width + 8, 16);
+        ctx.beginPath();
+        for (let y = p.bottomY + 18; y < GROUND_Y - 16; y += 22) {
+          ctx.moveTo(p.x + 2, y);
+          ctx.lineTo(p.x + p.width - 2, y + 18);
+          ctx.moveTo(p.x + p.width - 2, y);
+          ctx.lineTo(p.x + 2, y + 18);
+        }
+        ctx.stroke();
 
-        // Uçlar Arasındaki Elektrik Arkı (Lightning crackle)
-        if (Math.sin(arcPhase + p.id * 1.7) > 0.25) {
-          ctx.save();
-          ctx.strokeStyle = "rgba(248, 215, 122, 0.75)";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
+        // Alt Seramik İzolatör Boğumları
+        for (let d = 0; d < 3; d++) {
+          const dy = p.bottomY + 3 + d * 5;
+          const dw = p.width + d * 4;
+          const dx = p.x + (p.width - dw) / 2;
+          ctx.fillStyle = d === 0 ? "#e9563f" : "#d9442e";
+          ctx.fillRect(dx, dy, dw, 4);
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 0.8;
+          ctx.strokeRect(dx, dy, dw, 4);
+        }
+
+        // Alt Pirinç Kondansatör Terminali
+        ctx.fillStyle = "#e5b341";
+        ctx.beginPath();
+        ctx.arc(p.x + p.width * 0.5, p.bottomY, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // ALT PYLON TABAN PABUCU (Zemine Perçinli Ağır Çelik Kaide)
+        // Pylonun havada yüzmesini engeller, zemine sağlamca kenetler
+        ctx.fillStyle = "#0f1624";
+        ctx.fillRect(p.x - 7, GROUND_Y - 7, p.width + 14, 9);
+        ctx.strokeStyle = "#e5b341";
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(p.x - 7, GROUND_Y - 7, p.width + 14, 9);
+
+        // Kaide Montaj Cıvataları
+        ctx.fillStyle = "#f8d77a";
+        ctx.fillRect(p.x - 4, GROUND_Y - 5, 3, 3);
+        ctx.fillRect(p.x + p.width + 1, GROUND_Y - 5, 3, 3);
+
+        // 4. Sütunlar Arasındaki Fraktal Tesla Elektrik Arkı (Realist Lightning Crackle)
+        if (Math.sin(arcPhase + p.id * 2.1) > 0.15) {
           const startArcY = p.topHeight;
           const endArcY = p.bottomY;
           const midX = p.x + p.width * 0.5;
-          ctx.moveTo(midX, startArcY);
-          const steps = 4;
+          const steps = 8;
+          const arcPoints: Array<{ x: number; y: number }> = [{ x: midX, y: startArcY }];
+
           for (let s = 1; s < steps; s++) {
-            const sy = startArcY + (endArcY - startArcY) * (s / steps);
-            const sx = midX + (Math.sin(arcPhase * 2 + s * 3) * 6);
-            ctx.lineTo(sx, sy);
+            const progress = s / steps;
+            const sy = startArcY + (endArcY - startArcY) * progress;
+            // Çift harmonik kırılma + mikro rastgele sapma
+            const jitter = (Math.sin(arcPhase * 3.5 + s * 2.8 + p.id) * 8) + ((Math.random() - 0.5) * 4);
+            arcPoints.push({ x: midX + jitter, y: sy });
           }
-          ctx.lineTo(midX, endArcY);
+          arcPoints.push({ x: midX, y: endArcY });
+
+          // Dış Plazma Halesi (Neon Glow)
+          ctx.strokeStyle = "rgba(248, 215, 122, 0.55)";
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.moveTo(arcPoints[0].x, arcPoints[0].y);
+          for (let i = 1; i < arcPoints.length; i++) {
+            ctx.lineTo(arcPoints[i].x, arcPoints[i].y);
+          }
           ctx.stroke();
-          ctx.restore();
+
+          // İç Beyaz-Sıcak Yıldırım Çekirdeği
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(arcPoints[0].x, arcPoints[0].y);
+          for (let i = 1; i < arcPoints.length; i++) {
+            ctx.lineTo(arcPoints[i].x, arcPoints[i].y);
+          }
+          ctx.stroke();
+
+          // Çatallanan Yan Kıvılcım (Branching spark)
+          if (Math.random() > 0.45) {
+            const branchIdx = 3 + Math.floor(Math.random() * 3);
+            const bp = arcPoints[branchIdx];
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(bp.x, bp.y);
+            ctx.lineTo(bp.x + (Math.random() > 0.5 ? 12 : -12), bp.y + (Math.random() - 0.5) * 10);
+            ctx.stroke();
+          }
         }
+
+        ctx.restore();
       }
 
-      // 4. Zemin Hattı (Yüksek Gerilim Izgarası)
+      // 5. Zemin Hattı: Yüksek Gerilim Reaktör Yolu (Pylonlarla BİREBİR AYNI HIZDA Dönen Raylar)
       const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, CANVAS_HEIGHT);
-      groundGrad.addColorStop(0, "#1b1a1b");
-      groundGrad.addColorStop(0.15, "#23262d");
-      groundGrad.addColorStop(1, "#17181c");
+      groundGrad.addColorStop(0, "#13171e");
+      groundGrad.addColorStop(0.2, "#1d222b");
+      groundGrad.addColorStop(1, "#0d0f13");
       ctx.fillStyle = groundGrad;
       ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, GROUND_HEIGHT);
 
-      ctx.strokeStyle = "#e9563f";
+      // Zemin Üst Güvenlik Rayı (Katı Metalik Bordür)
+      ctx.strokeStyle = "#e5b341";
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(0, GROUND_Y);
       ctx.lineTo(CANVAS_WIDTH, GROUND_Y);
       ctx.stroke();
 
-      // Kayan elektrik iletken çizgisi
-      ctx.strokeStyle = "rgba(248, 215, 122, 0.45)";
+      // Zemin İçi: Pylonlarla Birebir Aynı Hızda Akan Çelik Derz Panelleri
+      ctx.fillStyle = "rgba(246, 240, 227, 0.12)";
+      for (let x = -groundScrollX; x < CANVAS_WIDTH + 40; x += 40) {
+        ctx.fillRect(x, GROUND_Y, 2, GROUND_HEIGHT);
+      }
+
+      // Kayan Sarı-Siyah Endüstriyel Tehlike Şeridi
+      ctx.strokeStyle = "rgba(248, 215, 122, 0.35)";
       ctx.lineWidth = 1.5;
-      ctx.setLineDash([14, 10]);
-      ctx.lineDashOffset = -groundOffset;
+      ctx.setLineDash([12, 10]);
+      ctx.lineDashOffset = -groundScrollX;
       ctx.beginPath();
       ctx.moveTo(0, GROUND_Y + 12);
       ctx.lineTo(CANVAS_WIDTH, GROUND_Y + 12);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // 5. Parçacıklar
+      // 6. Parçacıklar
       for (const p of particles) {
         const alpha = clamp(p.life / p.maxLife, 0, 1);
         ctx.save();
@@ -632,41 +760,56 @@ export default function SparkCanvasGame({
         ctx.restore();
       }
 
-      // 6. Kıvılcım (Oyuncu Enerji Küresi)
+      // 7. Kıvılcım (Oyuncu Enerji Küresi & Çok Katmanlı Plazma Çekirdeği)
       ctx.save();
       ctx.translate(spark.x, spark.y);
       ctx.rotate((spark.rotation * Math.PI) / 180);
 
-      // Dış Plazma Halesi (Glow)
-      const pulse = Math.sin(now * 0.012) * 2;
-      const glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, SPARK_DEFAULTS.radius * 1.8 + pulse);
+      // A) Dış Plazma Halesi (Glow Pulse)
+      const pulse = Math.sin(now * 0.014) * 2.5;
+      const glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, SPARK_DEFAULTS.radius * 2.0 + pulse);
       glowGrad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-      glowGrad.addColorStop(0.3, "rgba(248, 215, 122, 0.85)");
-      glowGrad.addColorStop(0.7, "rgba(233, 86, 63, 0.5)");
+      glowGrad.addColorStop(0.25, "rgba(248, 215, 122, 0.85)");
+      glowGrad.addColorStop(0.65, "rgba(233, 86, 63, 0.45)");
       glowGrad.addColorStop(1, "rgba(233, 86, 63, 0)");
       ctx.fillStyle = glowGrad;
       ctx.beginPath();
-      ctx.arc(0, 0, SPARK_DEFAULTS.radius * 1.8 + pulse, 0, Math.PI * 2);
+      ctx.arc(0, 0, SPARK_DEFAULTS.radius * 2.0 + pulse, 0, Math.PI * 2);
       ctx.fill();
 
-      // Enerji Gövdesi
-      ctx.fillStyle = "#f8d77a";
+      // B) Çevrede Dönen 3 Adet Mikro Plazma Kıvılcımı (Orbiting Tendrils)
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.lineWidth = 1.2;
+      for (let t = 0; t < 3; t++) {
+        const angle = (now * 0.008) + (t * (Math.PI * 2 / 3));
+        const dist = SPARK_DEFAULTS.radius + 3 + (Math.sin(now * 0.02 + t) * 2);
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, 1.4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // C) Canlı Enerji Küresi
+      const coreGrad = ctx.createRadialGradient(-2, -2, 1, 0, 0, SPARK_DEFAULTS.radius);
+      coreGrad.addColorStop(0, "#ffffff");
+      coreGrad.addColorStop(0.4, "#f8d77a");
+      coreGrad.addColorStop(1, "#e9563f");
+      ctx.fillStyle = coreGrad;
       ctx.beginPath();
       ctx.arc(0, 0, SPARK_DEFAULTS.radius, 0, Math.PI * 2);
       ctx.fill();
 
-      // Parlak Çekirdek
+      // D) Parlak Çekirdek & Göz Işıltısı (Uçuş Yönüne Bakan Odak Noktası)
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(2, -1, SPARK_DEFAULTS.radius * 0.45, 0, Math.PI * 2);
+      ctx.arc(3, -1, SPARK_DEFAULTS.radius * 0.4, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.restore();
 
-      // 7. Canlı Skor Metni (Orta Üst)
+      // 8. Canlı Skor Metni (Orta Üst)
       ctx.font = '700 32px "DM Mono", monospace';
       ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
       ctx.fillText(String(score), CANVAS_WIDTH / 2 + 2, 54);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(String(score), CANVAS_WIDTH / 2, 52);
@@ -693,11 +836,12 @@ export default function SparkCanvasGame({
       resizeObserver.disconnect();
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [demo, locale, mastery, onFinish, seed]);
+  }, [demo, locale, mastery, seed]);
 
   // Dokunmatik ve Fare Tıklama İşleyicisi
   const handlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
+    if (finishedRef.current) return;
     if (e.currentTarget.setPointerCapture) {
       try {
         e.currentTarget.setPointerCapture(e.pointerId);

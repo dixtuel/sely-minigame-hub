@@ -371,16 +371,13 @@ function ShadowGame({
   const move = useCallback(
     (dr: number, dc: number) => {
       setState((previous) => {
-        const isWait = dr === 0 && dc === 0;
-        const player = isWait
-          ? previous.player
-          : {
-              r: Math.max(0, Math.min(level.size - 1, previous.player.r + dr)),
-              c: Math.max(0, Math.min(level.size - 1, previous.player.c + dc)),
-            };
+        const player = {
+          r: Math.max(0, Math.min(level.size - 1, previous.player.r + dr)),
+          c: Math.max(0, Math.min(level.size - 1, previous.player.c + dc)),
+        };
 
-        // Eğer duvara çarpıp yerinde kaldıysa (ve kasıtlı wait değilse) hamleyi yutma
-        if (!isWait && player.r === previous.player.r && player.c === previous.player.c) return previous;
+        // Eğer duvara çarpıp yerinde kaldıysa hamleyi yutma
+        if (player.r === previous.player.r && player.c === previous.player.c) return previous;
 
         // Undo stack'e önceki geçerli durumu kaydet
         setUndoStack((prev) => [...prev.slice(-29), previous]);
@@ -468,7 +465,7 @@ function ShadowGame({
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      // WASD, Arrow keys, Space / X / Period (Wait), Z (Undo), R (Restart)
+      // WASD, Arrow keys, Z (Undo), R (Restart)
       const map: Record<string, [number, number]> = {
         ArrowUp: [-1, 0],
         KeyW: [-1, 0],
@@ -486,12 +483,6 @@ function ShadowGame({
         KeyD: [0, 1],
         d: [0, 1],
         D: [0, 1],
-        Space: [0, 0],
-        " ": [0, 0],
-        KeyX: [0, 0],
-        x: [0, 0],
-        Period: [0, 0],
-        ".": [0, 0],
       };
 
       if (event.key === "z" || event.key === "Z" || event.code === "KeyZ") {
@@ -532,7 +523,7 @@ function ShadowGame({
           {state.open
             ? `🚪 ${local(locale, "ÇIKIŞ AÇILDI!", "EXIT UNLOCKED!")}`
             : isPlayerOnAnyPad || isShadowOnAnyPad
-            ? `⏳ ${local(locale, "İKİNCİ PEDİ BEKLE", "HOLD & WAIT FOR SHADOW")}`
+            ? `⚖️ ${local(locale, "DİĞER PEDE ADIMLA", "STEP TO OTHER PAD")}`
             : `⚖️ ${local(locale, "İKİ PEDİ EŞLE", "ALIGN BOTH PADS")}`}
         </span>
       </div>
@@ -615,14 +606,6 @@ function ShadowGame({
         <DirectionPad locale={locale} onMove={move} />
 
         <div className="shadow-action-btns">
-          <button
-            type="button"
-            className="shadow-tool-btn shadow-wait-btn"
-            onClick={() => move(0, 0)}
-            title={local(locale, "Yerinde bekle (Boşluk)", "Wait in place (Space)")}
-          >
-            ⏸️ {local(locale, "Bekle (Boşluk)", "Wait (Space)")}
-          </button>
           <button
             type="button"
             className="shadow-tool-btn shadow-undo-btn"

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, CircleHelp, Cookie, Gamepad2, History, Menu, ShieldCheck, Sparkles, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useCookieConsent } from "@/contexts/CookieConsentContext";
@@ -11,7 +11,7 @@ const GameStudio = lazy(() => import("@/components/GameStudio"));
 const SCORE_KEY = "sely-scorebook-v1";
 type ScoreBook = Record<GameId, number>;
 type RunSource = "daily" | "personal";
-type SelectedRun = { game: GameMeta; source: RunSource; attempt: number; autoStart?: boolean; demo?: "spark" | "spark-fail" | "cut-fail" };
+type SelectedRun = { game: GameMeta; source: RunSource; attempt: number; autoStart?: boolean; demo?: "spark" | "spark-fail" | "cut-fail"; mastery: number };
 const blankScores: ScoreBook = { echo: 0, knot: 0, cut: 0, shadow: 0, vaka: 0, hane: 0, spark: 0 };
 
 export default function Home({ locale = "tr", directGameId }: { locale?: SiteLocale; directGameId?: string }) {
@@ -35,17 +35,19 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
     const requestedId = directGameId ?? (query.get("play") === "daily" ? query.get("game") : null);
     const game = catalog.find(item => item.id === requestedId);
     const demo = game?.id === "spark" && query.get("demo") === "1" ? "spark" : game?.id === "spark" && query.get("demo") === "fail" ? "spark-fail" : game?.id === "cut" && query.get("demo") === "fail" ? "cut-fail" : undefined;
-    if (game) setSelected({ game, source: "personal", attempt: 0, autoStart: true, demo });
-  }, [catalog, daily.data, directGameId, selected]);
-  const saveScore = (gameId: GameId, score: number) => setScores(previous => {
+    if (game) setSelected({ game, source: "personal", attempt: 0, autoStart: true, demo, mastery: masteryBand(scores[game.id] ?? 0) });
+  }, [catalog, daily.data, directGameId, scores, selected]);
+
+  const saveScore = useCallback((gameId: GameId, score: number) => setScores(previous => {
     const next = { ...previous, [gameId]: Math.max(previous[gameId], score) };
     try { localStorage.setItem(SCORE_KEY, JSON.stringify(next)); } catch { /* Local storage may be disabled. */ }
     return next;
-  });
+  }), []);
+
   // Günlük/kişisel rota ayrımı UI'dan kaldırıldı — tek "Oyna" akışı, ilk denemenin seed tabanı
   // olarak yine günün paketini (dailyPack?.seed) kullanır, böylece gün-be-gün çeşitlilik sürer.
   const dailyPack = selected ? daily.data?.games.find(game => game.gameId === selected.game.id) : undefined;
-  const selectedMastery = selected ? masteryBand(scores[selected.game.id]) : 1;
+  const selectedMastery = selected ? selected.mastery : 1;
   const activeSeed = selected ? personalSeed(dailyPack?.seed ?? 618_071, selected.game.id, selectedMastery, selected.attempt) : 0;
   const activeDifficulty = selected ? selectedMastery : 1;
   const totalBest = useMemo(() => Object.values(scores).reduce((total, value) => total + value, 0), [scores]);
@@ -53,18 +55,22 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
   const startGame = (game: GameMeta) => {
     const attempt = personalAttempts[game.id] + 1;
     setPersonalAttempts(previous => ({ ...previous, [game.id]: attempt }));
-    setSelected({ game, source: "personal", attempt });
+    setSelected({ game, source: "personal", attempt, mastery: masteryBand(scores[game.id] ?? 0) });
   };
   const continueToNextLevel = () => {
     if (!selected) return;
     const attempt = Math.max(1, selected.attempt + 1);
     setPersonalAttempts(previous => ({ ...previous, [selected.game.id]: Math.max(previous[selected.game.id], attempt) }));
-    setSelected({ ...selected, source: "personal", attempt, autoStart: true, demo: undefined });
+    setSelected({ ...selected, source: "personal", attempt, autoStart: true, demo: undefined, mastery: masteryBand(scores[selected.game.id] ?? 0) });
   };
+
+  const handleScore = useCallback((score: number) => {
+    if (selected) saveScore(selected.game.id, score);
+  }, [selected, saveScore]);
 
   if (selected) {
     const runIdentity = runInstanceKey(selected.game.id, selected.source, selected.attempt, activeSeed);
-    return <Suspense fallback={<main className="hub-page game-loading" aria-live="polite">{locale === "en" ? "Opening edition…" : "Baskı açılıyor…"}</main>}><GameStudio key={runIdentity} game={selected.game} locale={locale} autoStart={selected.autoStart} demo={selected.demo} dailySeed={activeSeed} dailyDifficulty={activeDifficulty} highScore={scores[selected.game.id]} soundOn={soundOn} onToggleSound={() => setSoundOn(value => !value)} onBack={() => { setSelected(null); if (selected.autoStart) navigate(localePath(locale)); }} onNextLevel={continueToNextLevel} onScore={score => saveScore(selected.game.id, score)} /></Suspense>;
+    return <Suspense fallback={<main className="hub-page game-loading" aria-live="polite">{locale === "en" ? "Opening edition…" : "Baskı açılıyor…"}</main>}><GameStudio key={runIdentity} game={selected.game} locale={locale} autoStart={selected.autoStart} demo={selected.demo} dailySeed={activeSeed} dailyDifficulty={activeDifficulty} highScore={scores[selected.game.id]} soundOn={soundOn} onToggleSound={() => setSoundOn(value => !value)} onBack={() => { setSelected(null); if (selected.autoStart) navigate(localePath(locale)); }} onNextLevel={continueToNextLevel} onScore={handleScore} /></Suspense>;
   }
 
   return <main className="hub-page" lang={locale}>
