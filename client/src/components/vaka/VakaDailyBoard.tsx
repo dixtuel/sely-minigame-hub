@@ -70,6 +70,7 @@ export default function VakaDailyBoard({
           vakaCase={vakaCase}
           locale={locale}
           soundOn={soundOn}
+          onOpenVerdict={() => setShowVerdictModal(true)}
           onSolved={onSolved}
         />
       )}
@@ -80,6 +81,7 @@ export default function VakaDailyBoard({
           locale={locale}
           soundOn={soundOn}
           onClose={() => setShowVerdictModal(false)}
+          onFinishBureau={onSolved}
           onSolved={onSolved}
         />
       )}

@@ -9,9 +9,18 @@ type Props = {
   locale: SiteLocale;
   soundOn: boolean;
   onSolved?: (score: number) => void;
+  onOpenVerdict?: (suspectId?: string) => void;
+  onCaseCompleted?: (caseId: string, score: number) => void;
 };
 
-export default function VakaContradiction({ vakaCase, locale, soundOn, onSolved }: Props) {
+export default function VakaContradiction({
+  vakaCase,
+  locale,
+  soundOn,
+  onSolved,
+  onOpenVerdict,
+  onCaseCompleted,
+}: Props) {
   const [selectedSuspectId, setSelectedSuspectId] = useState<string>(vakaCase.suspects[0]?.id || "");
   const [selectedSentenceId, setSelectedSentenceId] = useState<string | null>(null);
   const [selectedClueId, setSelectedClueId] = useState<string | null>(null);
@@ -40,7 +49,7 @@ export default function VakaContradiction({ vakaCase, locale, soundOn, onSolved 
         setSolved(true);
         setFeedback({ text: res.message, isSuccess: true });
         const earned = Math.max(0, 240 - penalty);
-        onSolved?.(earned);
+        onCaseCompleted?.(vakaCase.id, earned);
       } else {
         playHit(soundOn);
         setPenalty((prev) => prev + (res.penalty || 15));
@@ -136,16 +145,39 @@ export default function VakaContradiction({ vakaCase, locale, soundOn, onSolved 
       )}
 
       {/* İtiraz / Çelişki Hamlesi Butonu */}
-      <div className="vaka-objection-action-bar">
-        <button
-          type="button"
-          className="vaka-objection-btn"
-          disabled={!selectedSentenceId || !selectedClueId || contradictionMutation.isPending || solved}
-          onClick={handlePresentObjection}
-        >
-          ⚖️ {locale === "en" ? "PRESENT CONTRADICTION!" : "ÇELİŞKİYİ SUN / İTİRAZ ET!"}
-        </button>
-      </div>
+      {!solved && (
+        <div className="vaka-objection-action-bar">
+          <button
+            type="button"
+            className="vaka-objection-btn"
+            disabled={!selectedSentenceId || !selectedClueId || contradictionMutation.isPending || solved}
+            onClick={handlePresentObjection}
+          >
+            ⚖️ {locale === "en" ? "PRESENT CONTRADICTION!" : "ÇELİŞKİYİ SUN / İTİRAZ ET!"}
+          </button>
+        </div>
+      )}
+
+      {/* Çelişki Çözüldükten Sonraki Mahkeme Sevk Butonu */}
+      {solved && onOpenVerdict && (
+        <div className="vaka-confession-footer-bar">
+          <div className="vaka-confession-footer-info">
+            <span>✨ {locale === "en" ? "Contradiction shattered the alibi!" : "Çelişki şüphelinin alibisini çökertti!"}</span>
+            <p>
+              {locale === "en"
+                ? "Now present the formal court indictment to deliver justice."
+                : "Şimdi adaleti sağlamak için resmi mahkeme iddianamesini sunun."}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="vaka-indict-giant-btn"
+            onClick={() => onOpenVerdict(selectedSuspectId)}
+          >
+            🏛️ {locale === "en" ? "PROCEED TO FORMAL INDICTMENT" : "RESMİ MAHKEME SUÇLAMASINA GEÇ"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -154,10 +154,9 @@ export default function VakaInterrogation({
         setSolved(true);
         setVerdictText(
           isEn
-            ? `BREAKING POINT CONFESSION! ${activeSuspect.name} broke down under relentless pressure and confessed to the crime!`
-            : `KIRILMA NOKTASI İTİRAFI! ${activeSuspect.name} aralıksız baskıya dayanamayarak suçunu itiraf etti!`
+            ? `BREAKING POINT CONFESSION! ${activeSuspect.name} broke down under relentless pressure and confessed to the crime! You can now take them to court.`
+            : `KIRILMA NOKTASI İTİRAFI! ${activeSuspect.name} aralıksız baskıya dayanamayarak suçunu itiraf etti! Artık resmi mahkemeye sevk edebilirsiniz.`
         );
-        onSolved?.(260);
       } else if (res.stressDelta > 15) {
         playContradiction(soundOn);
       }
@@ -406,6 +405,27 @@ export default function VakaInterrogation({
             onClick={() => dispatchAction("question")}
           >
             {isEn ? "Ask Question" : "Soruyu Sor"}
+          </button>
+        </div>
+      )}
+
+      {/* İtiraf Sonrası Dev İddianame Aksiyon Çubuğu */}
+      {solved && (
+        <div className="vaka-confession-footer-bar">
+          <div className="vaka-confession-footer-info">
+            <span>✨ {isEn ? "Suspect has cracked!" : "Şüpheli çözüldü ve teslim oldu!"}</span>
+            <p>
+              {isEn
+                ? "Submit the official four-pillar indictment to finalize the court verdict."
+                : "Hükmü kesinleştirmek için 4 ayaklı resmi iddianameyi mahkemeye sunun."}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="vaka-indict-giant-btn"
+            onClick={() => onOpenVerdict(selectedSuspectId)}
+          >
+            🏛️ {isEn ? "PROCEED TO FORMAL INDICTMENT" : "RESMİ MAHKEME SUÇLAMASINA GEÇ"}
           </button>
         </div>
       )}

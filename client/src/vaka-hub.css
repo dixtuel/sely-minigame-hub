@@ -173,6 +173,47 @@
   background: var(--vaka-crimson-hover) !important;
 }
 
+/* Dedektif Akış Kılavuzu */
+.vaka-flow-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--vaka-card);
+  border: 1px solid var(--vaka-border-subtle);
+  padding: 8px 14px;
+  border-radius: var(--vaka-radius);
+  font: 500 11px var(--font-mono);
+  color: var(--vaka-ink);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.vaka-flow-indicator::-webkit-scrollbar {
+  display: none;
+}
+
+.vaka-step-chip {
+  padding: 3px 8px;
+  border-radius: 3px;
+  opacity: 0.65;
+  white-space: nowrap;
+  transition: opacity 140ms ease, background 140ms ease;
+}
+
+.vaka-step-chip.is-current {
+  opacity: 1;
+  font-weight: 700;
+  background: var(--vaka-paper);
+  border: 1px solid var(--vaka-border);
+  color: var(--vaka-indigo);
+  box-shadow: 1px 1px 0 var(--vaka-border);
+}
+
+.vaka-step-arrow {
+  opacity: 0.4;
+  font-size: 10px;
+}
+
 /* =========================================================================
    1. VAKA DOSYASI (DOSSIER)
    ========================================================================= */
@@ -1419,6 +1460,176 @@
   .vaka-clue-radio-grid {
     grid-template-columns: 1fr;
   }
+
+  .vaka-confession-footer-bar {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .vaka-indict-giant-btn {
+    width: 100%;
+  }
+
+  .vaka-verdict-actions-grid {
+    flex-direction: column;
+  }
+
+  .vaka-verdict-next-btn,
+  .vaka-verdict-finish-btn,
+  .vaka-verdict-close-btn {
+    width: 100%;
+  }
+}
+
+/* =========================================================================
+   7. VAKA İLERLEME & İDDİANAME AKSİYONLARI (PROGRESSION & ACTIONS)
+   ========================================================================= */
+.vaka-top-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vaka-solved-tag {
+  font: 700 10px var(--font-mono);
+  background: var(--vaka-emerald);
+  color: #ffffff;
+  padding: 3px 8px;
+  border-radius: 2px;
+  letter-spacing: 0.06em;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+.vaka-confession-footer-bar {
+  background: linear-gradient(135deg, #1e3a2f 0%, #152720 100%);
+  color: #ffffff;
+  border: 2px solid var(--vaka-emerald);
+  padding: 16px 20px;
+  border-radius: var(--vaka-radius);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(41, 106, 85, 0.35);
+  animation: vaka-slide-in 240ms var(--vaka-ease-out);
+}
+
+.vaka-confession-footer-info span {
+  font: 700 13px var(--font-mono);
+  color: var(--vaka-amber);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.vaka-confession-footer-info p {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.vaka-indict-giant-btn {
+  background: var(--vaka-amber);
+  color: var(--vaka-ink);
+  border: 2px solid var(--vaka-ink);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.05em;
+  padding: 12px 20px;
+  border-radius: var(--vaka-radius);
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--vaka-ink);
+  transition: transform 120ms var(--vaka-ease-out), box-shadow 120ms ease;
+  white-space: nowrap;
+}
+
+.vaka-indict-giant-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 5px 5px 0 var(--vaka-ink);
+}
+
+.vaka-indict-giant-btn:active {
+  transform: translateY(1px);
+  box-shadow: 2px 2px 0 var(--vaka-ink);
+}
+
+.vaka-verdict-actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.vaka-verdict-next-btn {
+  background: linear-gradient(135deg, var(--vaka-coral) 0%, #d84530 100%);
+  color: #ffffff;
+  border: 2px solid var(--vaka-ink);
+  padding: 14px 20px;
+  font: 700 13px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border-radius: var(--vaka-radius);
+  box-shadow: 4px 4px 0 var(--vaka-ink);
+  transition: transform 120ms var(--vaka-ease-out), box-shadow 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vaka-verdict-next-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 0 var(--vaka-ink);
+}
+
+.vaka-verdict-next-btn:active {
+  transform: translateY(1px);
+  box-shadow: 2px 2px 0 var(--vaka-ink);
+}
+
+.vaka-verdict-finish-btn {
+  background: var(--vaka-ink);
+  color: var(--vaka-paper);
+  border: 1.5px solid var(--vaka-border);
+  padding: 12px 18px;
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--vaka-radius);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.4);
+  transition: transform 120ms var(--vaka-ease-out), box-shadow 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vaka-verdict-finish-btn:hover {
+  transform: translateY(-2px);
+  background: #2b2a2c;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+.vaka-verdict-finish-btn:active {
+  transform: translateY(1px);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.vaka-verdict-close-btn {
+  background: var(--vaka-card);
+  color: var(--vaka-ink);
+  border: 1.5px solid var(--vaka-border);
+  padding: 10px 16px;
+  font: 600 11px var(--font-mono);
+  cursor: pointer;
+  border-radius: var(--vaka-radius);
+  transition: background 120ms ease;
+}
+
+.vaka-verdict-close-btn:hover {
+  background: var(--vaka-paper);
 }
 
 /* Erişilebilirlik: Reduced Motion Desteği */

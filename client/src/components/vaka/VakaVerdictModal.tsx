@@ -11,6 +11,11 @@ type Props = {
   defaultSuspectId?: string;
   onClose: () => void;
   onSolved?: (score: number) => void;
+  nextCase?: VakaDetailedCase;
+  nextCaseIndex?: number;
+  onNextCase?: (nextCaseId: string) => void;
+  onFinishBureau?: (score: number) => void;
+  onCaseCompleted?: (caseId: string, score: number) => void;
 };
 
 export default function VakaVerdictModal({
@@ -20,6 +25,11 @@ export default function VakaVerdictModal({
   defaultSuspectId,
   onClose,
   onSolved,
+  nextCase,
+  nextCaseIndex,
+  onNextCase,
+  onFinishBureau,
+  onCaseCompleted,
 }: Props) {
   const isEn = locale === "en";
   const [selectedSuspectId, setSelectedSuspectId] = useState<string>(
@@ -71,7 +81,7 @@ export default function VakaVerdictModal({
 
       if (res.success) {
         playContradiction(soundOn);
-        onSolved?.(res.score);
+        onCaseCompleted?.(vakaCase.id, res.score);
       } else {
         playHit(soundOn);
       }
@@ -207,10 +217,53 @@ export default function VakaVerdictModal({
               </button>
             </div>
 
-            <div className="vaka-form-actions">
-              <button type="button" className="quiet-button" onClick={onClose}>
-                {isEn ? "Close Dossier" : "Dosyayı Kapat"}
-              </button>
+            <div className="vaka-verdict-actions-grid">
+              {result.success ? (
+                <>
+                  {nextCase && onNextCase && (
+                    <button
+                      type="button"
+                      className="vaka-verdict-next-btn"
+                      onClick={() => onNextCase(nextCase.id)}
+                    >
+                      ⏩ {isEn
+                        ? `Advance to Next Case (#${nextCaseIndex}: ${nextCase.titleEn}) →`
+                        : `Sonraki Vaka Dosyasına Geç (#${nextCaseIndex}: ${nextCase.title}) →`}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="vaka-verdict-finish-btn"
+                    onClick={() => {
+                      if (onFinishBureau) {
+                        onFinishBureau(result.score);
+                      } else {
+                        onSolved?.(result.score);
+                      }
+                    }}
+                  >
+                    🏢 {isEn ? "Complete Bureau Shift & Archive Score" : "Büro Mesaisini Tamamla & Skoru Kaydet"}
+                  </button>
+
+                  <button type="button" className="vaka-verdict-close-btn" onClick={onClose}>
+                    🔍 {isEn ? "Review Case Evidence & Dossier" : "Delilleri İncelemeye Devam Et"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="vaka-submit-indictment-btn"
+                    onClick={() => setResult(null)}
+                  >
+                    🔄 {isEn ? "Re-evaluate Evidence & Reformulate Indictment" : "Kanıtları Tekrar Değerlendir & İddianameyi Yenile"}
+                  </button>
+                  <button type="button" className="vaka-verdict-close-btn" onClick={onClose}>
+                    ✕ {isEn ? "Return to Interrogation" : "Sorgu Odasına Dön"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}

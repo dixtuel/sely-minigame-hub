@@ -30,13 +30,68 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
     getSavedVakaMode(allowedModes, defaultMode)
   );
 
-  const [selectedCaseId, setSelectedCaseId] = useState<string>(VAKA_SAMPLE_CASES[0].id);
+  const [selectedCaseId, setSelectedCaseId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sely_vaka_active_case");
+      if (saved && VAKA_SAMPLE_CASES.some((c) => c.id === saved)) return saved;
+    }
+    return VAKA_SAMPLE_CASES[0].id;
+  });
+
+  const [completedCases, setCompletedCases] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("sely_vaka_completed_cases");
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return {};
+  });
+
   const [indictSuspectId, setIndictSuspectId] = useState<string | undefined>(undefined);
   const [showVerdictModal, setShowVerdictModal] = useState(false);
 
-  // Aktif vaka verisi
-  const activeCase: VakaDetailedCase =
-    VAKA_SAMPLE_CASES.find((c) => c.id === selectedCaseId) || VAKA_SAMPLE_CASES[0];
+  // Aktif vaka ve sonraki vaka verisi
+  const currentCaseIndex = Math.max(
+    0,
+    VAKA_SAMPLE_CASES.findIndex((c) => c.id === selectedCaseId)
+  );
+  const activeCase: VakaDetailedCase = VAKA_SAMPLE_CASES[currentCaseIndex] || VAKA_SAMPLE_CASES[0];
+  const nextCaseIndex = (currentCaseIndex + 1) % VAKA_SAMPLE_CASES.length;
+  const nextCase: VakaDetailedCase = VAKA_SAMPLE_CASES[nextCaseIndex];
+
+  const handleSelectCase = (caseId: string) => {
+    setSelectedCaseId(caseId);
+    setIndictSuspectId(undefined);
+    setShowVerdictModal(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sely_vaka_active_case", caseId);
+    }
+  };
+
+  const handleCaseCompleted = (caseId: string, score: number) => {
+    setCompletedCases((prev) => {
+      const next = { ...prev, [caseId]: Math.max(prev[caseId] || 0, score) };
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("sely_vaka_completed_cases", JSON.stringify(next));
+        } catch {}
+      }
+      return next;
+    });
+  };
+
+  const handleNextCase = (nextId: string) => {
+    handleSelectCase(nextId);
+    setShowVerdictModal(false);
+  };
+
+  const handleFinishBureau = (lastScore?: number) => {
+    const scores = Object.values(completedCases);
+    const totalScore = scores.reduce((a, b) => a + b, 0) || lastScore || 260;
+    setShowVerdictModal(false);
+    onSolved?.(totalScore);
+  };
 
   const handleModeChange = (mode: VakaGameMode | "dossier") => {
     setActiveMode(mode);
@@ -55,7 +110,14 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
       {/* Vaka Merkezi Üst Çubuğu & Vaka Seçici */}
       <div className="vaka-hub-topbar">
         <div className="vaka-hub-title-block">
-          <span className="vaka-hub-badge">SELY INVESTIGATION BUREAU</span>
+          <div className="vaka-top-badge-row">
+            <span className="vaka-hub-badge">SELY INVESTIGATION BUREAU</span>
+            {completedCases[activeCase.id] && (
+              <span className="vaka-solved-tag">
+                ✓ {isEn ? "SOLVED" : "ÇÖZÜLDÜ"} ({completedCases[activeCase.id]} pts)
+              </span>
+            )}
+          </div>
           <h2>{isEn ? activeCase.titleEn : activeCase.title}</h2>
           <p className="vaka-hub-meta">
             📍 {isEn ? activeCase.locationEn : activeCase.location} • ⏰ {activeCase.incidentTime} • 🎯 {activeCase.difficulty.toUpperCase()}
@@ -68,13 +130,18 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
           <select
             className="vaka-case-select"
             value={selectedCaseId}
-            onChange={(e) => setSelectedCaseId(e.target.value)}
+            onChange={(e) => handleSelectCase(e.target.value)}
           >
-            {VAKA_SAMPLE_CASES.map((c, index) => (
-              <option key={c.id} value={c.id}>
-                #{index + 1}: {isEn ? c.titleEn : c.title} ({c.difficulty})
-              </option>
-            ))}
+            {VAKA_SAMPLE_CASES.map((c, index) => {
+              const isDone = Boolean(completedCases[c.id]);
+              const pts = completedCases[c.id];
+              return (
+                <option key={c.id} value={c.id}>
+                  {isDone ? "✓ " : ""}#{index + 1}: {isEn ? c.titleEn : c.title} ({c.difficulty})
+                  {isDone ? ` • [${pts} pts]` : ""}
+                </option>
+              );
+            })}
           </select>
         </div>
       </div>
@@ -86,7 +153,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
           className={`vaka-nav-tab ${activeMode === "dossier" ? "is-active" : ""}`}
           onClick={() => handleModeChange("dossier")}
         >
-          📂 {isEn ? "Case Dossier & Timeline" : "Vaka Dosyası & Olay Yeri"}
+          📂 {isEn ? "Dossier" : "Vaka Dosyası"}
         </button>
 
         {allowedModes.includes("interrogation") && (
@@ -95,7 +162,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
             className={`vaka-nav-tab ${activeMode === "interrogation" ? "is-active" : ""}`}
             onClick={() => handleModeChange("interrogation")}
           >
-            🎙️ {isEn ? "Interrogation Room" : "Sorgu Odası (Canlı AI)"}
+            🎙️ {isEn ? "Interrogation" : "Sorgu Odası"}
           </button>
         )}
 
@@ -105,7 +172,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
             className={`vaka-nav-tab ${activeMode === "contradiction" ? "is-active" : ""}`}
             onClick={() => handleModeChange("contradiction")}
           >
-            ⚖️ {isEn ? "Contradiction Hunt" : "Çelişki Avı (Phoenix)"}
+            ⚖️ {isEn ? "Contradictions" : "Çelişki Avı"}
           </button>
         )}
 
@@ -115,7 +182,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
             className={`vaka-nav-tab ${activeMode === "daily" ? "is-active" : ""}`}
             onClick={() => handleModeChange("daily")}
           >
-            📅 {isEn ? "Daily Mystery" : "Günün Vakası"}
+            📅 {isEn ? "Daily Case" : "Günün Vakası"}
           </button>
         )}
 
@@ -124,8 +191,23 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
           className="vaka-nav-tab vaka-indict-tab"
           onClick={() => handleOpenVerdict()}
         >
-          🏛️ {isEn ? "Formal Indictment" : "Mahkemede Suçla"}
+          🏛️ {isEn ? "Indictment" : "Mahkemede Suçla"}
         </button>
+      </div>
+
+      {/* Dedektif Akış Kılavuzu: Oyuncunun hedefini net gösterir */}
+      <div className="vaka-flow-indicator">
+        <span className={`vaka-step-chip ${activeMode === "dossier" ? "is-current" : ""}`}>
+          1. {isEn ? "Review Dossier & Clues" : "Dosyayı & Delilleri İncele"}
+        </span>
+        <span className="vaka-step-arrow">→</span>
+        <span className={`vaka-step-chip ${activeMode === "interrogation" || activeMode === "contradiction" ? "is-current" : ""}`}>
+          2. {isEn ? "Interrogate or Catch Lies" : "Sorgula ya da Çelişkiyi Yakala"}
+        </span>
+        <span className="vaka-step-arrow">→</span>
+        <span className={`vaka-step-chip ${showVerdictModal ? "is-current" : ""}`}>
+          3. {isEn ? "Deliver Court Verdict" : "Mahkemede Suçla & Davayı Kazan"}
+        </span>
       </div>
 
       {/* Aktif Mod Ekranı */}
@@ -140,7 +222,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
             locale={locale}
             soundOn={soundOn}
             onOpenVerdict={handleOpenVerdict}
-            onSolved={onSolved}
+            onSolved={(score) => handleCaseCompleted(activeCase.id, score)}
           />
         )}
 
@@ -149,7 +231,9 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
             vakaCase={activeCase}
             locale={locale}
             soundOn={soundOn}
-            onSolved={onSolved}
+            onOpenVerdict={handleOpenVerdict}
+            onCaseCompleted={handleCaseCompleted}
+            onSolved={(score) => handleCaseCompleted(activeCase.id, score)}
           />
         )}
 
@@ -160,7 +244,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
             dateStr={dailyQuery.data?.date || new Date().toISOString().split("T")[0]}
             locale={locale}
             soundOn={soundOn}
-            onSolved={onSolved}
+            onSolved={(score) => handleCaseCompleted(activeCase.id, score)}
           />
         )}
       </div>
@@ -173,6 +257,11 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
           soundOn={soundOn}
           defaultSuspectId={indictSuspectId}
           onClose={() => setShowVerdictModal(false)}
+          onCaseCompleted={handleCaseCompleted}
+          nextCase={nextCase}
+          nextCaseIndex={nextCaseIndex + 1}
+          onNextCase={handleNextCase}
+          onFinishBureau={handleFinishBureau}
           onSolved={onSolved}
         />
       )}
