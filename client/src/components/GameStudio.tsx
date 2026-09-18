@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ArrowDown, ArrowLeft, ArrowLeft as ArrowLeftIcon, ArrowRight, ArrowUp, Maximize, Minimize, RotateCcw, Volume2, X } from "lucide-react";
 import SparkCanvasGame from "@/components/SparkCanvasGame";
 import VakaBoard from "@/components/VakaBoard";
+import VakaHub from "@/components/VakaHub";
 import AdSenseResultUnit from "@/components/AdSenseResultUnit";
 import type { GameId, GameMeta } from "@/lib/catalog";
 import type { SiteLocale } from "@/lib/i18n";
@@ -352,30 +353,23 @@ function ShadowGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; s
   </div>;
 }
 
-function VakaGame({ locale, seed, mastery, soundOn, onFinish }: { locale: SiteLocale; seed: number; mastery: number; soundOn: boolean; onFinish: (result: GameResult) => void }) {
-  const cases = useMemo(() => generateVakaCases(seed, mastery), [seed, mastery]);
+function VakaGame({ locale, soundOn, onFinish }: { locale: SiteLocale; seed: number; mastery: number; soundOn: boolean; onFinish: (result: GameResult) => void }) {
   const finish = useFinishOnce(onFinish);
-  const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [correctCount, setCorrectCount] = useState(0);
-  const current = cases[index];
 
-  const onSolved = (earned: number) => {
-    const nextScore = score + earned;
-    if (index === cases.length - 1) {
-      finish({ outcome: "success", score: nextScore, label: "Dosya kapandı", detail: `${cases.length} vakada ${correctCount + 1} doğru itiraf aldın; güven zincirin kayda geçti.` });
-    } else {
-      setIndex(value => value + 1);
-      setScore(nextScore);
-      setCorrectCount(value => value + 1);
-    }
+  const handleSolved = (earned: number) => {
+    finish({
+      outcome: "success",
+      score: earned,
+      label: locale === "en" ? "Case Closed" : "Dosya Kapandı",
+      detail: locale === "en" ? "The truth was uncovered and recorded in the bureau archives." : "Gerçekler açığa çıkarıldı ve büro arşivine kaydedildi.",
+    });
   };
 
-  return <div className="vaka-game game-surface">
-    <div className="game-hud"><span>VAKA <b>{index + 1}/{cases.length}</b></span><span>GÜVEN <b>{score}</b></span><span>KANITI SUN</span></div>
-    <VakaBoard key={current.id} vakaCase={current} locale={locale} soundOn={soundOn} caseIndex={index} onSolved={onSolved} />
-    <p className="game-tip">Önce ifadeyi veren şüpheliyi işaretle, sonra elindeki kanıtlardan onu çelişkiye düşüreni sun. Yanlış kanıt vakayı açık bırakır, güven puanından küçük bir bedel alır.</p>
-  </div>;
+  return (
+    <div className="vaka-game game-surface">
+      <VakaHub locale={locale} soundOn={soundOn} onSolved={handleSolved} />
+    </div>
+  );
 }
 
 function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; seed: number; mastery: number; onFinish: (result: GameResult) => void }) {
