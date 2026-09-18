@@ -48,9 +48,19 @@ export type Marker = {
   complete: boolean;
 };
 
+export type Trap = {
+  id: string;
+  point: Vector3;
+  radius: number;
+  mesh: AbstractMesh;
+  material: StandardMaterial;
+  triggered: boolean;
+};
+
 type RevealEntry = {
   mesh: AbstractMesh;
   point: Vector3;
+  pointGetter?: () => Vector3;
   persistent: boolean;
   baseVisibility: number;
   /** Once an echo pulse reveals it for the first time, it stays dimly visible from then on. */
@@ -98,6 +108,7 @@ const staticMesh = (mesh: AbstractMesh) => {
 
 export class ArchiveEnvironment {
   markers: Marker[] = [];
+  traps: Trap[] = [];
   startPoint = new Vector3(-12.0, 0, -10.2);
   initialHeading = new Vector3(0.62, 0, 0.78);
   exitPoint = new Vector3(13.2, 0, 8.4);
@@ -184,7 +195,13 @@ export class ArchiveEnvironment {
     position: Vector3,
     baseVisibility = 1,
     sticky = false,
-    options?: { proximityRadius?: number; proximityCap?: number; autoOpens?: boolean; apply?: (reveal: number, opened: boolean) => void },
+    options?: {
+      proximityRadius?: number;
+      proximityCap?: number;
+      autoOpens?: boolean;
+      apply?: (reveal: number, opened: boolean) => void;
+      pointGetter?: () => Vector3;
+    },
   ) {
     mesh.isPickable = false;
     // Objectives with a proximity radius get a faint "tell" purely from walking close, on top of
@@ -193,6 +210,7 @@ export class ArchiveEnvironment {
     this.revealables.push({
       mesh,
       point: new Vector3(position.x, 0, position.z),
+      pointGetter: options?.pointGetter,
       persistent: false,
       baseVisibility,
       sticky,
@@ -202,6 +220,38 @@ export class ArchiveEnvironment {
       apply: options?.apply,
     });
     return mesh;
+  }
+
+  registerDynamicReveal(
+    mesh: AbstractMesh,
+    positionOrGetter: Vector3 | (() => Vector3),
+    baseVisibility = 1,
+    options?: {
+      proximityRadius?: number;
+      proximityCap?: number;
+      apply?: (reveal: number, opened: boolean) => void;
+    },
+  ) {
+    const isGetter = typeof positionOrGetter === "function";
+    const initialPos = isGetter ? positionOrGetter() : positionOrGetter;
+    return this.registerRevealable(mesh, initialPos, baseVisibility, false, {
+      proximityRadius: options?.proximityRadius ?? 0,
+      proximityCap: options?.proximityCap ?? 1,
+      apply: options?.apply,
+      pointGetter: isGetter ? positionOrGetter : undefined,
+    });
+  }
+
+  checkTrap(playerX: number, playerZ: number): Trap | null {
+    for (const trap of this.traps) {
+      if (trap.triggered) continue;
+      const d = Math.hypot(trap.point.x - playerX, trap.point.z - playerZ);
+      if (d <= trap.radius) {
+        trap.triggered = true;
+        return trap;
+      }
+    }
+    return null;
   }
 
   private registerPersistent(mesh: AbstractMesh, position: Vector3, baseVisibility = 1) {
@@ -249,6 +299,7 @@ export class ArchiveEnvironment {
     this.waves.length = 0;
     this.gateMeshes.length = 0;
     this.markers.length = 0;
+    this.traps.length = 0;
     this.wallRects.length = 0;
     this.doorRects.length = 0;
     this.gateRect = null;
@@ -338,6 +389,56 @@ export class ArchiveEnvironment {
       this.dynamicMeshes.push(grassMesh);
     }
 
+    // 4. Procedural Acoustic Traps (Tuzaklar - Titreşim/Yankı Kırık Plakaları)
+    this.traps = layout.traps.map(([tx, tz, radius], index) => {
+      const trapMesh = CreateBox(`trap-plate-${index}`, { width: 1.28, height: 0.03, depth: 1.28 }, this.scene);
+      trapMesh.position.set(tx, 0.015, tz);
+
+      const trapMaterial = new StandardMaterial(`trap-mat-${index}`, this.scene);
+      trapMaterial.diffuseColor = Color3.FromHexString("#1c2220");
+      trapMaterial.emissiveColor = Color3.FromHexString("#0e1413");
+      trapMaterial.specularColor = Color3.Black();
+
+      const trapGlyph = CreatePlane(`trap-glyph-${index}`, { size: 0.92 }, this.scene);
+      trapGlyph.parent = trapMesh;
+      trapGlyph.rotation.x = Math.PI / 2;
+      trapGlyph.position.y = 0.02;
+      const glyphMat = new StandardMaterial(`trap-glyph-mat-${index}`, this.scene);
+      const glyphTexture = new Texture(assets.echoGlyph, this.scene, true, false);
+      glyphTexture.hasAlpha = true;
+      glyphMat.diffuseTexture = glyphTexture;
+      glyphMat.emissiveTexture = glyphTexture;
+      glyphMat.useAlphaFromDiffuseTexture = true;
+      glyphMat.backFaceCulling = false;
+      glyphMat.emissiveColor = Color3.FromHexString("#ff4422");
+      trapGlyph.material = glyphMat;
+      trapGlyph.visibility = 0.08;
+
+      trapMesh.material = trapMaterial;
+      staticMesh(trapMesh);
+      this.dynamicMeshes.push(trapMesh, trapGlyph);
+
+      this.registerRevealable(trapMesh, new Vector3(tx, 0, tz), 1, false, {
+        proximityRadius: 2.2,
+        proximityCap: 0.65,
+        apply: (reveal) => {
+          const intensity = Math.max(0.08, reveal);
+          trapGlyph.visibility = intensity;
+          trapMaterial.emissiveColor = Color3.FromHexString("#ff3311").scale(intensity * 0.9);
+          glyphMat.emissiveColor = Color3.FromHexString("#ff2200").scale(intensity * 1.3);
+        },
+      });
+
+      return {
+        id: `trap-${index}`,
+        point: new Vector3(tx, 0, tz),
+        radius,
+        mesh: trapMesh,
+        material: trapMaterial,
+        triggered: false,
+      };
+    });
+
     // 5. Procedural Markers
     this.markers = layout.markers.map((definition) => {
       const root = new TransformNode(definition.id, this.scene);
@@ -406,40 +507,89 @@ export class ArchiveEnvironment {
   }
 
   /**
-   * A "secret door": at rest it's an ordinary opaque stone slab indistinguishable from a real
-   * wall — no invisible collision surprises. Getting close or catching an echo pulse eases it
-   * toward translucent and lights up a copper door-frame + rune around it, telegraphing that
-   * it's actually a passage. Once that crosses the open threshold it stays open and visible.
+   * A "secret door": built as an ancient stone portal archway with sturdy side pillars
+   * and a carved lintel. The central stone slab is flush with the wall at rest.
+   * When pinged by an echo or approached closely, the archway frame and turquoise runic
+   * sigil glow brightly, and the door slab smoothly sinks into the floor, opening the way!
    */
   private buildSecretDoor(placement: WallPlacement, index: number) {
     const [x, z, width, depth, height] = placement;
     const rect = placementToRect(placement);
+    const horizontal = depth <= width;
 
+    // Moving central stone slab
     const doorMaterial = this.stoneMaterial.clone(`secret-door-mat-${index}`);
     doorMaterial.alpha = 1;
-    const slab = CreateBox(`maze-door-${index}`, { width, height, depth }, this.scene);
+    const slabWidth = horizontal ? Math.max(0.6, width * 0.72) : width;
+    const slabDepth = horizontal ? depth : Math.max(0.6, depth * 0.72);
+    const slab = CreateBox(`maze-door-slab-${index}`, { width: slabWidth, height, depth: slabDepth }, this.scene);
     slab.material = doorMaterial;
     slab.position.set(x, height / 2, z);
     slab.visibility = 1;
 
-    const frameMaterial = this.copperMaterial.clone(`secret-door-frame-${index}`);
-    frameMaterial.alpha = 0.85;
-    const horizontal = depth <= width;
-    const frame = CreateBox(
-      `maze-door-frame-${index}`,
+    // Archway Pillars (Left & Right / North & South)
+    const pillarThickness = horizontal ? (width - slabWidth) / 2 : (depth - slabDepth) / 2;
+    const pillarMaterial = this.ambientStoneMaterial;
+
+    const p1 = CreateBox(
+      `maze-door-p1-${index}`,
       horizontal
-        ? { width: width * 0.92, height: height * 0.16, depth: depth + 0.1 }
-        : { width: width + 0.1, height: height * 0.16, depth: depth * 0.92 },
+        ? { width: pillarThickness + 0.08, height: height * 1.08, depth: depth + 0.16 }
+        : { width: width + 0.16, height: height * 1.08, depth: pillarThickness + 0.08 },
       this.scene,
     );
-    frame.material = frameMaterial;
-    frame.position.set(x, height * 0.62, z);
-    frame.visibility = 0;
+    const p1Offset = (horizontal ? slabWidth / 2 + pillarThickness / 2 : slabDepth / 2 + pillarThickness / 2);
+    p1.position.set(
+      horizontal ? x - p1Offset : x,
+      (height * 1.08) / 2,
+      horizontal ? z : z - p1Offset,
+    );
+    p1.material = pillarMaterial;
 
-    const glyph = CreatePlane(`maze-door-glyph-${index}`, { size: Math.min(width, depth, height) * 0.7 || 0.5 }, this.scene);
+    const p2 = CreateBox(
+      `maze-door-p2-${index}`,
+      horizontal
+        ? { width: pillarThickness + 0.08, height: height * 1.08, depth: depth + 0.16 }
+        : { width: width + 0.16, height: height * 1.08, depth: pillarThickness + 0.08 },
+      this.scene,
+    );
+    p2.position.set(
+      horizontal ? x + p1Offset : x,
+      (height * 1.08) / 2,
+      horizontal ? z : z + p1Offset,
+    );
+    p2.material = pillarMaterial;
+
+    // Lintel (Top Arch Crossbeam)
+    const lintel = CreateBox(
+      `maze-door-lintel-${index}`,
+      horizontal
+        ? { width: width + 0.22, height: 0.38, depth: depth + 0.22 }
+        : { width: width + 0.22, height: 0.38, depth: depth + 0.22 },
+      this.scene,
+    );
+    lintel.position.set(x, height + 0.19, z);
+    lintel.material = pillarMaterial;
+
+    // Glowing Arch Trim
+    const trimMaterial = this.copperMaterial.clone(`secret-door-trim-${index}`);
+    trimMaterial.alpha = 0.9;
+    const trim = CreateBox(
+      `maze-door-trim-${index}`,
+      horizontal
+        ? { width: slabWidth * 0.96, height: 0.1, depth: depth + 0.18 }
+        : { width: width + 0.18, height: 0.1, depth: slabDepth * 0.96 },
+      this.scene,
+    );
+    trim.position.set(x, height + 0.02, z);
+    trim.material = trimMaterial;
+    trim.visibility = 0.2;
+
+    // Runic Sigil Glyph on the Door
+    const glyph = CreatePlane(`maze-door-glyph-${index}`, { size: 0.9 }, this.scene);
     glyph.rotation.y = horizontal ? 0 : Math.PI / 2;
-    glyph.position.set(x, height * 0.55, z + (horizontal ? 0.001 : 0));
-    if (!horizontal) glyph.position.x = x + 0.001;
+    glyph.position.set(x, height * 0.55, z + (horizontal ? depth / 2 + 0.02 : 0));
+    if (!horizontal) glyph.position.x = x + width / 2 + 0.02;
     const glyphMaterial = new StandardMaterial(`secret-door-glyph-${index}`, this.scene);
     const glyphTexture = new Texture(assets.echoGlyph, this.scene, true, false);
     glyphTexture.hasAlpha = true;
@@ -447,25 +597,30 @@ export class ArchiveEnvironment {
     glyphMaterial.emissiveTexture = glyphTexture;
     glyphMaterial.useAlphaFromDiffuseTexture = true;
     glyphMaterial.backFaceCulling = false;
-    glyphMaterial.emissiveColor = copper.scale(0.6);
+    glyphMaterial.emissiveColor = turquoise.scale(0.5);
     glyph.material = glyphMaterial;
-    glyph.visibility = 0;
+    glyph.visibility = 0.15;
 
-    [slab, frame, glyph].forEach((mesh) => {
+    [slab, p1, p2, lintel, trim, glyph].forEach((mesh) => {
       mesh.isPickable = false;
-      mesh.freezeWorldMatrix();
     });
-    this.dynamicMeshes.push(slab, frame, glyph);
+    this.dynamicMeshes.push(slab, p1, p2, lintel, trim, glyph);
+
+    const closedY = height / 2;
+    const openY = -height * 0.85;
 
     this.registerRevealable(slab, new Vector3(x, 0, z), 1, false, {
       proximityRadius: DOOR_PROXIMITY_RADIUS,
       proximityCap: 1,
       autoOpens: true,
       apply: (reveal, opened) => {
-        doorMaterial.alpha = 1 - reveal * (opened ? 0.78 : 0.5);
-        frame.visibility = reveal;
-        glyph.visibility = reveal * 0.95;
-        frameMaterial.emissiveColor = copper.scale(opened ? 0.55 : 0.25 * reveal);
+        const openness = opened ? 1 : Math.min(1, reveal * 1.25);
+        slab.position.y = closedY + (openY - closedY) * openness;
+        doorMaterial.alpha = 1 - openness * 0.4;
+        trim.visibility = Math.max(0.2, reveal);
+        glyph.visibility = Math.max(0.15, (1 - openness) * reveal * 1.2);
+        trimMaterial.emissiveColor = copper.scale(opened ? 0.75 : 0.3 * reveal);
+        glyphMaterial.emissiveColor = turquoise.scale(opened ? 0.9 : 0.4 + reveal * 0.6);
       },
     });
     const entry = this.revealables[this.revealables.length - 1];
@@ -548,9 +703,6 @@ export class ArchiveEnvironment {
     });
   }
 
-  registerDynamicReveal(mesh: AbstractMesh, position: Vector3, baseVisibility = 1) {
-    return this.registerRevealable(mesh, position, baseVisibility);
-  }
 
   private nearRect(px: number, pz: number, radius: number, rect: Rect) {
     return px > rect.xMin - radius && px < rect.xMax + radius && pz > rect.zMin - radius && pz < rect.zMax + radius;
@@ -607,6 +759,10 @@ export class ArchiveEnvironment {
     while (this.waves[0] && this.waves[0].age > WAVE_LIFETIME) this.waves.shift();
 
     this.revealables.forEach((entry) => {
+      if (entry.pointGetter) {
+        const live = entry.pointGetter();
+        entry.point.set(live.x, 0, live.z);
+      }
       let waveReveal = 0;
       this.waves.forEach((wave) => {
         const distance = Math.hypot(entry.point.x - wave.origin.x, entry.point.z - wave.origin.z);
@@ -687,6 +843,9 @@ export class ArchiveEnvironment {
       marker.coreMaterial.diffuseColor.copyFrom(Color3.FromHexString("#553b2c"));
       marker.coreMaterial.emissiveColor.copyFrom(Color3.FromHexString("#201510"));
       marker.ringMaterial.emissiveColor.copyFrom(Color3.FromHexString("#142425"));
+    });
+    this.traps.forEach((trap) => {
+      trap.triggered = false;
     });
     this.revealables.forEach((entry) => {
       entry.persistent = false;

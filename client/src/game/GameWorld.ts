@@ -43,6 +43,10 @@ export class GameWorld {
   private state: GameSnapshot = createInitialSnapshot();
   private listenerIndex = 0;
   private listenerWait = 0;
+  private listenerState: "patrol" | "investigate" = "patrol";
+  private investigateTarget: Vector3 = new Vector3(0, 0, 0);
+  private listenerInvestigateTimer = 0;
+  private listenerPingTimer = 0;
   private hudTicker = 0;
   private gateHintCooldown = 0;
   private demoTime = 0;
@@ -85,7 +89,7 @@ export class GameWorld {
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
     if (this.isDemo) {
       this.environment.triggerPulse(this.player.position);
-      this.spawnPulse();
+      this.spawnPulse(this.player.position, false);
     }
     this.emit({ type: "state", snapshot: this.state });
     this.emit({ type: "ready" });
@@ -151,34 +155,69 @@ export class GameWorld {
   }
 
   private createListener() {
-    const material = new StandardMaterial("listener-glass", this.scene);
-    material.diffuseColor = Color3.FromHexString("#100c14");
-    material.emissiveColor = Color3.FromHexString("#1b1022");
-    material.specularColor = Color3.Black();
-    const eye = CreateSphere("listener-core", { diameter: 0.62, segments: 8 }, this.scene);
+    const obsidian = new StandardMaterial("listener-obsidian", this.scene);
+    obsidian.diffuseColor = Color3.FromHexString("#141118");
+    obsidian.emissiveColor = Color3.FromHexString("#0a060d");
+    obsidian.specularColor = Color3.Black();
+
+    const eyeMaterial = new StandardMaterial("listener-eye", this.scene);
+    eyeMaterial.diffuseColor = Color3.FromHexString("#ff2233");
+    eyeMaterial.emissiveColor = Color3.FromHexString("#ff1122");
+    eyeMaterial.specularColor = Color3.White();
+
+    const eye = CreateSphere("listener-core", { diameter: 0.58, segments: 12 }, this.scene);
     eye.parent = this.listener;
     eye.position.y = 1.0;
-    eye.material = material;
-    const ring = CreateTorus("listener-ring", { diameter: 1.02, thickness: 0.045, tessellation: 24 }, this.scene);
-    ring.parent = this.listener;
-    ring.position.y = 1.0;
-    ring.rotation.x = Math.PI / 3;
-    ring.material = material;
-    const aura = CreateTorus("listener-aura", { diameter: 1.4, thickness: 0.025, tessellation: 24 }, this.scene);
+    eye.material = eyeMaterial;
+
+    const ring1 = CreateTorus("listener-ring1", { diameter: 1.05, thickness: 0.05, tessellation: 24 }, this.scene);
+    ring1.parent = this.listener;
+    ring1.position.y = 1.0;
+    ring1.rotation.x = Math.PI / 3;
+    ring1.material = obsidian;
+
+    const ring2 = CreateTorus("listener-ring2", { diameter: 1.25, thickness: 0.035, tessellation: 24 }, this.scene);
+    ring2.parent = this.listener;
+    ring2.position.y = 1.0;
+    ring2.rotation.z = Math.PI / 4;
+    ring2.material = obsidian;
+
+    const aura = CreateTorus("listener-threat-ring", { diameter: 1.55, thickness: 0.03, tessellation: 24 }, this.scene);
     aura.parent = this.listener;
     aura.position.y = 0.05;
     aura.rotation.x = Math.PI / 2;
-    aura.material = material;
-    [eye, ring, aura].forEach((mesh) => this.environment.registerDynamicReveal(mesh, this.listener.position, 1));
-    return material;
+    aura.material = eyeMaterial;
+
+    // Register each component with a dynamic pointGetter so echo waves find the moving enemy!
+    [eye, ring1, ring2, aura].forEach((mesh) => {
+      this.environment.registerDynamicReveal(
+        mesh,
+        () => this.listener.position,
+        1,
+        {
+          proximityRadius: 3.5,
+          proximityCap: 0.75,
+          apply: (reveal) => {
+            const glow = Math.max(0.12, reveal);
+            mesh.visibility = glow;
+            eyeMaterial.emissiveColor = Color3.FromHexString("#ff1122").scale(glow * 1.5);
+            obsidian.emissiveColor = Color3.FromHexString("#220810").scale(glow * 0.8);
+          },
+        },
+      );
+    });
+
+    return eyeMaterial;
   }
 
   private createPulsePool(): PulseRing[] {
     const rings: PulseRing[] = [];
-    for (let index = 0; index < 4; index += 1) {
+    // 4 player pulses + 2 listener acoustic warning footprint ripples
+    for (let index = 0; index < 6; index += 1) {
+      const isEnemyRing = index >= 4;
       const material = new StandardMaterial(`pulse-ring-${index}`, this.scene);
-      material.diffuseColor = Color3.FromHexString("#c9824a");
-      material.emissiveColor = Color3.FromHexString("#f0c38d");
+      material.diffuseColor = isEnemyRing ? Color3.FromHexString("#ff2233") : Color3.FromHexString("#c9824a");
+      material.emissiveColor = isEnemyRing ? Color3.FromHexString("#ff3344") : Color3.FromHexString("#f0c38d");
       material.alpha = 0;
       material.backFaceCulling = false;
       const mesh = CreateTorus(`pulse-mesh-${index}`, { diameter: 1.6, thickness: 0.045, tessellation: 24 }, this.scene);
@@ -199,8 +238,18 @@ export class GameWorld {
     this.audio.unlock();
     this.state.echoes -= 1;
     this.environment.triggerPulse(this.player.position);
-    this.spawnPulse();
+    this.spawnPulse(this.player.position, false);
     this.audio.playPulse();
+
+    // Acoustic hearing AI: The listener senses strong acoustic pulses within 16 meters!
+    const distToListener = this.distanceTo(this.listener.position);
+    if (distToListener < 16.0) {
+      this.listenerState = "investigate";
+      this.investigateTarget.copyFrom(this.player.position);
+      this.listenerInvestigateTimer = 6.0; // Investigate for 6 seconds
+      this.emit({ type: "toast", message: "Yankı bir şeyin dikkatini çekti!" });
+    }
+
     this.emitState();
   }
 
@@ -208,13 +257,14 @@ export class GameWorld {
     this.audio.setMuted(!on);
   }
 
-  private spawnPulse() {
-    const ring = this.pulses.find((item) => item.age > 3.0) || this.pulses[0];
+  private spawnPulse(pos: Vector3, isEnemy = false) {
+    const availableRings = isEnemy ? this.pulses.slice(4) : this.pulses.slice(0, 4);
+    const ring = availableRings.find((item) => item.age > 3.0) || availableRings[0];
     ring.age = 0;
-    ring.mesh.position.copyFrom(this.player.position);
+    ring.mesh.position.copyFrom(pos);
     ring.mesh.position.y = 0.08;
     ring.mesh.scaling.setAll(1);
-    ring.material.alpha = 0.78;
+    ring.material.alpha = isEnemy ? 0.6 : 0.78;
   }
 
   update(delta: number) {
@@ -264,7 +314,7 @@ export class GameWorld {
     this.player.rotation.y = this.facingYaw;
     if (Math.sin(this.demoTime * 1.8) > 0.94) {
       this.environment.triggerPulse(this.player.position);
-      this.spawnPulse();
+      this.spawnPulse(this.player.position, false);
     }
   }
 
@@ -311,35 +361,98 @@ export class GameWorld {
   }
 
   private updateListener(delta: number) {
+    // 1. Emit faint red acoustic warning footprint ripple every 1.8s
+    this.listenerPingTimer += delta;
+    if (this.listenerPingTimer >= 1.8) {
+      this.listenerPingTimer = 0;
+      this.spawnPulse(this.listener.position, true);
+    }
+
+    // 2. High noise detection (player running / high noise meter alerted the listener)
+    if (this.state.noise > 70 && this.distanceTo(this.listener.position) < 10.0) {
+      if (this.listenerState !== "investigate") {
+        this.listenerState = "investigate";
+        this.emit({ type: "toast", message: "Dinleyici adımlarını duydu!" });
+      }
+      this.investigateTarget.copyFrom(this.player.position);
+      this.listenerInvestigateTimer = 5.0;
+    }
+
     const route = this.environment.listenerPath;
     if (!route.length) return;
-    const current = route[this.listenerIndex];
-    const dx = current.x - this.listener.position.x;
-    const dz = current.z - this.listener.position.z;
-    const distance = Math.hypot(dx, dz);
-    if (distance < 0.35) {
-      this.listenerWait += delta;
-      if (this.listenerWait >= 1.6) {
-        this.listenerWait = 0;
-        this.listenerIndex = (this.listenerIndex + 1) % route.length;
+
+    if (this.listenerState === "investigate") {
+      this.listenerInvestigateTimer -= delta;
+      const dx = this.investigateTarget.x - this.listener.position.x;
+      const dz = this.investigateTarget.z - this.listener.position.z;
+      const distance = Math.hypot(dx, dz);
+
+      if (distance < 0.6 || this.listenerInvestigateTimer <= 0) {
+        // Investigation target reached or timer expired; resume normal patrol
+        this.listenerState = "patrol";
+      } else {
+        const pace = 1.75; // Faster investigation pace
+        const stepX = (dx / distance) * pace * delta;
+        const stepZ = (dz / distance) * pace * delta;
+        const resolved = this.environment.resolveMove(this.listener.position.x, this.listener.position.z, stepX, stepZ, 0.4);
+        this.listener.position.x = resolved.x;
+        this.listener.position.z = resolved.z;
+        this.listener.rotation.y = Math.atan2(dx, dz);
       }
     } else {
-      const pace = 1.05;
-      this.listener.position.x += (dx / distance) * pace * delta;
-      this.listener.position.z += (dz / distance) * pace * delta;
-      this.listener.rotation.y = Math.atan2(dx, dz);
+      // Normal Patrol along procedural route
+      const current = route[this.listenerIndex];
+      const dx = current.x - this.listener.position.x;
+      const dz = current.z - this.listener.position.z;
+      const distance = Math.hypot(dx, dz);
+      if (distance < 0.35) {
+        this.listenerWait += delta;
+        if (this.listenerWait >= 1.6) {
+          this.listenerWait = 0;
+          this.listenerIndex = (this.listenerIndex + 1) % route.length;
+        }
+      } else {
+        const pace = 1.1;
+        const stepX = (dx / distance) * pace * delta;
+        const stepZ = (dz / distance) * pace * delta;
+        const resolved = this.environment.resolveMove(this.listener.position.x, this.listener.position.z, stepX, stepZ, 0.4);
+        this.listener.position.x = resolved.x;
+        this.listener.position.z = resolved.z;
+        this.listener.rotation.y = Math.atan2(dx, dz);
+      }
     }
-    this.listenerMaterial.emissiveColor.copyFrom(Color3.FromHexString("#1f1124").scale(0.8 + Math.sin(this.listenerWait * 3) * 0.12));
+
+    const pulseIntensity = this.listenerState === "investigate" ? 1.5 : 0.8;
+    this.listenerMaterial.emissiveColor.copyFrom(
+      Color3.FromHexString("#ff1122").scale(pulseIntensity + Math.sin(Date.now() * 0.008) * 0.3),
+    );
+
     if (!this.isDemo && this.distanceTo(this.listener.position) < 0.86) {
       this.audio.playCaught();
-      this.finish("failed", "Dinleyici seni duydu. Siper al ve yankıyı daha erken kullan.");
+      this.finish("failed", "Dinleyici seni yakaladı. Siper al ve yankıyı daha erken kullan.");
     }
   }
 
   private checkObjectives() {
+    // 1. Check acoustic floor traps
+    const triggeredTrap = this.environment.checkTrap(this.player.position.x, this.player.position.z);
+    if (triggeredTrap) {
+      this.state.noise = 100;
+      this.environment.triggerPulse(triggeredTrap.point);
+      this.spawnPulse(triggeredTrap.point, true);
+      this.audio.playTrap();
+      this.listenerState = "investigate";
+      this.investigateTarget.copyFrom(triggeredTrap.point);
+      this.listenerInvestigateTimer = 7.0;
+      this.emit({ type: "toast", message: "Tuzak tetiklendi! Dinleyici sese koşuyor!" });
+    }
+
+    // 2. Check markers
     this.environment.markers.filter((marker) => !marker.complete).forEach((marker) => {
       if (this.distanceTo(marker.point) < 1.1) this.collectMarker(marker);
     });
+
+    // 3. Check exit gate
     if (this.state.doorOpen && this.distanceTo(this.environment.exitPoint) < 1.2) {
       this.finish("won", "Arşiv seni tanıdı. Çıkış yolu artık senin.");
     } else if (!this.state.doorOpen && this.gateHintCooldown <= 0 && this.distanceTo(this.environment.exitPoint) < 2.4) {
@@ -412,6 +525,9 @@ export class GameWorld {
     this.listener.position.copyFrom(this.environment.listenerPath[0]);
     this.listenerIndex = 0;
     this.listenerWait = 0;
+    this.listenerState = "patrol";
+    this.listenerInvestigateTimer = 0;
+    this.listenerPingTimer = 0;
     this.demoHeading.copyFrom(this.environment.initialHeading);
     this.demoTime = 0;
     this.pulses.forEach((pulse) => {
@@ -420,7 +536,7 @@ export class GameWorld {
     });
     if (this.isDemo) {
       this.environment.triggerPulse(this.player.position);
-      this.spawnPulse();
+      this.spawnPulse(this.player.position, false);
     }
     this.emitState();
   }

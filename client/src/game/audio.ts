@@ -88,6 +88,29 @@ export class GameAudio {
   playGate() { this.play(SFX_URLS.gate, 0.9, 0); }
   playCaught() { this.play(SFX_URLS.caught, 0.9, 0); }
 
+  playTrap() {
+    // Play caught / alarm sound or synthesize sharp acoustic resonant crack
+    if (this.ctx && this.masterGain) {
+      try {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(480, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(70, this.ctx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.45, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.35);
+      } catch {
+        this.play(SFX_URLS.caught, 0.6, 0.2);
+      }
+    } else {
+      this.play(SFX_URLS.caught, 0.6, 0.2);
+    }
+  }
+
   playFootstep(now: number) {
     if (now - this.lastFootstepAt < 0.34) return;
     this.lastFootstepAt = now;

@@ -18,6 +18,7 @@ export type Echo3DLayout = {
   columns: [number, number, number, number][];
   rubble: [number, number, number, number][];
   grass: [number, number][];
+  traps: [number, number, number][]; // x, z, radius
   listenerPath: Vector3[];
   rooms: { x: number; z: number; theme: 0 | 1 | 2 | 3 }[];
 };
@@ -212,6 +213,21 @@ export function generate3DEchoLayout(seed: number, mastery: number): Echo3DLayou
     grass.push([+p.x.toFixed(2), +p.z.toFixed(2)]);
   }
 
+  // Acoustic floor traps (vibration plates): positioned in corridors/rooms,
+  // safe from immediate start/objectives, detectable via echo waves.
+  const traps: [number, number, number][] = [];
+  const trapCount = 2 + mastery * 2;
+  attempts = 0;
+  while (traps.length < trapCount && attempts < 300) {
+    attempts += 1;
+    const col = Math.floor(prng() * maze.cols);
+    const row = Math.floor(prng() * maze.rows);
+    const p = cellCenter(maze, col, row);
+    if (!farFromGuards(p.x, p.z, 2.2)) continue;
+    if (traps.some(([tx, tz]) => Math.hypot(tx - p.x, tz - p.z) < 3.0)) continue;
+    traps.push([+p.x.toFixed(2), +p.z.toFixed(2), 0.75]);
+  }
+
   const listenerPath = maze.rooms.map((room) => new Vector3(+room.cx.toFixed(2), 0, +room.cz.toFixed(2)));
 
   return {
@@ -229,6 +245,7 @@ export function generate3DEchoLayout(seed: number, mastery: number): Echo3DLayou
     columns,
     rubble,
     grass,
+    traps,
     listenerPath,
     rooms: maze.rooms.map((room) => ({ x: +room.cx.toFixed(2), z: +room.cz.toFixed(2), theme: room.theme })),
   };
