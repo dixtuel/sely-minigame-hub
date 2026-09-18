@@ -6,7 +6,7 @@ import VakaHub from "@/components/VakaHub";
 import AdSenseResultUnit from "@/components/AdSenseResultUnit";
 import type { GameId, GameMeta } from "@/lib/catalog";
 import type { SiteLocale } from "@/lib/i18n";
-import { playComplete, playHit, playThrust } from "@/lib/sfx";
+import { playComplete, playFail, playHit, playSlice, playStamp, playThrust } from "@/lib/sfx";
 import {
   generateCutLevel,
   generateHaneLevel,
@@ -159,8 +159,8 @@ const EchoRoom3D = lazy(() => import("@/components/EchoRoom3D"));
 
 function GameRenderer({ game, locale, dailySeed, mastery, demo, soundOn, onFinish }: { game: GameMeta; locale: SiteLocale; dailySeed: number; mastery: number; demo?: "spark" | "spark-fail" | "cut-fail"; soundOn: boolean; onFinish: (result: GameResult) => void }) {
   if (game.id === "echo") return <Suspense fallback={<div className="game-surface game-loading">{local(locale, "Oda yükleniyor…", "Loading room…")}</div>}><EchoRoom3D locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} /></Suspense>;
-  if (game.id === "knot") return <KnotGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
-  if (game.id === "cut") return <CutGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "cut-fail"} onFinish={onFinish} />;
+  if (game.id === "knot") return <KnotGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />;
+  if (game.id === "cut") return <CutGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "cut-fail"} soundOn={soundOn} onFinish={onFinish} />;
   if (game.id === "shadow") return <ShadowGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />;
   if (game.id === "hane") return <HaneGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
   if (game.id === "spark") return <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} soundOn={soundOn} onFinish={onFinish} />;
@@ -174,7 +174,7 @@ const opposite: Record<Direction, Direction> = { N: "S", E: "W", S: "N", W: "E" 
 const rotateDirs = (dirs: Direction[], rot: number) => dirs.map(dir => directionOrder[(directionOrder.indexOf(dir) + rot) % 4]);
 const tileKey = (r: number, c: number) => `${r}-${c}`;
 
-function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; seed: number; mastery: number; onFinish: (result: GameResult) => void }) {
+function KnotGame({ locale, seed, mastery, soundOn = true, onFinish }: { locale: SiteLocale; seed: number; mastery: number; soundOn?: boolean; onFinish: (result: GameResult) => void }) {
   const level = useMemo(() => generateKnotLevel(seed, mastery), [seed, mastery]);
   const finish = useFinishOnce(onFinish);
   const knotCriticalIndexes = useMemo(() => new Set([...level.targetPath, ...level.bonusPath]), [level.targetPath, level.bonusPath]);
@@ -184,11 +184,12 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     base,
     rot: index === level.sourceIndex || index === level.targetIndex ? 0 : level.rotations[index],
     locked: index === level.sourceIndex || index === level.targetIndex,
-    label: index === level.sourceIndex ? "S" : index === level.targetIndex ? "H" : undefined,
-  })), [level]);
+    label: index === level.sourceIndex ? "S" : index === level.targetIndex ? (locale === "en" ? "T" : "H") : undefined,
+  })), [level, locale]);
   const [tiles, setTiles] = useState(baseTiles);
   const [turns, setTurns] = useState(0);
   const [lastRotated, setLastRotated] = useState<number | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState<number>(0);
 
   const connected = useMemo(() => {
     const map = new Map(tiles.map(tile => [tileKey(tile.r, tile.c), tile]));
@@ -204,42 +205,139 @@ function KnotGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
     return visited;
   }, [tiles]);
 
+  const prevConnectedSizeRef = useRef(connected.size);
   const targetConnected = connected.has(tileKey(Math.floor(level.targetIndex / 4), level.targetIndex % 4));
   const bonusConnected = level.bonusIndex >= 0 && connected.has(tileKey(Math.floor(level.bonusIndex / 4), level.bonusIndex % 4));
-  const sealFlow = () => {
-    if (!targetConnected) return;
-    finish({ outcome: "success", score: Math.max(180, 860 - turns * 44 + (bonusConnected ? 180 : 0)), label: bonusConnected ? "Mühür ve yan akış çözüldü" : "Akış tamamlandı", detail: `${turns} hamlede hedefe ulaşan çizgiyi kurdun${bonusConnected ? "; yan düğüm de beslendi." : "."}` });
-  };
+  const prevTargetConnectedRef = useRef(false);
 
-  const rotate = (index: number) => {
+  useEffect(() => {
+    if (!prevTargetConnectedRef.current && targetConnected) {
+      playStamp(soundOn, 8);
+    } else if (connected.size > prevConnectedSizeRef.current) {
+      playStamp(soundOn, Math.min(6, connected.size));
+    }
+    prevConnectedSizeRef.current = connected.size;
+    prevTargetConnectedRef.current = targetConnected;
+  }, [connected.size, targetConnected, soundOn]);
+
+  const sealFlow = useCallback(() => {
+    if (!targetConnected) return;
+    playComplete(soundOn);
+    finish({
+      outcome: "success",
+      score: Math.max(180, 860 - turns * 44 + (bonusConnected ? 180 : 0)),
+      label: bonusConnected
+        ? (locale === "en" ? "Seal & side flow solved" : "Mühür ve yan akış çözüldü")
+        : (locale === "en" ? "Flow complete" : "Akış tamamlandı"),
+      detail: locale === "en"
+        ? `Route reached target in ${turns} turns${bonusConnected ? "; bonus knot energized." : "."}`
+        : `${turns} hamlede hedefe ulaşan çizgiyi kurdun${bonusConnected ? "; yan düğüm de beslendi." : "."}`
+    });
+  }, [bonusConnected, finish, locale, soundOn, targetConnected, turns]);
+
+  const rotate = useCallback((index: number) => {
     if (tiles[index].locked) return;
+    playThrust(soundOn);
     const nextTurns = turns + 1;
     setTiles(previous => previous.map((tile, tileIndex) => tileIndex === index ? { ...tile, rot: (tile.rot + 1) % 4 } : tile));
     setTurns(nextTurns);
     setLastRotated(index);
-    if (nextTurns > level.heatLimit) finish({ outcome: "failure", score: 65, label: "Hat fazla ısındı", detail: "Aynı akışı tekrar tekrar çevirmek yerine önce hedef çizgisini gözünle kur." });
-  };
-  const undoLast = () => {
+    if (nextTurns > level.heatLimit) {
+      playFail(soundOn);
+      finish({
+        outcome: "failure",
+        score: 65,
+        label: locale === "en" ? "Circuit overheated" : "Hat fazla ısındı",
+        detail: locale === "en"
+          ? "Trace the target path in advance instead of spinning random tiles."
+          : "Aynı akışı tekrar tekrar çevirmek yerine önce hedef çizgisini gözünle kur."
+      });
+    }
+  }, [finish, level.heatLimit, locale, soundOn, tiles, turns]);
+
+  const undoLast = useCallback(() => {
     if (lastRotated === null) return;
+    playThrust(soundOn);
     setTiles(previous => previous.map((tile, tileIndex) => tileIndex === lastRotated ? { ...tile, rot: (tile.rot + 3) % 4 } : tile));
     setTurns(value => Math.max(0, value - 1));
     setLastRotated(null);
-  };
+  }, [lastRotated, soundOn]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const current = focusedIndex ?? 0;
+      if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+        e.preventDefault();
+        setFocusedIndex((current - 4 + 16) % 16);
+      } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        setFocusedIndex((current + 4) % 16);
+      } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+        e.preventDefault();
+        setFocusedIndex(current % 4 === 0 ? current + 3 : current - 1);
+      } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+        e.preventDefault();
+        setFocusedIndex((current + 1) % 4 === 0 ? current - 3 : current + 1);
+      } else if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        if (targetConnected && (current === level.targetIndex || e.key === "Enter")) {
+          if (current === level.targetIndex) {
+            sealFlow();
+            return;
+          }
+        }
+        rotate(current);
+      } else if (e.key === "z" || e.key === "Z" || e.key === "Backspace" || e.key === "u" || e.key === "U") {
+        e.preventDefault();
+        undoLast();
+      } else if ((e.key === "m" || e.key === "M") && targetConnected) {
+        e.preventDefault();
+        sealFlow();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [focusedIndex, level.targetIndex, rotate, sealFlow, targetConnected, undoLast]);
 
   return <div className="knot-game game-surface">
-    <div className="game-hud"><span>DÜĞÜM <b>{turns}/{level.heatLimit}</b></span><span>AKIŞ <b>{connected.size}/16</b></span><span>{targetConnected ? (bonusConnected ? "MÜHÜR HAZIR" : "BONUS HAT AÇIK") : "HEDEFİ BAĞLA"}</span></div>
-    <div className="knot-board" role="grid" aria-label="Düğüm bağlantı tahtası">
+    <div className="game-hud">
+      <span>{locale === "en" ? "KNOT" : "DÜĞÜM"} <b>{turns}/{level.heatLimit}</b></span>
+      <span>{locale === "en" ? "FLOW" : "AKIŞ"} <b>{connected.size}/16</b></span>
+      <span>{targetConnected ? (bonusConnected ? (locale === "en" ? "SEAL READY + BONUS" : "MÜHÜR HAZIR + BONUS") : (locale === "en" ? "SEAL READY" : "MÜHÜR HAZIR")) : (locale === "en" ? "CONNECT TARGET" : "HEDEFİ BAĞLA")}</span>
+    </div>
+    <div className="knot-board" role="grid" aria-label={locale === "en" ? "Knot circuit board" : "Düğüm bağlantı tahtası"}>
       {tiles.map((tile, index) => {
-        const active = connected.has(tileKey(tile.r, tile.c)); const dirs = rotateDirs(tile.base, tile.rot); const bonus = level.bonusIndex === index;
+        const active = connected.has(tileKey(tile.r, tile.c));
+        const dirs = rotateDirs(tile.base, tile.rot);
+        const bonus = level.bonusIndex === index;
         const critical = knotCriticalIndexes.has(index) && !tile.locked;
-        return <button key={tileKey(tile.r, tile.c)} onClick={() => rotate(index)} className={`knot-tile ${active ? "is-active" : ""} ${tile.locked ? "is-locked" : ""} ${bonus ? "is-bonus" : ""} ${critical ? "is-critical" : ""}`} aria-label={`Bağlantı karosu ${tile.r + 1}-${tile.c + 1}`}>
-          <span className="knot-core">{tile.label || (bonus ? "✦" : "")}</span>{dirs.map(dir => <i key={dir} className={`knot-line line-${dir}`} />)}
+        const isSource = index === level.sourceIndex;
+        const isTarget = index === level.targetIndex;
+        const isFocused = focusedIndex === index;
+        return <button
+          key={tileKey(tile.r, tile.c)}
+          onClick={() => { setFocusedIndex(index); rotate(index); }}
+          className={`knot-tile ${active ? "is-active" : ""} ${tile.locked ? "is-locked" : ""} ${bonus ? "is-bonus" : ""} ${critical ? "is-critical" : ""} ${isSource ? "is-source" : ""} ${isTarget ? "is-target" : ""} ${isTarget && active ? "is-target-reached" : ""} ${isFocused ? "is-focused" : ""}`}
+          aria-label={locale === "en" ? `Tile ${tile.r + 1}-${tile.c + 1}` : `Bağlantı karosu ${tile.r + 1}-${tile.c + 1}`}
+        >
+          <span className="knot-core">{tile.label || (bonus ? "✦" : "")}</span>
+          {dirs.map(dir => <i key={dir} className={`knot-line line-${dir}`} />)}
         </button>;
       })}
     </div>
     <div className="knot-actions">
-      <button type="button" className="quiet-button" onClick={undoLast} disabled={lastRotated === null}>{locale === "en" ? "Undo last turn" : "Son hamleyi geri al"}</button>
-      {targetConnected && <button className="ink-button knot-seal-button" onClick={sealFlow}>{bonusConnected ? "Akışı mühürle + bonus" : "Akışı mühürle"}</button>}
+      <button type="button" className="quiet-button" onClick={undoLast} disabled={lastRotated === null}>
+        {locale === "en" ? "Undo last turn (Z)" : "Son hamleyi geri al (Z)"}
+      </button>
+      {targetConnected && (
+        <button className="ink-button knot-seal-button" onClick={sealFlow}>
+          {bonusConnected ? (locale === "en" ? "Seal flow + bonus (M)" : "Akışı mühürle + bonus (M)") : (locale === "en" ? "Seal flow (M)" : "Akışı mühürle (M)")}
+        </button>
+      )}
     </div>
     <p className="game-tip">{level.lesson}</p>
   </div>;
@@ -252,7 +350,7 @@ function segmentDistance(point: Point, a: Point, b: Point) {
   return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
 }
 
-function CutGame({ locale, seed, mastery, demo = false, onFinish }: { locale: SiteLocale; seed: number; mastery: number; demo?: boolean; onFinish: (result: GameResult) => void }) {
+function CutGame({ locale, seed, mastery, demo = false, soundOn = true, onFinish }: { locale: SiteLocale; seed: number; mastery: number; demo?: boolean; soundOn?: boolean; onFinish: (result: GameResult) => void }) {
   const level = useMemo(() => generateCutLevel(seed, mastery), [seed, mastery]);
   const finish = useFinishOnce(onFinish);
   const [cutsLeft, setCutsLeft] = useState(level.cuts);
@@ -261,23 +359,73 @@ function CutGame({ locale, seed, mastery, demo = false, onFinish }: { locale: Si
   const [score, setScore] = useState(0);
   const [shapes, setShapes] = useState<CutShape[]>(() => level.shapes.map(shape => ({ ...shape, cut: false })));
   const svgRef = useRef<SVGSVGElement>(null);
-  const point = (event: React.PointerEvent<SVGSVGElement>) => { const box = svgRef.current!.getBoundingClientRect(); return { x: ((event.clientX - box.left) / box.width) * 100, y: ((event.clientY - box.top) / box.height) * 56 }; };
+  const point = (event: React.PointerEvent<SVGSVGElement>) => {
+    const box = svgRef.current!.getBoundingClientRect();
+    return { x: ((event.clientX - box.left) / box.width) * 100, y: ((event.clientY - box.top) / box.height) * 56 };
+  };
+
+  const targetIndexMap = useMemo(() => {
+    const map = new Map<number, number>();
+    let idx = 0;
+    for (const shape of shapes) {
+      if (shape.target && !shape.cut) {
+        map.set(shape.id, idx++);
+      }
+    }
+    return map;
+  }, [shapes]);
 
   const resolveCut = useCallback((cutLine: { a: Point; b: Point } | null) => {
     if (!cutLine || cutsLeft <= 0) return;
     const hit = shapes.filter(shape => !shape.cut && segmentDistance({ x: shape.x, y: shape.y }, cutLine.a, cutLine.b) < shape.size / 2 + 2);
-    const targets = hit.filter(shape => shape.target); const decoys = hit.filter(shape => !shape.target);
-    const nextStains = stains + decoys.length; const nextCuts = cutsLeft - 1;
+    const targets = hit.filter(shape => shape.target);
+    const decoys = hit.filter(shape => !shape.target);
+    const nextStains = stains + decoys.length;
+    const nextCuts = cutsLeft - 1;
     const chain = targets.filter(shape => shape.linked).length;
     const nextScore = score + targets.length * targets.length * 70 + chain * 95 - decoys.length * 55;
+
+    if (hit.length > 0) playSlice(soundOn);
+    if (targets.length > 0) playStamp(soundOn, Math.min(8, targets.length * 2));
+    if (decoys.length > 0) playHit(soundOn);
+
     setShapes(previous => previous.map(shape => hit.some(hitShape => hitShape.id === shape.id) ? { ...shape, cut: true } : shape));
-    setScore(nextScore); setCutsLeft(nextCuts); setStains(nextStains); setLine(null);
+    setScore(nextScore);
+    setCutsLeft(nextCuts);
+    setStains(nextStains);
+    setLine(null);
+
     const allTargetsCut = shapes.filter(shape => shape.target && !shape.cut && !targets.some(target => target.id === shape.id)).length === 0;
-    if (nextStains > level.stainLimit) finish({ outcome: "failure", score: Math.max(35, nextScore), label: "Sayfa lekelendi", detail: "Hedef olmayan şekiller kesim alanını kapattı; önce çizginin hangi taraftan geçtiğini oku." });
-    else if (allTargetsCut || nextCuts === 0) finish({ outcome: allTargetsCut ? "success" : "failure", score: Math.max(60, nextScore), label: allTargetsCut ? "Plaka temiz ayrıldı" : "Kesim serisi bitti", detail: allTargetsCut ? `${targets.length} hedefi son hamlede doğru plakaya ayırdın.` : "Bir sonraki turda bağlı şekilleri aynı çizgide toplamayı dene." });
-  }, [cutsLeft, finish, level.stainLimit, score, shapes, stains]);
+
+    if (nextStains > level.stainLimit) {
+      playFail(soundOn);
+      finish({
+        outcome: "failure",
+        score: Math.max(35, nextScore),
+        label: locale === "en" ? "Canvas stained" : "Sayfa lekelendi",
+        detail: locale === "en"
+          ? "Decoys blocked the cutting line; observe the clean angles before cutting."
+          : "Hedef olmayan şekiller kesim alanını kapattı; önce çizginin hangi taraftan geçtiğini oku."
+      });
+    } else if (allTargetsCut || nextCuts === 0) {
+      if (allTargetsCut) playComplete(soundOn);
+      else playFail(soundOn);
+      finish({
+        outcome: allTargetsCut ? "success" : "failure",
+        score: Math.max(60, nextScore),
+        label: allTargetsCut
+          ? (locale === "en" ? "Plates cleanly separated" : "Plaka temiz ayrıldı")
+          : (locale === "en" ? "Out of cuts" : "Kesim serisi bitti"),
+        detail: allTargetsCut
+          ? (locale === "en" ? `Cleanly isolated all targets.` : `${targets.length} hedefi son hamlede doğru plakaya ayırdın.`)
+          : (locale === "en" ? "Try gathering linked targets in a single cut next time." : "Bir sonraki turda bağlı şekilleri aynı çizgide toplamayı dene.")
+      });
+    }
+  }, [cutsLeft, finish, level.stainLimit, locale, score, shapes, soundOn, stains]);
+
   const resolveCutRef = useRef(resolveCut);
   useEffect(() => { resolveCutRef.current = resolveCut; }, [resolveCut]);
+
   useEffect(() => {
     if (!demo) return;
     const decoys = level.shapes.filter(shape => !shape.target).slice(0, level.stainLimit + 1);
@@ -288,22 +436,132 @@ function CutGame({ locale, seed, mastery, demo = false, onFinish }: { locale: Si
   }, [demo, level.shapes, level.stainLimit]);
 
   const release = () => resolveCut(line);
-  const keyboardCut = (index: number) => {
-    const targets = shapes.filter(shape => shape.target && !shape.cut);
-    const target = targets[index];
+
+  const keyboardCut = useCallback((index: number) => {
+    const active = shapes.filter(shape => shape.target && !shape.cut);
+    const target = active[index];
     if (!target) return;
-    const partner = targets[(index + 1) % targets.length] ?? target;
+    const partner = active[(index + 1) % active.length] ?? target;
+    playSlice(soundOn);
     resolveCut({ a: { x: target.x - target.size, y: target.y }, b: { x: partner.x + partner.size, y: partner.y } });
-  };
+  }, [resolveCut, shapes, soundOn]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const num = parseInt(e.key, 10);
+      if (!isNaN(num) && num >= 1 && num <= 9) {
+        const active = shapes.filter(s => s.target && !s.cut);
+        const targetIdx = num - 1;
+        if (targetIdx < active.length) {
+          e.preventDefault();
+          keyboardCut(targetIdx);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [keyboardCut, shapes]);
 
   return <div className="cut-game game-surface">
-    <div className="game-hud"><span>KESİM <b>{cutsLeft}</b></span><span>LEKE <b>{stains}/{level.stainLimit}</b></span><span>HEDEFLERİ AYIR</span></div>
-    <svg ref={svgRef} viewBox="0 0 100 56" className="cut-canvas" role="application" aria-label={locale === "en" ? "Cutout canvas. Drag to cut shapes." : "Kırpık tuvali. Şekilleri kesmek için sürükle."} onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); const current = point(event); setLine({ a: current, b: current }); }} onPointerMove={event => line && setLine(previous => previous ? { ...previous, b: point(event) } : null)} onPointerUp={release} onPointerCancel={() => setLine(null)}>
+    <div className="game-hud">
+      <span>{locale === "en" ? "CUTS" : "KESİM"} <b>{cutsLeft}</b></span>
+      <span>{locale === "en" ? "STAINS" : "LEKE"} <b>{stains}/{level.stainLimit}</b></span>
+      <span>{locale === "en" ? "ISOLATE TARGETS" : "HEDEFLERİ AYIR"}</span>
+    </div>
+    <svg
+      ref={svgRef}
+      viewBox="0 0 100 56"
+      className="cut-canvas"
+      role="application"
+      aria-label={locale === "en" ? "Cutout canvas. Drag to cut shapes." : "Kırpık tuvali. Şekilleri kesmek için sürükle."}
+      onPointerDown={event => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const current = point(event);
+        playSlice(soundOn);
+        setLine({ a: current, b: current });
+      }}
+      onPointerMove={event => line && setLine(previous => previous ? { ...previous, b: point(event) } : null)}
+      onPointerUp={release}
+      onPointerCancel={() => setLine(null)}
+    >
       <rect width="100" height="56" rx="2" fill="#654169" />
-      {shapes.map(shape => <g key={shape.id} className={shape.cut ? "cut-shape is-cut" : "cut-shape"} transform={`translate(${shape.x} ${shape.y}) rotate(${shape.id * 19})`}><rect x={-shape.size} y={-shape.size / 2} width={shape.size * 2} height={shape.size} rx="1" fill={shape.color} /><circle cx={shape.size * .8} cy={shape.size * .5} r={shape.size / 3} fill={shape.target ? "#1b1a1b" : "#f6f0e3"} opacity=".5" />{shape.linked && <path d="M-2,-2 L2,2 M2,-2 L-2,2" stroke="#1b1a1b" strokeWidth=".8" />}</g>)}
-      {line && <line x1={line.a.x} y1={line.a.y} x2={line.b.x} y2={line.b.y} className="cut-line" />}
+      {shapes.map(shape => {
+        const isTarget = shape.target;
+        const targetNum = targetIndexMap.get(shape.id);
+        return (
+          <g
+            key={shape.id}
+            className={shape.cut ? "cut-shape is-cut" : "cut-shape"}
+            transform={`translate(${shape.x} ${shape.y}) rotate(${shape.id * 19})`}
+          >
+            {isTarget ? (
+              <>
+                <rect
+                  x={-shape.size}
+                  y={-shape.size / 2}
+                  width={shape.size * 2}
+                  height={shape.size}
+                  rx="1.2"
+                  fill={shape.color}
+                  stroke="#ffffff"
+                  strokeWidth="0.7"
+                />
+                <circle cx="0" cy="0" r={shape.size * 0.38} fill="none" stroke="#ffffff" strokeWidth="0.5" strokeDasharray="1.2 0.8" />
+                <circle cx="0" cy="0" r="0.7" fill="#ffffff" />
+                {shape.linked && (
+                  <g transform={`translate(${-shape.size * 0.65}, 0) rotate(${-shape.id * 19})`}>
+                    <text textAnchor="middle" dominantBaseline="central" fontSize="2.8" fill="#ffd700" fontWeight="bold">✦</text>
+                  </g>
+                )}
+                {!shape.cut && targetNum !== undefined && (
+                  <g transform={`translate(${shape.size * 0.75}, ${-shape.size * 0.35}) rotate(${-shape.id * 19})`}>
+                    <circle r="2.2" fill="#e9563f" stroke="#ffffff" strokeWidth="0.5" />
+                    <text textAnchor="middle" dominantBaseline="central" fontSize="2.6" fontWeight="bold" fill="#ffffff" fontFamily="var(--font-mono)" className="cut-badge-text">
+                      {targetNum + 1}
+                    </text>
+                  </g>
+                )}
+              </>
+            ) : (
+              <>
+                <rect
+                  x={-shape.size}
+                  y={-shape.size / 2}
+                  width={shape.size * 2}
+                  height={shape.size}
+                  rx="1.2"
+                  fill={shape.color}
+                  stroke="rgba(27,26,27,0.45)"
+                  strokeWidth="0.5"
+                  strokeDasharray="1.5 1"
+                  opacity="0.82"
+                />
+                <line x1={-shape.size * 0.35} y1={-shape.size * 0.22} x2={shape.size * 0.35} y2={shape.size * 0.22} stroke="rgba(27,26,27,0.55)" strokeWidth="0.6" />
+                <line x1={-shape.size * 0.35} y1={shape.size * 0.22} x2={shape.size * 0.35} y2={-shape.size * 0.22} stroke="rgba(27,26,27,0.55)" strokeWidth="0.6" />
+              </>
+            )}
+          </g>
+        );
+      })}
+      {line && (
+        <>
+          <line x1={line.a.x} y1={line.a.y} x2={line.b.x} y2={line.b.y} className="cut-line-glow" />
+          <line x1={line.a.x} y1={line.a.y} x2={line.b.x} y2={line.b.y} className="cut-line-core" />
+          <circle cx={line.a.x} cy={line.a.y} r="1.3" className="cut-node" />
+          <circle cx={line.b.x} cy={line.b.y} r="1.3" className="cut-node" />
+        </>
+      )}
     </svg>
-    <div className="cut-keyboard" aria-label={locale === "en" ? "Keyboard cut options" : "Klavye kesim seçenekleri"}><span>{locale === "en" ? "KEYBOARD CUT" : "KLAVYE KESİMİ"}</span>{shapes.filter(shape => shape.target && !shape.cut).map((shape, index) => <button key={shape.id} onClick={() => keyboardCut(index)} aria-label={locale === "en" ? `Cut target ${index + 1}` : `Hedef ${index + 1} kesimi`}>{index + 1}</button>)}</div>
+    <div className="cut-keyboard" aria-label={locale === "en" ? "Keyboard cut options" : "Klavye kesim seçenekleri"}>
+      <span>{locale === "en" ? "KEYBOARD CUT (1-9)" : "KLAVYE KESİMİ (1-9)"}</span>
+      {shapes.filter(shape => shape.target && !shape.cut).map((shape, index) => (
+        <button key={shape.id} onClick={() => keyboardCut(index)} aria-label={locale === "en" ? `Cut target ${index + 1}` : `Hedef ${index + 1} kesimi`}>
+          {index + 1}
+        </button>
+      ))}
+    </div>
     <p className="game-tip">{level.lesson}</p>
   </div>;
 }

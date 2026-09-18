@@ -70,3 +70,10 @@ export function playContradiction(enabled: boolean) {
   tone(880, .05, "triangle", .12);
   tone(1320, .08, "triangle", .1, .05);
 }
+
+export function playSlice(enabled: boolean) {
+  if (!enabled) return;
+  tone(1100, .08, "triangle", .16, 0, 280);
+  tone(740, .06, "sawtooth", .09, .01, 180);
+}
+
