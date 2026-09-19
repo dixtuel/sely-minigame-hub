@@ -15,6 +15,8 @@ function getPostgresUrl(): string | null {
   const url =
     process.env.POSTGRES_URL ||
     process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.CONTENT_DB_URL ||
     null;
 
   if (url && (url.startsWith("postgres://") || url.startsWith("postgresql://"))) {

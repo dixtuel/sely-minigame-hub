@@ -119,16 +119,52 @@ let store: DailyStore | null = null;
 export function getDailyStore(): DailyStore {
   if (store) return store;
   const provider = process.env.CONTENT_DB_PROVIDER?.toLowerCase();
-  const postgresUrl = process.env.CONTENT_DB_URL;
-  const tursoUrl = process.env.TURSO_URL;
-  if (provider === "postgres" && postgresUrl && /^(postgres|postgresql):\/\//.test(postgresUrl)) {
-    store = new PostgresStore(new Pool({ connectionString: postgresUrl, max: 2, idleTimeoutMillis: 10_000 }));
+
+  const postgresUrl =
+    process.env.CONTENT_DB_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL;
+
+  const tursoUrl =
+    process.env.TURSO_URL ||
+    process.env.TURSO_DATABASE_URL;
+
+  const tursoAuthToken = process.env.TURSO_AUTH_TOKEN;
+
+  // 1. Explicit or auto-detected Turso
+  if (
+    (provider === "turso" || !provider) &&
+    tursoUrl &&
+    ((/^libsql:\/\//.test(tursoUrl) && tursoAuthToken) || tursoUrl.startsWith("file:") || tursoUrl === ":memory:")
+  ) {
+    store = new TursoStore(createClient({ url: tursoUrl, authToken: tursoAuthToken }));
     return store;
   }
-  if (provider === "turso" && tursoUrl && /^libsql:\/\//.test(tursoUrl) && process.env.TURSO_AUTH_TOKEN) {
-    store = new TursoStore(createClient({ url: tursoUrl, authToken: process.env.TURSO_AUTH_TOKEN }));
+
+  // 2. Explicit or auto-detected PostgreSQL / Neon
+  if (
+    (provider === "postgres" || !provider) &&
+    postgresUrl &&
+    /^(postgres|postgresql):\/\//.test(postgresUrl)
+  ) {
+    const isCloud =
+      postgresUrl.includes("sslmode=require") ||
+      postgresUrl.includes("neon.tech") ||
+      postgresUrl.includes("vercel-storage.com") ||
+      postgresUrl.includes("aws.connect");
+
+    store = new PostgresStore(
+      new Pool({
+        connectionString: postgresUrl,
+        max: 2,
+        idleTimeoutMillis: 10_000,
+        ssl: isCloud ? { rejectUnauthorized: false } : undefined,
+      })
+    );
     return store;
   }
+
+  // 3. Fallback: Deterministic In-Memory store
   store = new MemoryStore();
   return store;
 }
