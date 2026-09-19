@@ -1,35 +1,40 @@
-# Dependencies
-node_modules/
-.pnpm-store/
+# Package lockfiles (Git ile takip edilir, formatlanmaz)
+package-lock.json
+pnpm-lock.yaml
+bun.lockb
+bun.lock
+yarn.lock
 
-# Build outputs
+# Build & bundle çıktıları (esbuild / vite)
 dist/
 build/
 *.dist
+api/index.js
 
-# Generated files
-*.tsbuildinfo
+# Bağımlılıklar & paket depoları
+node_modules/
+.pnpm-store/
+
+# Önbellek, test kapsamı ve geçici dosyalar
+.cache/
 coverage/
+.nyc_output/
+*.tsbuildinfo
+tmp/
+temp/
 
-# Package files
-package-lock.json
-pnpm-lock.yaml
-
-# Database
+# Veritabanı ve log dosyaları
 *.db
 *.sqlite
 *.sqlite3
-
-# Logs
 *.log
+data/
 
-# Environment files
+# Ortam değişkenleri
 .env*
 
-# IDE files
+# Editör ve işletim sistemi dosyaları
 .vscode/
 .idea/
-
-# OS files
 .DS_Store
 Thumbs.db
