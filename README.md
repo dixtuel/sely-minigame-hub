@@ -14,31 +14,9 @@
 
 Her sabah saat 00:00'da tüm dünya için tek bir günlük tohumdan (seed) deterministik olarak yeni bir "günün seti" üretilir. Oyuncunun ustalık seviyesi (1–4) arttıkça turlar karmaşıklaşır; ancak üretilen her labirent, akış rotası, çokgen kesimi ve dedektiflik delil grafı üretim anında **matematiksel çözücüler (BFS, Dijkstra, Spanning Tree, Evidence Graph Solvers)** tarafından taranarak **kesinlikle çözülebilir** olduğu doğrulanır.
 
-[Canlı Oyna](https://sely.tr) • [Hızlı Başlangıç](#hızlı-başlangıç) • [Neden SELY?](#neden-sely-minigame-hub) • [Oyun Kataloğu](#oyun-kataloğu-ve-motor-mimarisi) • [Çözülebilirlik Güvenceleri](#matematiksel-çözülebilirlik-güvenceleri) • [Kontroller](#kontroller-ve-erişilebilirlik) • [Sistem Mimarisi](#sistem-mimarisi) • [Kurulum & Self-Host](#kurulum-ve-self-hosting) • [Ortam Değişkenleri](#ortam-değişkenleri) • [Gizlilik](#güvenlik-ve-gizlilik) • [Lisans](#lisans-ve-marka)
+[Canlı Oyna](https://sely.tr) • [Oyunlar](#oyun-kataloğu-ve-motor-mimarisi) • [Kurulum & Self-Host](#kurulum-ve-self-hosting)
 
 </div>
-
----
-
-## Hızlı Başlangıç
-
-Projeyi yerel makinenizde veya sunucunuzda 30 saniye içinde sıfır konfigürasyonla ayağa kaldırabilirsiniz:
-
-### Docker Compose ile (Önerilen)
-Harici veritabanı veya Redis gerekmez; yerel SQLite (`data/sely.db`) otomatik devreye girer:
-
-```bash
-git clone https://github.com/dixtuel/sely-minigame-hub.git
-cd sely-minigame-hub
-docker compose up -d
-# http://localhost:3000 üzerinde hazırdır.
-```
-
-### Node.js / Bun ile
-```bash
-pnpm install && pnpm dev
-# http://localhost:3000 üzerinde açılır.
-```
 
 ---
 
