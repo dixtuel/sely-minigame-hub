@@ -71,13 +71,16 @@ export default defineConfig(({ mode }) => {
       target: ["es2020", "chrome87", "safari14", "firefox78", "edge88"],
       cssTarget: "chrome80",
       cssCodeSplit: true,
-      chunkSizeWarningLimit: 800,
+      chunkSizeWarningLimit: 1200,
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (id.includes("node_modules")) {
-              if (id.includes("three") || id.includes("@react-three") || id.includes("@babylonjs")) {
-                return "vendor-3d";
+              if (id.includes("@babylonjs")) {
+                return "vendor-babylon";
+              }
+              if (id.includes("three") || id.includes("@react-three")) {
+                return "vendor-three";
               }
               if (id.includes("framer-motion")) {
                 return "vendor-motion";
