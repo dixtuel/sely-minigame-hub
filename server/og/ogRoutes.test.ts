@@ -64,8 +64,29 @@ describe("OG Image and Dynamic Social Sharing Routes", () => {
     expect(svg).toContain("<svg");
     expect(svg).toContain("</svg>");
     expect(svg).toContain("2,450");
-    expect(svg).toContain("ECHO");
+    expect(svg).toContain("ECHO ROOM");
     expect(svg).toContain("KARAKALEM");
+    // Ensure no XML comment syntax exists that could break strict XML parsers
+    expect(svg).not.toContain("<!--");
+    expect(svg).not.toContain("-->");
+  });
+
+  it("handles complex player nicknames with hash and numbers without XML parse errors", () => {
+    const svg = generateOgSvg({
+      game: "knot",
+      score: 360,
+      nick: "Elektrik Akıntı #7906",
+      outcome: "success",
+      locale: "tr",
+    });
+
+    expect(svg).toContain("<svg");
+    expect(svg).toContain("</svg>");
+    expect(svg).toContain("360");
+    expect(svg).toContain("DÜĞÜM");
+    expect(svg).toContain("ELEKTRIK AKINTI #7906");
+    expect(svg).not.toContain("--ink");
+    expect(svg).not.toContain("<!--");
   });
 
   it("renders custom court dossier dossier & seal for Vaka Mystery", () => {
