@@ -15,6 +15,8 @@ export type DeterministicEngineResult = {
   stressDelta: number;
   confessed: boolean;
   unlockedClueId?: string;
+  unlockedSuspectId?: string;
+  unlockedSuspectName?: string;
 };
 
 export function processDeterministicInterrogation(
@@ -461,7 +463,18 @@ export function processDeterministicInterrogation(
 
   // Kademeli ve bağlamsal yalanlar
   let replyText = "";
-  if (touchesSecret) {
+  if (
+    suspect.alibiDenial &&
+    (touchesAlibi ||
+      qLower.includes("seninle") ||
+      qLower.includes("birlikte") ||
+      qLower.includes("beraber") ||
+      qLower.includes("patron") ||
+      qLower.includes("with") ||
+      qLower.includes("alibi"))
+  ) {
+    replyText = isEn ? suspect.alibiDenial.en : suspect.alibiDenial.tr;
+  } else if (touchesSecret) {
     replyText = isEn
       ? `(Eyes shifting nervously) That matter with ${caseData.victim.name} was strictly personal! ${stress >= 50 ? suspect.lies.level3 : suspect.lies.level2}`
       : `(Gözleri gergince kaçıyor) ${caseData.victim.name} ile aramızdaki o mesele tamamen kişiseldi! ${stress >= 50 ? suspect.lies.level3 : suspect.lies.level2}`;
@@ -477,11 +490,32 @@ export function processDeterministicInterrogation(
     replyText = isEn ? suspect.lies.level1 : suspect.lies.level1;
   }
 
+  // Kilitli bir şüphelinin açılma koşulunu kontrol et
+  let unlockedSuspectId: string | undefined;
+  let unlockedSuspectName: string | undefined;
+  const lockedSuspects = caseData.suspects.filter((s) => s.isInitiallyLocked);
+  const combined = `${payload.question || ""} ${payload.crossQuote || ""} ${replyText}`.toLowerCase();
+  for (const ls of lockedSuspects) {
+    if (!ls.unlockCondition) continue;
+    const { keywords, triggerSuspectId } = ls.unlockCondition;
+    if (triggerSuspectId && triggerSuspectId !== suspect.id) continue;
+    if (
+      keywords.some((kw) => combined.includes(kw.toLowerCase())) ||
+      (actionType === "cross_examine" && payload.crossSuspectId === ls.id)
+    ) {
+      unlockedSuspectId = ls.id;
+      unlockedSuspectName = ls.name;
+      break;
+    }
+  }
+
   return {
     text: replyText,
     behavioralCue: getCue(stress),
     newStress: stress,
     stressDelta: stress - startStress,
     confessed: false,
+    unlockedSuspectId,
+    unlockedSuspectName,
   };
 }

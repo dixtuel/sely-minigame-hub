@@ -37,7 +37,62 @@ export default function VakaInterrogation({
   onSolved,
 }: Props) {
   const isEn = locale === "en";
-  const [selectedSuspectId, setSelectedSuspectId] = useState<string>(vakaCase.suspects[0]?.id || "");
+  // Açılmış şüphelilerin haritası (suspectId -> boolean)
+  const [unlockedMap, setUnlockedMap] = useState<Record<string, boolean>>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`sely_vaka_unlocked_${vakaCase.id}`);
+        if (saved) return JSON.parse(saved);
+      }
+    } catch {}
+    return {};
+  });
+
+  const isSuspectUnlocked = (s: VakaSuspect) => {
+    if (!s.isInitiallyLocked) return true;
+    return Boolean(unlockedMap[s.id]);
+  };
+
+  const visibleSuspects = vakaCase.suspects.filter(isSuspectUnlocked);
+
+  const [newlyUnlockedToast, setNewlyUnlockedToast] = useState<{ id: string; name: string; role: string } | null>(null);
+
+  const triggerUnlock = (suspectId: string, suspectName?: string) => {
+    if (unlockedMap[suspectId]) return;
+    const target = vakaCase.suspects.find((s) => s.id === suspectId);
+    if (!target) return;
+
+    playContradiction(soundOn);
+    setUnlockedMap((prev) => {
+      const updated = { ...prev, [suspectId]: true };
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`sely_vaka_unlocked_${vakaCase.id}`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
+
+    setNewlyUnlockedToast({
+      id: target.id,
+      name: suspectName || target.name,
+      role: isEn ? target.roleEn || target.role : target.role,
+    });
+  };
+
+  const checkClientKeywordUnlock = (text: string) => {
+    const textLower = text.toLowerCase();
+    vakaCase.suspects.forEach((s) => {
+      if (s.isInitiallyLocked && !unlockedMap[s.id] && s.unlockCondition) {
+        if (s.unlockCondition.keywords.some((kw) => textLower.includes(kw.toLowerCase()))) {
+          triggerUnlock(s.id, s.name);
+        }
+      }
+    });
+  };
+
+  const initialSuspect = visibleSuspects[0] || vakaCase.suspects[0];
+  const [selectedSuspectId, setSelectedSuspectId] = useState<string>(initialSuspect?.id || "");
 
   // Şüpheli bazında izole edilmiş mesaj geçmişi (suspectId -> VakaInterrogationMessage[])
   const [suspectMessagesMap, setSuspectMessagesMap] = useState<Record<string, VakaInterrogationMessage[]>>(() => {
@@ -379,6 +434,12 @@ function cleanInterrogationText(text: string): string {
           : `KIRILMA NOKTASI İTİRAFI! ${activeSuspect.name} aralıksız baskıya dayanamayarak suçunu itiraf etti! Artık resmi mahkemeye sevk edebilirsiniz.`
         : verdictText;
 
+      if (res.unlockedSuspectId) {
+        triggerUnlock(res.unlockedSuspectId, res.unlockedSuspectName);
+      } else {
+        checkClientKeywordUnlock(`${userDisplayText} ${res.reply}`);
+      }
+
       if (isConfessed) {
         playContradiction(soundOn);
         setSolved(true);
@@ -413,12 +474,14 @@ function cleanInterrogationText(text: string): string {
 
   const quickPrompts = isEn
     ? [
+        ...(activeSuspect.alibiDenial ? ["They claim you were together at the time of the incident, is that true?"] : []),
         "Where exactly were you at the time of the incident?",
         "What was your financial or personal conflict with the victim?",
         "Someone saw you tampering with evidence, explain that!",
         "Are you covering for an accomplice or lying for yourself?",
       ]
     : [
+        ...(activeSuspect.alibiDenial ? ["Olay anında seninle birlikte olduğunu iddia ediyorlar, doğru mu?"] : []),
         "Olay saatinde tam olarak neredeydin?",
         "Kurbanla arandaki maddi ya da kişisel husumet neydi?",
         "Olay yerinde delillerle oynarken görüldün, bunu açıkla!",
@@ -427,9 +490,41 @@ function cleanInterrogationText(text: string): string {
 
   return (
     <div className="vaka-interrogation-desk">
+      {/* Yeni Şüpheli Keşfedildi Banner */}
+      {newlyUnlockedToast && (
+        <div className="vaka-unlock-banner">
+          <div className="vaka-unlock-banner-content">
+            <span className="vaka-unlock-icon">✨</span>
+            <div>
+              <b>{isEn ? "NEW SUSPECT / WITNESS UNLOCKED:" : "YENİ ŞÜPHELİ / İLGİLİ KİŞİ KEŞFEDİLDİ:"} {newlyUnlockedToast.name} ({newlyUnlockedToast.role})</b>
+              <p>{isEn ? "Testimony or alibi mention added them to the investigation. You can now interrogate and cross-examine them." : "Sorgudaki temas üzerine soruşturmaya dahil edildi. Artık sorgulanabilir ve çapraz sorguya çekilebilir."}</p>
+            </div>
+          </div>
+          <div className="vaka-unlock-banner-actions">
+            <button
+              type="button"
+              className="vaka-unlock-switch-btn"
+              onClick={() => {
+                setSelectedSuspectId(newlyUnlockedToast.id);
+                setNewlyUnlockedToast(null);
+              }}
+            >
+              🎙️ {isEn ? "Interrogate Now" : "Hemen Sorgula"}
+            </button>
+            <button
+              type="button"
+              className="vaka-unlock-dismiss-btn"
+              onClick={() => setNewlyUnlockedToast(null)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Şüpheli Seçim Şeridi */}
       <div className="vaka-suspect-tabs">
-        {vakaCase.suspects.map((suspect) => {
+        {visibleSuspects.map((suspect) => {
           const sStress = stressMap[suspect.id] || 12;
           const isSelected = suspect.id === selectedSuspectId;
           return (
@@ -618,7 +713,7 @@ function cleanInterrogationText(text: string): string {
                     : "Diğer şüphelilerle ilgili bilgi topla veya ifadelerini yüzleştir:"}
                 </label>
                 <div className="vaka-cross-list">
-                  {vakaCase.suspects
+                  {visibleSuspects
                     .filter((s) => s.id !== selectedSuspectId)
                     .map((other) => (
                       <div key={other.id} className="vaka-cross-card-row">

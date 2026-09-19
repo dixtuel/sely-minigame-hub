@@ -53,6 +53,17 @@ export type VakaSuspect = {
   };
   confession: string;
   confessionEn: string;
+  isInitiallyLocked?: boolean;
+  unlockCondition?: {
+    keywords: string[];
+    hintTr: string;
+    hintEn: string;
+    triggerSuspectId?: string;
+  };
+  alibiDenial?: {
+    tr: string;
+    en: string;
+  };
 };
 
 export type VakaClue = {

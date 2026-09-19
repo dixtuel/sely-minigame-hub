@@ -50,6 +50,9 @@ function toPublicCaseDto(found: VakaDetailedCase) {
       })),
       gossip: s.gossip,
       behavioralCues: s.behavioralCues,
+      isInitiallyLocked: Boolean(s.isInitiallyLocked),
+      unlockCondition: s.unlockCondition,
+      alibiDenial: s.alibiDenial,
     })),
     clues: found.clues.map((c) => ({
       id: c.id,
@@ -239,6 +242,7 @@ export const vakaRouter = router({
           crossMode,
           isExposedByContradiction: input.isExposedByContradiction,
           exposedContradictionInfo: exposedInfo,
+          caseData,
           locale: input.locale,
         });
 
@@ -283,6 +287,28 @@ export const vakaRouter = router({
         }
       }
 
+      let unlockedSuspectId = deterministic.unlockedSuspectId;
+      let unlockedSuspectName = deterministic.unlockedSuspectName;
+
+      // LLM veya deterministik çıktıda kilitli şüpheli tetiklendi mi?
+      if (!unlockedSuspectId) {
+        const lockedSuspects = caseData.suspects.filter((s) => s.isInitiallyLocked);
+        const combinedText = `${input.question || ""} ${input.crossQuote || ""} ${replyText}`.toLowerCase();
+        for (const ls of lockedSuspects) {
+          if (!ls.unlockCondition) continue;
+          const { keywords, triggerSuspectId } = ls.unlockCondition;
+          if (triggerSuspectId && triggerSuspectId !== suspect.id) continue;
+          if (
+            keywords.some((kw) => combinedText.includes(kw.toLowerCase())) ||
+            input.crossSuspectId === ls.id
+          ) {
+            unlockedSuspectId = ls.id;
+            unlockedSuspectName = ls.name;
+            break;
+          }
+        }
+      }
+
       return {
         reply: replyText,
         behavioralCue: deterministic.behavioralCue,
@@ -290,6 +316,8 @@ export const vakaRouter = router({
         stressDelta: deterministic.stressDelta,
         confessed: deterministic.confessed,
         unlockedClueId: deterministic.unlockedClueId,
+        unlockedSuspectId,
+        unlockedSuspectName,
         source,
         provider: llmProviderUsed || undefined,
         model: llmModelUsed || undefined,

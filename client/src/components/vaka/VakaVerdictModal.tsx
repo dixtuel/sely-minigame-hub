@@ -35,8 +35,27 @@ export default function VakaVerdictModal({
   onCaseCompleted,
 }: Props) {
   const isEn = locale === "en";
+
+  const [unlockedMap] = useState<Record<string, boolean>>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`sely_vaka_unlocked_${vakaCase.id}`);
+        if (saved) return JSON.parse(saved);
+      }
+    } catch {}
+    return {};
+  });
+
+  const isSuspectUnlocked = (s: any) => {
+    if (!s.isInitiallyLocked) return true;
+    return Boolean(unlockedMap[s.id]);
+  };
+
+  const visibleSuspects = vakaCase.suspects.filter(isSuspectUnlocked);
+  const initialSuspect = visibleSuspects.find((s) => s.id === defaultSuspectId) || visibleSuspects[0] || vakaCase.suspects[0];
+
   const [selectedSuspectId, setSelectedSuspectId] = useState<string>(
-    defaultSuspectId || vakaCase.suspects[0]?.id || ""
+    initialSuspect?.id || ""
   );
   const [selectedClueId, setSelectedClueId] = useState<string>(
     vakaCase.clues[0]?.id || ""
@@ -131,7 +150,7 @@ export default function VakaVerdictModal({
             <div className="vaka-form-group">
               <label>1. {isEn ? "Accused Perpetrator:" : "Suçlanan Fail:"}</label>
               <div className="vaka-suspect-radio-grid">
-                {vakaCase.suspects.map((s) => (
+                {visibleSuspects.map((s) => (
                   <button
                     key={s.id}
                     type="button"

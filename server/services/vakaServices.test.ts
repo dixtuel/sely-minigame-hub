@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stripReasoningBlocks, cleanInterrogationText } from "./vakaLlmService";
+import { stripReasoningBlocks, cleanInterrogationText, buildVakaInterrogationPrompt } from "./vakaLlmService";
 import { processDeterministicInterrogation } from "./vakaDeterministicEngine";
 import { VAKA_SAMPLE_CASES } from "../../shared/vakaCases";
 
@@ -93,5 +93,140 @@ describe("Vaka Services & Interrogation Engine", () => {
     expect(exposedInterrogation.confessed).toBe(true);
     expect(exposedInterrogation.newStress).toBeGreaterThanOrEqual(88);
     expect(exposedInterrogation.text).toContain("inkar etmenin bir anlamı kalmadı");
+  });
+
+  it("handles dynamic unlockable suspects and alibi denial mechanics", () => {
+    // 1. Vaka 02: Murat sorgusunda bahçıvan bahsi geçince Şaban Efendi'nin açılması
+    const case2 = VAKA_SAMPLE_CASES.find((c) => c.id === "case-02-zehirli-kadeh")!;
+    expect(case2).toBeDefined();
+    const gardener = case2.suspects.find((s) => s.id === "suspect-bahcivan");
+    expect(gardener).toBeDefined();
+    expect(gardener?.isInitiallyLocked).toBe(true);
+    expect(gardener?.alibiDenial).toBeDefined();
+
+    const muratAlibiQ = processDeterministicInterrogation(
+      case2,
+      "suspect-murat",
+      "question",
+      { question: "Olay saatinde tam olarak neredeydin, kiminleydin?" },
+      20,
+      "tr"
+    );
+    // Murat lies level1: "Ben o saatte garajda bahçıvan Şaban Efendi ile arabamın aküsünü tamir ediyordum, gidin ona sorun!"
+    expect(muratAlibiQ.text).toContain("bahçıvan Şaban Efendi");
+    expect(muratAlibiQ.unlockedSuspectId).toBe("suspect-bahcivan");
+    expect(muratAlibiQ.unlockedSuspectName).toBe("Şaban Efendi");
+
+    // 2. Açılan Bahçıvan Şaban Efendi'nin Murat'ın sahte alibisini yalanlaması
+    const sabanDenial = processDeterministicInterrogation(
+      case2,
+      "suspect-bahcivan",
+      "question",
+      { question: "Murat Bey garajda seninle olduğunu söyledi, doğru mu?" },
+      20,
+      "tr"
+    );
+    expect(sabanDenial.text).toContain("Murat Bey benimle akü tamir ettiğini mi söyledi?");
+    expect(sabanDenial.text).toContain("telaşla köşke geri koştu");
+
+    // 3. Vaka 05: Kerim'in sorgusunda asistanından bahsedilince Cansu Yılmaz'ın açılması
+    const case5 = VAKA_SAMPLE_CASES.find((c) => c.id === "case-05-kuantum-laboratuvari")!;
+    expect(case5).toBeDefined();
+    const cansu = case5.suspects.find((s) => s.id === "suspect-cansu");
+    expect(cansu).toBeDefined();
+    expect(cansu?.isInitiallyLocked).toBe(true);
+
+    const kerimAlibiQ = processDeterministicInterrogation(
+      case5,
+      "suspect-kerim",
+      "question",
+      { question: "O saatte neredeydin?" },
+      20,
+      "tr"
+    );
+    expect(kerimAlibiQ.text).toContain("asistanım Cansu");
+    expect(kerimAlibiQ.unlockedSuspectId).toBe("suspect-cansu");
+    expect(kerimAlibiQ.unlockedSuspectName).toBe("Cansu Yılmaz");
+
+    // 4. Cansu Yılmaz'ın Kerim Hoca'nın alibisini kesin bir dille yalanlaması
+    const cansuDenial = processDeterministicInterrogation(
+      case5,
+      "suspect-cansu",
+      "question",
+      { question: "Kerim seninle birlikte kafeteryada olduğunu iddia ediyor, doğru mu?" },
+      20,
+      "tr"
+    );
+    expect(cansuDenial.text).toContain("Kerim Hoca benimle kafeteryada olduğunu mu söyledi?");
+    expect(cansuDenial.text).toContain("Bu koskoca bir yalan!");
+
+    // 5. LLM Prompt üretiminde alibiDenial direktifinin enjeksiyonu
+    const promptTr = buildVakaInterrogationPrompt({
+      caseData: case5,
+      suspect: cansu!,
+      currentStress: 20,
+      newStress: 20,
+      otherSuspectsInfo: "Kerim, Melis",
+      presentedClue: null,
+      locale: "tr",
+    });
+    expect(promptTr).toContain("SAHTE ŞAHİTLİK VE NEREDEYDİM İDDİASINI YALANLAMA");
+    expect(promptTr).toContain(cansu!.alibiDenial!.tr);
+
+    const promptEn = buildVakaInterrogationPrompt({
+      caseData: case5,
+      suspect: cansu!,
+      currentStress: 20,
+      newStress: 20,
+      otherSuspectsInfo: "Kerim, Melis",
+      presentedClue: null,
+      locale: "en",
+    });
+    expect(promptEn).toContain("YOU WERE USED AS A FALSE WITNESS");
+    expect(promptEn).toContain(cansu!.alibiDenial!.en);
+
+    // 6. Kerim için (asistanı Cansu'yu tetikleyen şüpheli) witnessPrompt tam adıyla eklenmeli
+    const kerim = case5.suspects.find((s) => s.id === "suspect-kerim")!;
+    const kerimPrompt = buildVakaInterrogationPrompt({
+      caseData: case5,
+      suspect: kerim,
+      currentStress: 30,
+      newStress: 30,
+      otherSuspectsInfo: "Melis",
+      presentedClue: null,
+      locale: "tr",
+    });
+    expect(kerimPrompt).toContain("MAZERET VE ŞAHİT GÖSTERME");
+    expect(kerimPrompt).toContain("Cansu Yılmaz");
+    expect(kerimPrompt).toContain("Temiz Oda Araştırma Asistanı");
+
+    // 7. Melis için (şahit göstermeyen şüpheli) witnessPrompt ASLA eklenmemeli
+    const melis = case5.suspects.find((s) => s.id === "suspect-melis")!;
+    const melisPrompt = buildVakaInterrogationPrompt({
+      caseData: case5,
+      suspect: melis,
+      currentStress: 30,
+      newStress: 30,
+      otherSuspectsInfo: "Kerim",
+      presentedClue: null,
+      locale: "tr",
+    });
+    expect(melisPrompt).not.toContain("MAZERET VE ŞAHİT GÖSTERME");
+    expect(melisPrompt).not.toContain("WITNESS DEFLECTION");
+
+    // 8. Kilitli şüphelisi olmayan vakalarda (ör. case1) hiçbir şüpheliye otomatik eklenmemeli
+    const case1 = VAKA_SAMPLE_CASES[0];
+    const case1Suspect = case1.suspects[0];
+    const case1Prompt = buildVakaInterrogationPrompt({
+      caseData: case1,
+      suspect: case1Suspect,
+      currentStress: 20,
+      newStress: 20,
+      otherSuspectsInfo: "Diğerleri",
+      presentedClue: null,
+      locale: "tr",
+    });
+    expect(case1Prompt).not.toContain("MAZERET VE ŞAHİT GÖSTERME");
+    expect(case1Prompt).not.toContain("WITNESS DEFLECTION");
   });
 });

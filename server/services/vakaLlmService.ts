@@ -1,4 +1,4 @@
-import type { VakaSuspect } from "../../shared/vakaTypes";
+import type { VakaSuspect, VakaDetailedCase } from "../../shared/vakaTypes";
 
 // Düşünce etiketlerini temizleme fonksiyonu (commit-gunlugu sanitizer deseni)
 export function stripReasoningBlocks(text: string): string {
@@ -58,6 +58,8 @@ export type VakaInterrogationPromptParams = {
     clue?: string;
     explanation?: string;
   };
+  caseData?: VakaDetailedCase;
+  allSuspects?: VakaSuspect[];
   locale?: "tr" | "en";
   langInstruction?: string;
 };
@@ -74,6 +76,8 @@ export function buildVakaInterrogationPrompt(params: VakaInterrogationPromptPara
     crossMode = "confront",
     isExposedByContradiction,
     exposedContradictionInfo,
+    caseData,
+    allSuspects,
     locale = "tr",
   } = params;
   const isEn = locale === "en";
@@ -107,7 +111,7 @@ Dedektif, resmi tutanaktaki yalanını somut delille çürüterek tutanağa geç
 - Çürüten Delil: "${exposedContradictionInfo?.clue || 'Dava delili'}"
 ${exposedContradictionInfo?.explanation ? `- Resmi Tespit: "${exposedContradictionInfo.explanation}"` : ""}
 
-YAKALANDIĞINI BİLİYORSUN. SAVUNMAN VE ALİBİN TAMAMEN ÇÖKTÜ.
+YAKALANDIĞINI BİLİYORSUN. SAVUNMAN VE NEREDEYDİM İDDİAN TAMAMEN ÇÖKTÜ.
 ${suspect.isCulprit
   ? `- Yalanının ortaya çıktığının ve köşeye sıkıştığının tamamen farkındasın.
   - "Ben yapmadım", "Odamdaydım", "Haberim yok" gibi eski inkar yalanlarına ASLA devam etme!
@@ -172,6 +176,41 @@ ${suspect.isCulprit
   : `- Bunun temelsiz bir tehdit olduğunu hissedip sertçe tepki göster ("Boş tehditlerle beni yıldıramazsınız, kaydınız varsa getirin koyun masaya!").`}`;
   }
 
+  // Alibi Yalanlama / Sahte Şahitlik Çürütme Uyarısı (Alibi Denial Alert)
+  let alibiDenialAlert = "";
+  if (suspect.alibiDenial) {
+    alibiDenialAlert = isEn
+      ? `\n## CRITICAL OVERRIDE - YOU WERE USED AS A FALSE WITNESS:
+Someone in this case (such as your boss, colleague, or an accused suspect) has claimed they were with you or that you can vouch for their whereabouts.
+IF THE DETECTIVE ASKS IF YOU WERE WITH THEM OR ASKS ABOUT THEIR WHEREABOUTS:
+- YOU MUST FIRMLY AND EMPHATICALLY REJECT AND DENY IT! State clearly: "${suspect.alibiDenial.en}"
+- Tell the detective that you were NOT with them at the critical time and will not cover for their crime!`
+      : `\n## KRİTİK DİREKTİF - SAHTE ŞAHİTLİK VE NEREDEYDİM İDDİASINI YALANLAMA:
+Bu vakadaki şüphelilerden biri (patronun, iş arkadaşın veya sanık) olay anında senin onunla birlikte olduğunu veya senin ona şahitlik edeceğini iddia etti.
+EĞER DEDEKTİF SANA ONUNLA OLUP OLMADIĞINI VEYA OLAY SAATİNDE NEREDE OLDUĞUNUZU SORARSA:
+- BU SAHTE İDDİAYI KESİNLİKLE VE KARARLILIKLA YALANLA! Açıkça söyle: "${suspect.alibiDenial.tr}"
+- O saatte onun yanında olmadığını, seni erkenden gönderdiğini veya onun tek başına olduğunu dedektife dürüstçe açıkla!`;
+  }
+
+  // O vakada bu şüphelinin sahte şahit / mazeret olarak öne sürdüğü kilitli bir tanık/şüpheli var mı?
+  // Yalnızca o vakada gerçekten böyle bir ilişkili şüpheli tanımlanmışsa ve bu şüpheli onu tetikleyen kişi ise eklenir!
+  let witnessPrompt = "";
+  const suspectList: VakaSuspect[] = allSuspects || caseData?.suspects || [];
+  const unlockableWitness = suspectList.find((s) => s.unlockCondition?.triggerSuspectId === suspect.id);
+  if (unlockableWitness) {
+    const witnessName = unlockableWitness.name;
+    const witnessRole = isEn ? (unlockableWitness.roleEn || unlockableWitness.role) : unlockableWitness.role;
+    witnessPrompt = isEn
+      ? `\n## WITNESS DEFLECTION (USE ONLY IF PRESSED ON YOUR WHEREABOUTS):
+In this case, you claim ${witnessName} (${witnessRole}) was with you or can vouch for your presence.
+- DO NOT blurt this out immediately or in casual greetings.
+- ONLY IF the detective specifically presses you on where you were, your timeline, or suspects you: name ${witnessName} to deflect suspicion (e.g., "I was with ${witnessName} at that time, go ask them yourself!").`
+      : `\n## MAZERET VE ŞAHİT GÖSTERME (YALNIZCA SIKIŞTIRILDIĞINDA VEYA NEREDE OLDUĞUN SORULDUĞUNDA KULLAN):
+Bu vakada, ${witnessName} (${witnessRole}) isimli kişinin olay anında seninle olduğunu veya sana şahitlik edeceğini iddia ediyorsun.
+- Bunu durduk yere veya ilk selamlaşmada pat diye söyleme!
+- YALNIZCA dedektif sana olay anında nerede olduğunu doğrudan sorduğunda veya seni köşeye sıkıştırdığında: kendini temize çıkarmak için ${witnessName}'in adını anarak ifade ver ("O saatte ${witnessName} ile birlikteydim, gidin ona sorun!") ve suçu/şüpheyi üzerinden atmaya çalış.`;
+  }
+
   if (isEn) {
     const role = suspect.roleEn || suspect.role;
     const temperament = suspect.temperamentEn || suspect.temperament;
@@ -186,7 +225,7 @@ CHARACTER DOSSIER:
 - Role / Profession: ${role}
 - Temperament: ${temperament}
 - Relationship to Victim: ${relationship}
-- Official Alibi on Record (ONLY state this if the detective specifically asks for your timeline/whereabouts; do not volunteer it spontaneously): ${alibi}
+- Official Whereabouts on Record (ONLY state this if the detective specifically asks for your timeline/whereabouts; do not volunteer it spontaneously): ${alibi}
 - Secret Motive (NEVER confess outright): ${suspect.motive}
 - Minor Secret (embarrassing personal secret, unrelated to murder): ${suspect.minorSecret}
 - Are You the Actual Killer?: ${suspect.isCulprit ? "YES, you committed the crime, but your sole objective is to deflect suspicion and walk free." : "NO, you are innocent of murder, but anxious and under suspicion."}
@@ -201,6 +240,8 @@ ${presentedClue ? `\nTHE DETECTIVE JUST PLACED THIS EVIDENCE ON THE TABLE: "${pr
 ${crossAlert}
 ${bluffAlert}
 ${exposedAlert}
+${witnessPrompt}
+${alibiDenialAlert}
 
 STRICT INTERROGATION RULES:
 1. NATURAL SPOKEN DIALOGUE (NO THEATRICAL MONOLOGUES): Speak like a real human under police questioning. No melodramatic speeches or flowery poetry.
@@ -227,7 +268,7 @@ KİMLİK KARTIN:
 - Meslek / Rol: ${suspect.role}
 - Karakter / Mizaç: ${suspect.temperament}
 - Kurbanla İlişki: ${suspect.relationshipToVictim}
-- İfade Tutanağındaki Savunman (YALNIZCA doğrudan nerede veya ne zaman olduğu sorulursa söyle, durduk yere savunma kusma): ${suspect.alibi}
+- Olay Anındaki Yerin ve Savunman (YALNIZCA doğrudan nerede veya ne zaman olduğu sorulursa söyle, durduk yere savunma kusma): ${suspect.alibi}
 - Gizli Nedenin (Motive - Asla doğrudan itiraf etme, köşeye sıkışınca inkar et): ${suspect.motive}
 - Küçük / Utanç Verici Sırrın (Cinayetle ilgisiz ama sakladığın özel durum): ${suspect.minorSecret}
 - Gerçek Katil misin?: ${suspect.isCulprit ? "EVET, cinayeti sen işledin ama paçayı kurtarmak istiyorsun" : "HAYIR, cinayetle ilgin yok ama şüphelisin"}
@@ -242,6 +283,8 @@ ${presentedClue ? `\nDEDEKTİF ÖNÜNE ŞU DELİLİ KOYDU: "${presentedClue.labe
 ${crossAlert}
 ${bluffAlert}
 ${exposedAlert}
+${witnessPrompt}
+${alibiDenialAlert}
 
 GERÇEKÇİ POLİS SORGUSU KURALLARI (BU KURALLARA KESİNLİKLE UY):
 1. GERÇEK İNSAN GİBİ KONUŞ (NO DRAMATIC MONOLOGUES): Asla tiyatro tiradı, edebi monolog, felsefe yapma veya yapay kibir cümleleri kurma ("bu kelimeyi kullanmak için cesaretiniz yok" gibi yapay dizi replikleri YASAK). Günlük, doğal, polis karşısında gerilmiş bir insan gibi konuş.

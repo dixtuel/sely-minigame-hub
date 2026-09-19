@@ -21,7 +21,25 @@ export default function VakaContradiction({
   onOpenVerdict,
   onCaseCompleted,
 }: Props) {
-  const [selectedSuspectId, setSelectedSuspectId] = useState<string>(vakaCase.suspects[0]?.id || "");
+  const [unlockedMap] = useState<Record<string, boolean>>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`sely_vaka_unlocked_${vakaCase.id}`);
+        if (saved) return JSON.parse(saved);
+      }
+    } catch {}
+    return {};
+  });
+
+  const isSuspectUnlocked = (s: VakaSuspect) => {
+    if (!s.isInitiallyLocked) return true;
+    return Boolean(unlockedMap[s.id]);
+  };
+
+  const visibleSuspects = vakaCase.suspects.filter(isSuspectUnlocked);
+  const initialSuspect = visibleSuspects[0] || vakaCase.suspects[0];
+
+  const [selectedSuspectId, setSelectedSuspectId] = useState<string>(initialSuspect?.id || "");
   const [selectedSentenceId, setSelectedSentenceId] = useState<string | null>(null);
   const [selectedClueId, setSelectedClueId] = useState<string | null>(null);
   const [penalty, setPenalty] = useState(0);
@@ -30,7 +48,7 @@ export default function VakaContradiction({
 
   // Vaka değiştiğinde çelişki masasını sıfırla
   useEffect(() => {
-    setSelectedSuspectId(vakaCase.suspects[0]?.id || "");
+    setSelectedSuspectId(initialSuspect?.id || "");
     setSelectedSentenceId(null);
     setSelectedClueId(null);
     setPenalty(0);
@@ -38,7 +56,7 @@ export default function VakaContradiction({
     setSolved(false);
   }, [vakaCase.id]);
 
-  const activeSuspect = vakaCase.suspects.find((s) => s.id === selectedSuspectId) || vakaCase.suspects[0];
+  const activeSuspect = vakaCase.suspects.find((s) => s.id === selectedSuspectId) || initialSuspect;
   const contradictionMutation = trpc.vaka.checkContradiction.useMutation();
 
   const handlePresentObjection = async () => {
@@ -89,7 +107,7 @@ export default function VakaContradiction({
     <div className="vaka-contradiction-desk">
       {/* Şüpheli Seçimi */}
       <div className="vaka-suspect-selector-row">
-        {vakaCase.suspects.map((s) => (
+        {visibleSuspects.map((s) => (
           <button
             key={s.id}
             type="button"

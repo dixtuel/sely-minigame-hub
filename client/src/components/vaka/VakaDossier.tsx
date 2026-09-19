@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { VakaDetailedCase } from "@shared/vakaTypes";
 import type { SiteLocale } from "@/lib/i18n";
 
@@ -8,6 +9,21 @@ type Props = {
 
 export default function VakaDossier({ vakaCase, locale }: Props) {
   const isEn = locale === "en";
+
+  const [unlockedMap] = useState<Record<string, boolean>>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`sely_vaka_unlocked_${vakaCase.id}`);
+        if (saved) return JSON.parse(saved);
+      }
+    } catch {}
+    return {};
+  });
+
+  const isSuspectUnlocked = (suspect: any) => {
+    if (!suspect.isInitiallyLocked) return true;
+    return Boolean(unlockedMap[suspect.id]);
+  };
 
   return (
     <div className="vaka-dossier-layout">
@@ -28,6 +44,46 @@ export default function VakaDossier({ vakaCase, locale }: Props) {
           <p>{isEn ? vakaCase.victim.causeOfDeathEn : vakaCase.victim.causeOfDeath}</p>
         </div>
         <p className="vaka-dossier-briefing">{isEn ? vakaCase.briefingEn : vakaCase.briefing}</p>
+      </div>
+
+      {/* Şüpheliler & İlgili Kişiler Tablosu */}
+      <div className="vaka-dossier-card vaka-suspects-card">
+        <div className="vaka-card-badge">{isEn ? "PERSONS OF INTEREST & SUSPECTS" : "ŞÜPHELİLER & İLGİLİ KİŞİLER"}</div>
+        <div className="vaka-dossier-suspect-grid">
+          {vakaCase.suspects.map((s) => {
+            const unlocked = isSuspectUnlocked(s);
+            if (!unlocked) {
+              return (
+                <div key={s.id} className="vaka-dossier-suspect-item is-locked">
+                  <div className="vaka-dossier-avatar locked-avatar">🔒</div>
+                  <div className="vaka-dossier-suspect-info">
+                    <div className="vaka-dossier-name-row">
+                      <span className="vaka-locked-title">??? {isEn ? "UNKNOWN PERSON OF INTEREST" : "GİZLİ / KİLİTLİ ŞÜPHELİ"}</span>
+                      <span className="vaka-locked-badge">{isEn ? "LOCKED" : "KİLİTLİ"}</span>
+                    </div>
+                    <p className="vaka-locked-hint">
+                      💡 {isEn ? s.unlockCondition?.hintEn || "Discovered through interrogation or testimony." : s.unlockCondition?.hintTr || "Sorgularda veya ifadelerde adı geçtiğinde açılır."}
+                    </p>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={s.id} className="vaka-dossier-suspect-item">
+                <div className="vaka-dossier-avatar">{s.name.charAt(0)}</div>
+                <div className="vaka-dossier-suspect-info">
+                  <div className="vaka-dossier-name-row">
+                    <b>{s.name}</b>
+                    <span className="vaka-dossier-role-tag">{isEn ? s.roleEn || s.role : s.role}</span>
+                  </div>
+                  <small className="vaka-dossier-relation">{isEn ? s.relationshipToVictimEn || s.relationshipToVictim : s.relationshipToVictim}</small>
+                  <p className="vaka-dossier-statement-preview">"{isEn ? s.statementEn || s.statement : s.statement}"</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Olay Yeri İnceleme & Adli Tıp Bulguları */}
