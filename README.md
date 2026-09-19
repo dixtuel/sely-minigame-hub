@@ -7,18 +7,38 @@
 [![Canlı Demo](https://img.shields.io/badge/canlı_demo-sely.tr-F38020?style=flat-square&logo=vercel&logoColor=white)](https://sely.tr)
 [![Lisans: AGPL v3](https://img.shields.io/badge/lisans-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Çalışma Ortamı](https://img.shields.io/badge/runtime-Vercel%20Edge%20%7C%20Docker%20%7C%20Node.js-black?style=flat-square)](https://sely.tr)
-[![3D Motoru](https://img.shields.io/badge/3D-Babylon.js%20v9-bb464b?style=flat-square)](https://www.babylonjs.com/)
 [![Testler](https://img.shields.io/badge/testler-107%20geçti%20(14.3k%20assert)-brightgreen?style=flat-square&logo=vitest)](https://vitest.dev/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.9%20strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Gizlilik](https://img.shields.io/badge/gizlilik-sıfır_takip_çerezi-emerald?style=flat-square)](https://sely.tr)
 
 <br/>
 
 Her sabah saat 00:00'da tüm dünya için tek bir günlük tohumdan (seed) deterministik olarak yeni bir "günün seti" üretilir. Oyuncunun ustalık seviyesi (1–4) arttıkça turlar karmaşıklaşır; ancak üretilen her labirent, akış rotası, çokgen kesimi ve dedektiflik delil grafı üretim anında **matematiksel çözücüler (BFS, Dijkstra, Spanning Tree, Evidence Graph Solvers)** tarafından taranarak **kesinlikle çözülebilir** olduğu doğrulanır.
 
-[Canlı Oyna](https://sely.tr) • [Neden SELY?](#neden-sely-minigame-hub) • [Oyun Kataloğu](#oyun-kataloğu-ve-motor-mimarisi) • [Çözülebilirlik Güvenceleri](#matematiksel-çözülebilirlik-güvenceleri) • [Kontroller](#kontroller-ve-erişilebilirlik) • [Sistem Mimarisi](#sistem-mimarisi) • [Kurulum & Self-Host](#kurulum-ve-self-hosting) • [Ortam Değişkenleri](#ortam-değişkenleri) • [Gizlilik](#güvenlik-ve-gizlilik) • [Lisans](#lisans-ve-marka)
+[Canlı Oyna](https://sely.tr) • [Hızlı Başlangıç](#hızlı-başlangıç) • [Neden SELY?](#neden-sely-minigame-hub) • [Oyun Kataloğu](#oyun-kataloğu-ve-motor-mimarisi) • [Çözülebilirlik Güvenceleri](#matematiksel-çözülebilirlik-güvenceleri) • [Kontroller](#kontroller-ve-erişilebilirlik) • [Sistem Mimarisi](#sistem-mimarisi) • [Kurulum & Self-Host](#kurulum-ve-self-hosting) • [Ortam Değişkenleri](#ortam-değişkenleri) • [Gizlilik](#güvenlik-ve-gizlilik) • [Lisans](#lisans-ve-marka)
 
 </div>
+
+---
+
+## Hızlı Başlangıç
+
+Projeyi yerel makinenizde veya sunucunuzda 30 saniye içinde sıfır konfigürasyonla ayağa kaldırabilirsiniz:
+
+### Docker Compose ile (Önerilen)
+Harici veritabanı veya Redis gerekmez; yerel SQLite (`data/sely.db`) otomatik devreye girer:
+
+```bash
+git clone https://github.com/dixtuel/sely-minigame-hub.git
+cd sely-minigame-hub
+docker compose up -d
+# http://localhost:3000 üzerinde hazırdır.
+```
+
+### Node.js / Bun ile
+```bash
+pnpm install && pnpm dev
+# http://localhost:3000 üzerinde açılır.
+```
 
 ---
 
