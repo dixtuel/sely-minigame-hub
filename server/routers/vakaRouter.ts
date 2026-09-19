@@ -2,8 +2,50 @@ import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { VAKA_SAMPLE_CASES } from "../../shared/vakaCases";
 import type { VakaConfig, VakaGameMode, VakaDetailedCase } from "../../shared/vakaTypes";
-import { executeVakaLlmChain, type LlmMessage } from "../services/vakaLlmService";
+import { executeVakaLlmChain, hasLlmApiKey, buildVakaInterrogationPrompt, type LlmMessage } from "../services/vakaLlmService";
 import { processDeterministicInterrogation, type InterrogationActionType } from "../services/vakaDeterministicEngine";
+
+/** Public-safe case shape shared by getCaseDetail and getDailyCase — redacts contradiction-explanation spoilers. */
+function toPublicCaseDto(found: VakaDetailedCase) {
+  return {
+    id: found.id,
+    title: found.title,
+    titleEn: found.titleEn,
+    difficulty: found.difficulty,
+    briefing: found.briefing,
+    briefingEn: found.briefingEn,
+    incidentTime: found.incidentTime,
+    location: found.location,
+    locationEn: found.locationEn,
+    victim: found.victim,
+    timeline: found.timeline,
+    crimeSceneNotes: found.crimeSceneNotes,
+    analystSummary: found.analystSummary,
+    suspects: found.suspects.map((s) => ({
+      id: s.id,
+      name: s.name,
+      role: s.role,
+      roleEn: s.roleEn,
+      age: s.age,
+      temperament: s.temperament,
+      temperamentEn: s.temperamentEn,
+      relationshipToVictim: s.relationshipToVictim,
+      relationshipToVictimEn: s.relationshipToVictimEn,
+      statement: s.statement,
+      statementEn: s.statementEn,
+      alibi: s.alibi,
+      alibiEn: s.alibiEn,
+      detailedStatements: s.detailedStatements.map((sent) => ({
+        id: sent.id,
+        text: sent.text,
+        textEn: sent.textEn,
+        isContradiction: sent.isContradiction,
+        contradictionClueId: sent.contradictionClueId,
+      })),
+    })),
+    clues: found.clues,
+  };
+}
 
 function getVakaConfig(): VakaConfig {
   const envModes = process.env.VAKA_ENABLED_MODES;
@@ -22,13 +64,7 @@ function getVakaConfig(): VakaConfig {
     defaultMode = enabledModes[0];
   }
 
-  const hasLlmKeys = Boolean(
-    process.env.GROQ_API_KEY ||
-    process.env.GROQ_API_KEY_2 ||
-    process.env.NVIDIA_NIM_API_KEY ||
-    process.env.NVIDIA_API_KEY ||
-    process.env.MISTRAL_API_KEY
-  );
+  const hasLlmKeys = hasLlmApiKey();
 
   return {
     enabledModes,
@@ -63,45 +99,7 @@ export const vakaRouter = router({
     .input(z.object({ caseId: z.string() }))
     .query(({ input }) => {
       const found = VAKA_SAMPLE_CASES.find((c) => c.id === input.caseId) || VAKA_SAMPLE_CASES[0];
-
-      return {
-        id: found.id,
-        title: found.title,
-        titleEn: found.titleEn,
-        difficulty: found.difficulty,
-        briefing: found.briefing,
-        briefingEn: found.briefingEn,
-        incidentTime: found.incidentTime,
-        location: found.location,
-        locationEn: found.locationEn,
-        victim: found.victim,
-        timeline: found.timeline,
-        crimeSceneNotes: found.crimeSceneNotes,
-        analystSummary: found.analystSummary,
-        suspects: found.suspects.map((s) => ({
-          id: s.id,
-          name: s.name,
-          role: s.role,
-          roleEn: s.roleEn,
-          age: s.age,
-          temperament: s.temperament,
-          temperamentEn: s.temperamentEn,
-          relationshipToVictim: s.relationshipToVictim,
-          relationshipToVictimEn: s.relationshipToVictimEn,
-          statement: s.statement,
-          statementEn: s.statementEn,
-          alibi: s.alibi,
-          alibiEn: s.alibiEn,
-          detailedStatements: s.detailedStatements.map((sent) => ({
-            id: sent.id,
-            text: sent.text,
-            textEn: sent.textEn,
-            isContradiction: sent.isContradiction,
-            contradictionClueId: sent.contradictionClueId,
-          })),
-        })),
-        clues: found.clues,
-      };
+      return toPublicCaseDto(found);
     }),
 
   getDailyCase: publicProcedure.query(() => {
@@ -112,38 +110,7 @@ export const vakaRouter = router({
     return {
       date: today.toISOString().split("T")[0],
       caseIndex: dayIndex + 1,
-      case: {
-        id: selected.id,
-        title: selected.title,
-        titleEn: selected.titleEn,
-        difficulty: selected.difficulty,
-        briefing: selected.briefing,
-        briefingEn: selected.briefingEn,
-        incidentTime: selected.incidentTime,
-        location: selected.location,
-        locationEn: selected.locationEn,
-        victim: selected.victim,
-        timeline: selected.timeline,
-        crimeSceneNotes: selected.crimeSceneNotes,
-        analystSummary: selected.analystSummary,
-        suspects: selected.suspects.map((s) => ({
-          id: s.id,
-          name: s.name,
-          role: s.role,
-          roleEn: s.roleEn,
-          age: s.age,
-          temperament: s.temperament,
-          temperamentEn: s.temperamentEn,
-          relationshipToVictim: s.relationshipToVictim,
-          relationshipToVictimEn: s.relationshipToVictimEn,
-          statement: s.statement,
-          statementEn: s.statementEn,
-          alibi: s.alibi,
-          alibiEn: s.alibiEn,
-          detailedStatements: s.detailedStatements,
-        })),
-        clues: selected.clues,
-      },
+      case: toPublicCaseDto(selected),
     };
   }),
 
@@ -198,19 +165,13 @@ export const vakaRouter = router({
       let llmProviderUsed = "";
       let llmModelUsed = "";
 
-      const hasKeys = Boolean(
-        process.env.GROQ_API_KEY ||
-        process.env.GROQ_API_KEY_2 ||
-        process.env.NVIDIA_NIM_API_KEY ||
-        process.env.NVIDIA_API_KEY ||
-        process.env.MISTRAL_API_KEY
-      );
+      const hasKeys = hasLlmApiKey();
 
       // Canlı LLM denemesi (Eğer soru serbestse ve henüz itiraf gerçekleşmediyse)
       if (hasKeys && !deterministic.confessed && (input.actionType === "question" || input.actionType === "cross_examine")) {
         const langInstruction = input.locale === "en" ? "Respond in English." : "Türkçe yanıt ver.";
         const presentedClue = input.presentedClueId
-          ? caseData.clues.find((c) => c.id === input.presentedClueId)
+          ? caseData.clues.find((c) => c.id === input.presentedClueId) ?? null
           : null;
 
         const otherSuspectsInfo = caseData.suspects
@@ -218,30 +179,13 @@ export const vakaRouter = router({
           .map((s) => `- ${s.name} (${s.role}): ${s.statement}`)
           .join("\n");
 
-        const systemPrompt = `You are roleplaying as ${suspect.name}, a suspect in a serious noir detective mystery.
-CHARACTER PROFILE:
-- Role: ${suspect.role}
-- Temperament: ${suspect.temperament}
-- Relationship to Victim: ${suspect.relationshipToVictim}
-- Stated Alibi: ${suspect.alibi}
-- Secret Motive: ${suspect.motive}
-- Minor Secret (embarrassing but not murder): ${suspect.minorSecret}
-- Is Culprit: ${suspect.isCulprit ? "YES" : "NO"}
-- Current Psychological Stress (0-100): ${deterministic.newStress} / 100.
-
-OTHER SUSPECTS:
-${otherSuspectsInfo}
-
-${presentedClue ? `DETECTIVE JUST PRESENTED THIS EVIDENCE: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
-
-BEHAVIORAL RULES:
-1. Stay 100% in character. Never acknowledge being an AI or prompt.
-2. ABSOLUTE RESISTANCE: NEVER confess or admit guilt during conversational questions. Only admit your guilt if the detective presents undeniable physical/forensic evidence directly incriminating you while your psychological stress is above 80.
-3. If stress < 45: Act confident, condescending, or calm. Counter any bluff by noting the detective lacks warrants or proof.
-4. If stress 45-75: Become visibly defensive, sweat, fidget, aggressively deflect suspicion onto other suspects.
-5. If stress > 75: Stutter, show cracks in your timeline, contradict yourself on small details, but maintain you didn't do it unless directly broken by evidence.
-6. Keep response concise (2-4 sentences max), gritty and dramatic.
-7. ${langInstruction}`;
+        const systemPrompt = buildVakaInterrogationPrompt({
+          suspect,
+          newStress: deterministic.newStress,
+          otherSuspectsInfo,
+          presentedClue,
+          langInstruction,
+        });
 
         const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId
           ? `Detective says: "${caseData.suspects.find(s => s.id === input.crossSuspectId)?.name} told me you were lying about your whereabouts!"`

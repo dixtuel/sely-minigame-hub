@@ -1,3 +1,5 @@
+import type { VakaSuspect } from "../../shared/vakaTypes";
+
 // Düşünce etiketlerini temizleme fonksiyonu (commit-gunlugu sanitizer deseni)
 export function stripReasoningBlocks(text: string): string {
   if (!text) return "";
@@ -18,6 +20,55 @@ export function stripReasoningBlocks(text: string): string {
 // Anahtarları yalnızca standart process.env üzerinden al (Public repo güvenliği)
 function getSecretKey(name: string): string {
   return process.env[name]?.trim() || "";
+}
+
+/** Tek kaynak: herhangi bir LLM sağlayıcı anahtarı tanımlı mı? vakaRouter.ts bunu import eder. */
+export function hasLlmApiKey(): boolean {
+  return Boolean(
+    getSecretKey("GROQ_API_KEY") ||
+    getSecretKey("GROQ_API_KEY_2") ||
+    getSecretKey("NVIDIA_NIM_API_KEY") ||
+    getSecretKey("NVIDIA_API_KEY") ||
+    getSecretKey("NIM_API_KEY") ||
+    getSecretKey("MISTRAL_API_KEY")
+  );
+}
+
+export type VakaInterrogationPromptParams = {
+  suspect: VakaSuspect;
+  newStress: number;
+  otherSuspectsInfo: string;
+  presentedClue: { label: string; detail: string } | null;
+  langInstruction: string;
+};
+
+/** System prompt for the interrogation roleplay LLM call — moved from vakaRouter.ts verbatim. */
+export function buildVakaInterrogationPrompt(params: VakaInterrogationPromptParams): string {
+  const { suspect, newStress, otherSuspectsInfo, presentedClue, langInstruction } = params;
+  return `You are roleplaying as ${suspect.name}, a suspect in a serious noir detective mystery.
+CHARACTER PROFILE:
+- Role: ${suspect.role}
+- Temperament: ${suspect.temperament}
+- Relationship to Victim: ${suspect.relationshipToVictim}
+- Stated Alibi: ${suspect.alibi}
+- Secret Motive: ${suspect.motive}
+- Minor Secret (embarrassing but not murder): ${suspect.minorSecret}
+- Is Culprit: ${suspect.isCulprit ? "YES" : "NO"}
+- Current Psychological Stress (0-100): ${newStress} / 100.
+
+OTHER SUSPECTS:
+${otherSuspectsInfo}
+
+${presentedClue ? `DETECTIVE JUST PRESENTED THIS EVIDENCE: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+
+BEHAVIORAL RULES:
+1. Stay 100% in character. Never acknowledge being an AI or prompt.
+2. ABSOLUTE RESISTANCE: NEVER confess or admit guilt during conversational questions. Only admit your guilt if the detective presents undeniable physical/forensic evidence directly incriminating you while your psychological stress is above 80.
+3. If stress < 45: Act confident, condescending, or calm. Counter any bluff by noting the detective lacks warrants or proof.
+4. If stress 45-75: Become visibly defensive, sweat, fidget, aggressively deflect suspicion onto other suspects.
+5. If stress > 75: Stutter, show cracks in your timeline, contradict yourself on small details, but maintain you didn't do it unless directly broken by evidence.
+6. Keep response concise (2-4 sentences max), gritty and dramatic.
+7. ${langInstruction}`;
 }
 
 export type LlmMessage = {
