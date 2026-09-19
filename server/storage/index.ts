@@ -3,8 +3,8 @@
  *
  * Centralizes all persistent and semi-persistent storage backends:
  * - Turso / libSQL (Serverless SQLite & historical archive)
- * - PostgreSQL / Neon (Vercel Marketplace / Serverless Postgres)
- * - Upstash Redis / VDS Redis (Leaderboards & fast caching)
+ * - PostgreSQL / Neon (Serverless Postgres)
+ * - Redis Cloud / VDS Redis (Leaderboards & fast caching)
  * - Vercel Global Config (Ultra low-latency runtime flags & announcements)
  * - Daily Content Store (Deterministic daily seed, difficulty & ruleset manifests)
  */

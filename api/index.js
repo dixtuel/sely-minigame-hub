@@ -5131,7 +5131,6 @@ async function dailyCleanupHandler(req, res) {
 }
 
 // server/storage/leaderboard.ts
-import { Redis as UpstashRedis } from "@upstash/redis";
 import IORedis from "ioredis";
 var VALID_GAMES = ["echo", "knot", "cut", "shadow", "marker", "hane", "spark", "vaka"];
 var MAX_SCORE_CEILINGS = {
@@ -5175,10 +5174,10 @@ async function getTcpRedisClient() {
         }
       });
       tcpRedisInstance.on("error", (err) => {
-        console.warn("[Leaderboard:VDS-Redis] Connection error:", err.message);
+        console.warn("[Leaderboard:Redis] Connection error:", err.message);
       });
       tcpRedisConnecting = tcpRedisInstance.connect().catch((err) => {
-        console.warn("[Leaderboard:VDS-Redis] Initial connect failed:", err.message);
+        console.warn("[Leaderboard:Redis] Initial connect failed:", err.message);
         tcpRedisInstance = null;
         tcpRedisConnecting = null;
       });
@@ -5190,21 +5189,6 @@ async function getTcpRedisClient() {
     await tcpRedisConnecting;
   }
   return tcpRedisInstance;
-}
-var upstashInstance = null;
-function getUpstashClient() {
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-  if (url && token) {
-    if (!upstashInstance) {
-      upstashInstance = new UpstashRedis({
-        url: url.replace(/\/$/, ""),
-        token
-      });
-    }
-    return upstashInstance;
-  }
-  return null;
 }
 var l1Cache = /* @__PURE__ */ new Map();
 var L1_TTL_MS = 5e3;
@@ -5245,52 +5229,11 @@ async function getTopScores(gameId, dateStr = getTodayIsoDate()) {
           date: dateStr,
           top: entries,
           totalPlayers: count || entries.length,
-          source: "vds-redis"
+          source: "redis"
         };
         l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
         return response;
       }
-    } catch {
-    }
-  }
-  const upstash = getUpstashClient();
-  if (upstash) {
-    try {
-      const p = upstash.pipeline();
-      p.zrange(key, 0, 9, {
-        rev: true,
-        withScores: true
-      });
-      p.zcard(key);
-      const [rawResults, countResult] = await p.exec();
-      const totalPlayers = countResult ?? (Array.isArray(rawResults) ? rawResults.length : 0);
-      const entries = [];
-      if (Array.isArray(rawResults)) {
-        for (let i = 0; i < rawResults.length; i++) {
-          const item = rawResults[i];
-          const rawMember = typeof item === "object" && item !== null && "member" in item ? String(item.member) : String(item);
-          const score = typeof item === "object" && item !== null && "score" in item ? Number(item.score) : 0;
-          const parts = rawMember.split("::");
-          const signature = parts[0] || "anon";
-          const nick = parts.slice(1).join("::") || "Anonim Gezgin";
-          entries.push({
-            rank: i + 1,
-            nick,
-            score,
-            signature,
-            timestamp: Date.now()
-          });
-        }
-      }
-      const response = {
-        gameId,
-        date: dateStr,
-        top: entries,
-        totalPlayers,
-        source: "upstash"
-      };
-      l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
-      return response;
     } catch {
     }
   }
@@ -5357,19 +5300,6 @@ async function submitScore(gameId, score, nick, signature, dateStr = getTodayIso
       pipe.zrevrank(key, member);
       const pipeResults = await pipe.exec();
       const rank0 = pipeResults?.[2]?.[1];
-      const rank2 = typeof rank0 === "number" ? rank0 + 1 : void 0;
-      return { success: true, rank: rank2 };
-    } catch {
-    }
-  }
-  const upstash = getUpstashClient();
-  if (upstash) {
-    try {
-      const p = upstash.pipeline();
-      p.zadd(key, { gt: true }, { score, member });
-      p.expire(key, 172800);
-      p.zrevrank(key, member);
-      const [_, __, rank0] = await p.exec();
       const rank2 = typeof rank0 === "number" ? rank0 + 1 : void 0;
       return { success: true, rank: rank2 };
     } catch {

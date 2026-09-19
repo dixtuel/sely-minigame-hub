@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { Redis as UpstashRedis } from "@upstash/redis";
 import IORedis from "ioredis";
 import {
   isTursoConfigured,
@@ -23,7 +22,7 @@ export interface LeaderboardResponse {
   date: string;
   top: LeaderboardEntry[];
   totalPlayers: number;
-  source: "upstash" | "vds-redis" | "turso" | "memory";
+  source: "redis" | "turso" | "memory";
 }
 
 const VALID_GAMES: readonly string[] = ["echo", "knot", "cut", "shadow", "marker", "hane", "spark", "vaka"];
@@ -39,7 +38,7 @@ const MAX_SCORE_CEILINGS: Record<string, number> = {
   vaka: 500,
 };
 
-// In-Memory store fallback when neither Redis URL nor Upstash credentials are provided
+// In-Memory store fallback when no Redis URL is configured
 const memoryStore = new Map<string, Map<string, { nick: string; score: number; timestamp: number }>>();
 
 function getMemoryKey(gameId: string, dateStr: string): string {
@@ -50,7 +49,7 @@ export function getTodayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// 1. VDS / Self-Hosted TCP Redis Client (ioredis) — also used for Vercel Marketplace "Redis" (Redis Cloud)
+// Redis client (ioredis, TCP): works with a self-hosted Redis or any managed Redis (e.g. Redis Cloud) via standard REDIS_URL
 let tcpRedisInstance: IORedis | null = null;
 let tcpRedisConnecting: Promise<void> | null = null;
 async function getTcpRedisClient(): Promise<IORedis | null> {
@@ -77,11 +76,11 @@ async function getTcpRedisClient(): Promise<IORedis | null> {
       });
 
       tcpRedisInstance.on("error", (err) => {
-        console.warn("[Leaderboard:VDS-Redis] Connection error:", err.message);
+        console.warn("[Leaderboard:Redis] Connection error:", err.message);
       });
 
       tcpRedisConnecting = tcpRedisInstance.connect().catch((err) => {
-        console.warn("[Leaderboard:VDS-Redis] Initial connect failed:", err.message);
+        console.warn("[Leaderboard:Redis] Initial connect failed:", err.message);
         tcpRedisInstance = null;
         tcpRedisConnecting = null;
       });
@@ -96,25 +95,7 @@ async function getTcpRedisClient(): Promise<IORedis | null> {
   return tcpRedisInstance;
 }
 
-// 2. Vercel Marketplace Upstash Redis Client (HTTP REST - Serverless Recommended)
-let upstashInstance: UpstashRedis | null = null;
-function getUpstashClient(): UpstashRedis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-
-  if (url && token) {
-    if (!upstashInstance) {
-      upstashInstance = new UpstashRedis({
-        url: url.replace(/\/$/, ""),
-        token,
-      });
-    }
-    return upstashInstance;
-  }
-  return null;
-}
-
-// In-process micro-cache for top scores (5s TTL) protecting Redis & Upstash command quotas
+// In-process micro-cache for top scores (5s TTL) protecting Redis command quotas
 interface L1LeaderboardEntry {
   timestamp: number;
   data: LeaderboardResponse;
@@ -134,7 +115,7 @@ export async function getTopScores(gameId: GameId, dateStr: string = getTodayIso
 
   const key = `lb:${gameId}:${dateStr}`;
 
-  // Strategy A: VDS / Self-Hosted Native TCP Redis (Preferred on VPS environments)
+  // Strategy A: Redis (ioredis TCP)
   const tcpRedis = await getTcpRedisClient();
   if (tcpRedis) {
     try {
@@ -170,7 +151,7 @@ export async function getTopScores(gameId: GameId, dateStr: string = getTodayIso
           date: dateStr,
           top: entries,
           totalPlayers: count || entries.length,
-          source: "vds-redis",
+          source: "redis",
         };
         l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
         return response;
@@ -180,61 +161,7 @@ export async function getTopScores(gameId: GameId, dateStr: string = getTodayIso
     }
   }
 
-  // Strategy B: Vercel Marketplace Upstash Redis (Official Vercel HTTP REST client)
-  const upstash = getUpstashClient();
-  if (upstash) {
-    try {
-      // Single HTTP pipeline request for both zrange and zcard (50% HTTP roundtrip reduction)
-      const p = upstash.pipeline();
-      p.zrange<{ member: string; score: number }[]>(key, 0, 9, {
-        rev: true,
-        withScores: true,
-      });
-      p.zcard(key);
-      const [rawResults, countResult] = await p.exec<[any[], number]>();
-
-      const totalPlayers = countResult ?? (Array.isArray(rawResults) ? rawResults.length : 0);
-      const entries: LeaderboardEntry[] = [];
-
-      if (Array.isArray(rawResults)) {
-        for (let i = 0; i < rawResults.length; i++) {
-          const item = rawResults[i];
-          const rawMember = typeof item === "object" && item !== null && "member" in item
-            ? String((item as { member: string }).member)
-            : String(item);
-          const score = typeof item === "object" && item !== null && "score" in item
-            ? Number((item as { score: number }).score)
-            : 0;
-
-          const parts = rawMember.split("::");
-          const signature = parts[0] || "anon";
-          const nick = parts.slice(1).join("::") || "Anonim Gezgin";
-
-          entries.push({
-            rank: i + 1,
-            nick,
-            score,
-            signature,
-            timestamp: Date.now(),
-          });
-        }
-      }
-
-      const response: LeaderboardResponse = {
-        gameId,
-        date: dateStr,
-        top: entries,
-        totalPlayers,
-        source: "upstash",
-      };
-      l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
-      return response;
-    } catch {
-      // Fallback to next strategy on network/Upstash error
-    }
-  }
-
-  // Strategy C: Turso Database (Serverless libSQL / Local SQLite / Historical Archive)
+  // Strategy B: Turso Database (Serverless libSQL / Local SQLite / Historical Archive)
   if (isTursoConfigured()) {
     try {
       const tursoResult = await getTursoTopScores(gameId, dateStr);
@@ -252,7 +179,7 @@ export async function getTopScores(gameId: GameId, dateStr: string = getTodayIso
     }
   }
 
-  // Strategy D: Memory fallback (Local development / Zero-config environments)
+  // Strategy C: Memory fallback (Local development / Zero-config environments)
   const memKey = getMemoryKey(gameId, dateStr);
   const gameMap = memoryStore.get(memKey) || new Map();
   const sorted = Array.from(gameMap.entries())
@@ -317,7 +244,7 @@ export async function submitScore(
     saveTursoScore(gameId, score, cleanNick, cleanSig, dateStr).catch(() => {});
   }
 
-  // Strategy A: VDS / Self-Hosted Native TCP Redis (Pipelined: 1 roundtrip for zadd GT, expire, zrevrank)
+  // Strategy A: Redis (ioredis TCP — pipelined: 1 roundtrip for zadd GT, expire, zrevrank)
   const tcpRedis = await getTcpRedisClient();
   if (tcpRedis) {
     try {
@@ -335,24 +262,7 @@ export async function submitScore(
     }
   }
 
-  // Strategy B: Vercel Marketplace Upstash Redis (Single HTTP pipeline request for zadd, expire, zrevrank)
-  const upstash = getUpstashClient();
-  if (upstash) {
-    try {
-      const p = upstash.pipeline();
-      p.zadd(key, { gt: true }, { score, member });
-      p.expire(key, 172800); // 48h TTL
-      p.zrevrank(key, member);
-      const [_, __, rank0] = await p.exec<[number, number, number | null]>();
-      const rank = typeof rank0 === "number" ? rank0 + 1 : undefined;
-
-      return { success: true, rank };
-    } catch {
-      // Fallback to next strategy on failure
-    }
-  }
-
-  // Strategy C: Turso Database (Serverless libSQL / Local SQLite)
+  // Strategy B: Turso Database (Serverless libSQL / Local SQLite)
   if (isTursoConfigured()) {
     try {
       const saved = await saveTursoScore(gameId, score, cleanNick, cleanSig, dateStr);
@@ -365,7 +275,7 @@ export async function submitScore(
     }
   }
 
-  // Strategy D: Memory fallback
+  // Strategy C: Memory fallback
   const memKey = getMemoryKey(gameId, dateStr);
   if (!memoryStore.has(memKey)) {
     memoryStore.set(memKey, new Map());

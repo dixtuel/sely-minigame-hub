@@ -35,7 +35,7 @@ export function createApp() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
 
-  // Leaderboard API (Vercel KV / Upstash Redis with In-Memory fallback & Edge caching)
+  // Leaderboard API (Redis with Turso/In-Memory fallback & Edge caching)
   const leaderboardLimiter = createRateLimiter({ max: 20, windowMs: 60_000 });
   app.get("/api/leaderboard", getLeaderboardHandler);
   app.post("/api/leaderboard", leaderboardLimiter, submitLeaderboardHandler);

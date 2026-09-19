@@ -9,7 +9,7 @@ import type { GameId, LeaderboardEntry } from "./leaderboard";
  * Capabilities:
  * - Free Tier Optimization: In-memory micro-caching (15s TTL) protecting the 500M reads/month quota.
  * - Multi-Environment:
- *    - Vercel Marketplace: TURSO_DATABASE_URL (libsql://...) + TURSO_AUTH_TOKEN
+ *    - Cloud: TURSO_DATABASE_URL (libsql://...) + TURSO_AUTH_TOKEN
  *    - VDS / Self-Hosted: TURSO_DATABASE_URL="file:./data/sely.db" (Zero servers, zero docker, native SQLite)
  *    - In-Memory: TURSO_DATABASE_URL=":memory:" (Ephemeral testing)
  * - Persistent Leaderboard Archive: Unlike Redis 48h TTL, Turso preserves daily records & all-time hall of fame.

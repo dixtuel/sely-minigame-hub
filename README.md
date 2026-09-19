@@ -237,9 +237,7 @@ Tüm ortam değişkenleri opsiyoneldir. Herhangi bir veritabanı bağlantısı s
 | `TURSO_DATABASE_URL` | Hayır | `undefined` | Turso / libSQL bağlantı dizesi (`libsql://...` veya yerel SQLite `file:./data/sely.db`). Tanımlıysa kalıcı skor arşivi ve kullanıcı deposu olarak çalışır. |
 | `TURSO_AUTH_TOKEN` | Hayır | `undefined` | Turso Cloud yetkilendirme anahtarı (yerel `file:...` modunda gerekmez). |
 | `GLOBAL_CONFIG_ID` | Hayır | `undefined` | Vercel Global Config (Edge Config) mağaza kimliği. Deploy atmadan dinamik duyuru banner'ı veya bakım modu yönetimi sağlar. |
-| `REDIS_URL` | Hayır | `undefined` | VDS / Docker TCP Redis bağlantı dizesi (`redis://127.0.0.1:6379` vb.). Tanımsızsa memory fallback devrededir. |
-| `UPSTASH_REDIS_REST_URL` | Hayır | `undefined` | Vercel Marketplace Upstash Redis REST URL adresi (Serverless liderlik tablosu). |
-| `UPSTASH_REDIS_REST_TOKEN` | Hayır | `undefined` | Vercel Marketplace Upstash Redis REST yetkilendirme token'ı. |
+| `REDIS_URL` | Hayır | `undefined` | Redis bağlantı dizesi — VDS/Docker TCP Redis veya yönetilen bir Redis (örn. Redis Cloud) (`redis://...`). Tanımsızsa Turso'ya, o da yoksa memory fallback'e düşer. |
 | `PRIMARY_DOMAIN` | Hayır | `sely.tr` | Kanonik alan adı — SEO etiketleri ve sitemap için kullanılır. |
 | `GOOGLE_SITE_VERIFICATION`| Hayır | `undefined` | Google Search Console doğrulama kodu. |
 | `BING_SITE_VERIFICATION`  | Hayır | `undefined` | Bing Webmaster Tools doğrulama kodu. |

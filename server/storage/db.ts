@@ -109,7 +109,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     throw new Error("User openId is required for upsert");
   }
 
-  // Strategy A: PostgreSQL / Neon (Vercel Marketplace / Neon Serverless / Local Postgres 16)
+  // Strategy A: PostgreSQL / Neon (Serverless or Local Postgres 16)
   const pgPool = getPgPool();
   if (pgPool) {
     try {
