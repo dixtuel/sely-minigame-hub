@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /en
-Disallow: /en/play/
-
-Sitemap: https://sely.tr/sitemap.xml
