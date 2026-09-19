@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { localeFromLanguages, localePath } from "./i18n";
 
 describe("locale selection", () => {
-  it("keeps Turkish and Azerbaijani browser languages on the Turkish route", () => {
+  it("resolves browser locale and isolates /en localized paths", () => {
+    // Turkish & Azerbaijani fallback
     expect(localeFromLanguages(["tr-TR"])).toBe("tr");
     expect(localeFromLanguages(["az-Latn-AZ", "en-US"])).toBe("tr");
-  });
 
-  it("routes other browser-language lists to English and keeps `/en` paths isolated", () => {
+    // English & other language routing
     expect(localeFromLanguages(["en-US", "de-DE"])).toBe("en");
     expect(localePath("en")).toBe("/en");
     expect(localePath("en", "/accessibility")).toBe("/en/accessibility");

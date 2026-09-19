@@ -2,70 +2,45 @@ import { describe, expect, it } from "vitest";
 import { dailyCleanupHandler, dailyContentHandler } from "./dailyContent";
 
 describe("daily content schedule endpoint", () => {
-  it("accepts the configured daily-job token and generates the compact manifest", async () => {
-    const token = process.env.DAILY_JOB_TOKEN || "test-cron-token";
+  it("authenticates cron requests via header or bearer token and enforces 403 on invalid credentials", async () => {
+    const token = "test-cron-token";
     process.env.DAILY_JOB_TOKEN = token;
-    const response: { statusCode: number; body?: unknown } = { statusCode: 200 };
-    const req = {
-      header: (name: string) => name === "x-sely-cron-token" ? token : undefined,
-      headers: {},
-    } as any;
-    const res = {
-      status: (code: number) => { response.statusCode = code; return res; },
-      json: (body: unknown) => { response.body = body; return res; },
-    } as any;
-
-    await dailyContentHandler(req, res);
-
-    expect(token).toBeTruthy();
-    expect(response.statusCode).toBe(200);
-    expect(response.body).toMatchObject({ ok: true, generated: 7 });
-  });
-
-  it("accepts the configured daily-job token for the bounded monthly cleanup", async () => {
-    const token = process.env.DAILY_JOB_TOKEN || "test-cron-token";
-    process.env.DAILY_JOB_TOKEN = token;
-    const response: { statusCode: number; body?: unknown } = { statusCode: 200 };
-    const req = { header: (name: string) => name === "x-sely-cron-token" ? token : undefined, headers: {} } as any;
-    const res = { status: (code: number) => { response.statusCode = code; return res; }, json: (body: unknown) => { response.body = body; return res; } } as any;
-
-    await dailyCleanupHandler(req, res);
-
-    expect(response.statusCode).toBe(200);
-    expect(response.body).toMatchObject({ ok: true, retentionDays: 90 });
-  });
-
-  it("accepts Vercel Cron Authorization Bearer header", async () => {
     const secret = "test-vercel-cron-secret";
     process.env.CRON_SECRET = secret;
-    const response: { statusCode: number; body?: unknown } = { statusCode: 200 };
-    const req = {
-      header: (name: string) => name === "authorization" ? `Bearer ${secret}` : undefined,
-      headers: {},
-    } as any;
-    const res = {
-      status: (code: number) => { response.statusCode = code; return res; },
-      json: (body: unknown) => { response.body = body; return res; },
-    } as any;
 
-    await dailyContentHandler(req, res);
-    expect(response.statusCode).toBe(200);
-    expect(response.body).toMatchObject({ ok: true, generated: 7 });
-  });
+    // Helper for mock req/res
+    const mockHttp = (headerFn: (name: string) => string | undefined) => {
+      const resData = { statusCode: 200, body: null as any };
+      const req = { header: headerFn, headers: {} } as any;
+      const res = {
+        status: (code: number) => { resData.statusCode = code; return res; },
+        json: (body: unknown) => { resData.body = body; return res; },
+      } as any;
+      return { req, res, resData };
+    };
 
-  it("rejects unauthorized cron requests with 403", async () => {
-    const response: { statusCode: number; body?: unknown } = { statusCode: 200 };
-    const req = {
-      header: () => undefined,
-      headers: {},
-    } as any;
-    const res = {
-      status: (code: number) => { response.statusCode = code; return res; },
-      json: (body: unknown) => { response.body = body; return res; },
-    } as any;
+    // 1. VDS cron token authorized
+    const { req: req1, res: res1, resData: resData1 } = mockHttp(h => h === "x-sely-cron-token" ? token : undefined);
+    await dailyContentHandler(req1, res1);
+    expect(resData1.statusCode).toBe(200);
+    expect(resData1.body).toMatchObject({ ok: true, generated: 7 });
 
-    await dailyContentHandler(req, res);
-    expect(response.statusCode).toBe(403);
-    expect(response.body).toMatchObject({ error: "cron-only" });
+    // 2. Vercel Bearer token authorized
+    const { req: req2, res: res2, resData: resData2 } = mockHttp(h => h === "authorization" ? `Bearer ${secret}` : undefined);
+    await dailyContentHandler(req2, res2);
+    expect(resData2.statusCode).toBe(200);
+    expect(resData2.body).toMatchObject({ ok: true, generated: 7 });
+
+    // 3. Cleanup handler authorized
+    const { req: req3, res: res3, resData: resData3 } = mockHttp(h => h === "x-sely-cron-token" ? token : undefined);
+    await dailyCleanupHandler(req3, res3);
+    expect(resData3.statusCode).toBe(200);
+    expect(resData3.body).toMatchObject({ ok: true, retentionDays: 90 });
+
+    // 4. Unauthorized request rejected with 403
+    const { req: req4, res: res4, resData: resData4 } = mockHttp(() => undefined);
+    await dailyContentHandler(req4, res4);
+    expect(resData4.statusCode).toBe(403);
+    expect(resData4.body).toEqual({ error: "cron-only" });
   });
 });

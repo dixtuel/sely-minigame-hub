@@ -87,26 +87,41 @@ export type LlmModelSpec = {
 
 // Rollerden bağımsız, gecikmeye duyarlı sıralı model havuzu (hızlıdan yavaşa)
 export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
-  // 1. Kademe: Ultra Hızlı Modeller (~300ms - ~500ms)
+  // 1. Kademe: Ultra Hızlı Modeller (~150ms - ~500ms)
   {
     provider: "groq",
-    model: "qwen-2.5-32b",
-    temperature: 0.7,
-    maxTokens: 512,
+    model: "qwen/qwen3.8-27b",
+    temperature: 0.6,
+    maxTokens: 2048,
+    timeoutMs: 4500,
+    extraParams: {
+      top_p: 0.95,
+      reasoning_effort: "none",
+    },
+  },
+  {
+    provider: "groq",
+    model: "openai/gpt-oss-120b",
+    temperature: 1.0,
+    maxTokens: 2048,
     timeoutMs: 5000,
+    extraParams: {
+      top_p: 1.0,
+      reasoning_effort: "low",
+    },
   },
   {
     provider: "groq",
     model: "llama-3.3-70b-versatile",
     temperature: 0.7,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 5000,
   },
   {
     provider: "nvidia",
     model: "nvidia/nemotron-3.5-lightning-30b-a3b",
     temperature: 0.6,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 5000,
     extraParams: {
       reasoning_budget: 0,
@@ -116,7 +131,7 @@ export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
     provider: "mistral",
     model: "mistral-small-latest",
     temperature: 0.65,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 5000,
     extraParams: {
       reasoning_effort: "none",
@@ -127,7 +142,7 @@ export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
     provider: "nvidia",
     model: "google/gemma-4-31b-it",
     temperature: 0.6,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 6000,
     extraParams: {
       chat_template_kwargs: { enable_thinking: false },
@@ -137,7 +152,7 @@ export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
     provider: "nvidia",
     model: "deepseek-ai/deepseek-v4-flash",
     temperature: 0.6,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 6000,
     extraParams: {
       reasoning_effort: "none",
@@ -147,7 +162,7 @@ export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
     provider: "nvidia",
     model: "openai/gpt-oss-20b",
     temperature: 0.7,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 6000,
     extraParams: {
       reasoning_effort: "none",
@@ -155,9 +170,9 @@ export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
   },
   {
     provider: "mistral",
-    model: "ministral-3-8b-25-12",
+    model: "ministral-8b-latest",
     temperature: 0.6,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 6000,
   },
   // 3. Kademe: Ağır / Yedek Modeller (~1.5s - ~4s)
@@ -165,7 +180,7 @@ export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
     provider: "nvidia",
     model: "openai/gpt-oss-120b",
     temperature: 0.7,
-    maxTokens: 512,
+    maxTokens: 2048,
     timeoutMs: 7000,
     extraParams: {
       reasoning_effort: "none",
@@ -175,7 +190,7 @@ export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
     provider: "nvidia",
     model: "z-ai/glm-5-3-flash",
     temperature: 0.6,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 7000,
     extraParams: {
       reasoning_effort: "none",
@@ -183,13 +198,10 @@ export const VAKA_MODEL_CANDIDATES: LlmModelSpec[] = [
   },
   {
     provider: "mistral",
-    model: "mistral-medium-latest",
+    model: "mistral-large-latest",
     temperature: 0.7,
-    maxTokens: 512,
+    maxTokens: 1024,
     timeoutMs: 7000,
-    extraParams: {
-      reasoning_effort: "none",
-    },
   },
 ];
 
@@ -215,6 +227,7 @@ async function callProviderApi(
     messages,
     temperature: spec.temperature,
     max_tokens: spec.maxTokens,
+    ...(spec.provider === "groq" ? { max_completion_tokens: spec.maxTokens } : {}),
     ...(spec.extraParams || {}),
   };
 

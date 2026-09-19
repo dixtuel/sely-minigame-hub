@@ -7,14 +7,14 @@
 [![Canlı Demo](https://img.shields.io/badge/canlı_demo-sely.tr-F38020?style=flat-square&logo=vercel&logoColor=white)](https://sely.tr)
 [![Lisans: AGPL v3](https://img.shields.io/badge/lisans-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Çalışma Ortamı](https://img.shields.io/badge/runtime-Vercel%20Edge%20%7C%20Docker%20%7C%20Node.js-black?style=flat-square)](https://sely.tr)
-[![Testler](https://img.shields.io/badge/testler-107%20geçti%20(14.3k%20assert)-brightgreen?style=flat-square&logo=vitest)](https://vitest.dev/)
+[![Testler](https://img.shields.io/badge/testler-29%20geçti%20(9.7k%20assert)-brightgreen?style=flat-square&logo=vitest)](https://vitest.dev/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.9%20strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
 <br/>
 
 Her sabah saat 00:00'da tüm dünya için tek bir günlük tohumdan (seed) deterministik olarak yeni bir "günün seti" üretilir. Oyuncunun ustalık seviyesi (1–4) arttıkça turlar karmaşıklaşır; ancak üretilen her labirent, akış rotası, çokgen kesimi ve dedektiflik delil grafı üretim anında **matematiksel çözücüler (BFS, Dijkstra, Spanning Tree, Evidence Graph Solvers)** tarafından taranarak **kesinlikle çözülebilir** olduğu doğrulanır.
 
-[Canlı Oyna](https://sely.tr) • [Oyunlar](#oyun-kataloğu-ve-motor-mimarisi) • [Kurulum & Self-Host](#kurulum-ve-self-hosting)
+[Oyunlar](#oyun-kataloğu-ve-motor-mimarisi) • [Kurulum & Self-Host](#kurulum-ve-self-hosting)
 
 </div>
 
@@ -175,7 +175,7 @@ graph TD
 | **İstemci Yönlendirme** | Wouter | `^3.5.0` | Minimalist (~1.5KB), bağımsızlıksız hashless router |
 | **Uçtan Uca RPC** | tRPC | `^11.6.0` | İstemci ile sunucu arasında tam tip-güvenli RPC iletişimi |
 | **Veritabanı Deposu** | PostgreSQL / libSQL | `pg / @libsql/client` | PostgreSQL (Neon/yerel) ve Turso / yerel SQLite (`sely.db`) çoklu depo |
-| **Birim & Çözücü Testi** | Vitest | `^3.0.5` | 19 test dosyasında 107 test ve 14.300'den fazla doğrulama |
+| **Birim & Çözücü Testi** | Vitest | `^3.0.5` | 19 test dosyasında 29 kapsamlı test ve 9.700'den fazla doğrulama |
 | **Paketleyici & HMR** | Vite & esbuild | `^6.1.0` | Hızlı HMR, istemci optimizasyonu ve serverless derleme |
 | **Çalışma Ortamı** | Node.js / Bun | `Node 22 LTS / Bun 1.x` | Canlıda Node.js 22 LTS; yerel geliştirmede ultra hızlı Bun |
 
@@ -206,7 +206,7 @@ pnpm dev
 # TypeScript katı tip denetimi
 pnpm check
 
-# Çözücü ve birim test paketi (19 dosya, 107 test, 14.3k+ assertion)
+# Çözücü ve birim test paketi (19 dosya, 29 test, 9.7k+ assertion)
 pnpm test
 
 # Kamuya açık dağıtım sızıntı denetimi

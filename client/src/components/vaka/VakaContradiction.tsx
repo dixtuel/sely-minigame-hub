@@ -137,7 +137,21 @@ export default function VakaContradiction({
               >
                 <div className="vaka-clue-label">
                   <b>{locale === "en" ? clue.labelEn : clue.label}</b>
-                  <span className="vaka-clue-tag">{clue.type.toUpperCase()}</span>
+                  <span className="vaka-clue-tag">
+                    {clue.type === "alibi"
+                      ? (locale === "en" ? "EVIDENCE" : "KANIT")
+                      : clue.type === "object"
+                      ? (locale === "en" ? "OBJECT" : "FİZİKSEL DELİL")
+                      : clue.type === "forensic"
+                      ? (locale === "en" ? "FORENSIC" : "ADLİ TIP")
+                      : clue.type === "digital"
+                      ? (locale === "en" ? "DIGITAL" : "DİJİTAL / LOG")
+                      : clue.type === "spatial"
+                      ? (locale === "en" ? "SPATIAL" : "MEKÂNSAL")
+                      : clue.type === "numerical"
+                      ? (locale === "en" ? "TIMELINE" : "ZAMAN / VERİ")
+                      : (locale === "en" ? "BEHAVIORAL" : "DAVRANIŞSAL")}
+                  </span>
                 </div>
                 <p className="vaka-clue-detail">{locale === "en" ? clue.detailEn : clue.detail}</p>
               </button>
@@ -172,7 +186,7 @@ export default function VakaContradiction({
       {solved && onOpenVerdict && (
         <div className="vaka-confession-footer-bar">
           <div className="vaka-confession-footer-info">
-            <span>✨ {locale === "en" ? "Contradiction shattered the alibi!" : "Çelişki şüphelinin alibisini çökertti!"}</span>
+            <span>✨ {locale === "en" ? "Contradiction shattered the false defense!" : "Çelişki şüphelinin yalan savunmasını çökertti!"}</span>
             <p>
               {locale === "en"
                 ? "Now present the formal court indictment to deliver justice."

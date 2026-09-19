@@ -819,6 +819,28 @@
   gap: 8px;
 }
 
+.vaka-ai-gated-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--vaka-card-elevated);
+  border: 1.5px dashed var(--vaka-border);
+  border-radius: var(--vaka-radius);
+  font: 12px var(--font-mono);
+  color: var(--vaka-muted);
+  line-height: 1.5;
+}
+
+.vaka-ai-gated-banner span {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.vaka-ai-gated-banner p {
+  margin: 0;
+}
+
 .vaka-text-input {
   flex: 1;
   border: 1.5px solid var(--vaka-border);

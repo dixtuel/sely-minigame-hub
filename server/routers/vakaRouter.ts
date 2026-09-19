@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
+import { logger } from "../_core/logger";
 import { VAKA_SAMPLE_CASES } from "../../shared/vakaCases";
 import type { VakaConfig, VakaGameMode, VakaDetailedCase } from "../../shared/vakaTypes";
 import { executeVakaLlmChain, hasLlmApiKey, buildVakaInterrogationPrompt, type LlmMessage } from "../services/vakaLlmService";
@@ -155,6 +156,7 @@ export const vakaRouter = router({
           crossSuspectId: input.crossSuspectId,
           crossQuote: input.crossQuote,
           bluffClaim: input.bluffClaim,
+          history: input.history,
         },
         input.currentStress,
         input.locale
@@ -208,8 +210,8 @@ export const vakaRouter = router({
             llmProviderUsed = llmResult.provider;
             llmModelUsed = llmResult.model;
           }
-        } catch {
-          // LLM başarısız olursa deterministik motor yanıtı korunur
+        } catch (err) {
+          logger.warn("vaka", "Vaka LLM fallback triggered", { err: err instanceof Error ? err.message : String(err) });
         }
       }
 

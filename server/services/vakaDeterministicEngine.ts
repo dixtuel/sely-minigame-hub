@@ -28,6 +28,7 @@ export function processDeterministicInterrogation(
     crossQuote?: string;
     bluffClaim?: string;
     sentenceId?: string;
+    history?: Array<{ role: "user" | "assistant"; content: string }>;
   },
   currentStress = 10,
   locale: "tr" | "en" = "tr"
@@ -54,6 +55,8 @@ export function processDeterministicInterrogation(
     return isEn ? suspect.behavioralCues.calm.en : suspect.behavioralCues.calm.tr;
   };
 
+  const history = payload.history || [];
+
   // 1. EYLEM: DELİL YÜZLEŞTİRME (Present Evidence) - Asıl Kırılma Yolu
   if (actionType === "present_evidence" && payload.presentedClueId) {
     const clue = caseData.clues.find((c: VakaClue) => c.id === payload.presentedClueId);
@@ -69,11 +72,9 @@ export function processDeterministicInterrogation(
 
     // Doğrudan bu şüpheliyi çürüten kritik delil
     if (clue.contradictsSuspectId === suspect.id) {
-      // Düşük stresteyken (+18), yüksek stresteyken (+24) stres artışı
       const gain = stress < 45 ? 18 : 24;
       stress = Math.min(100, stress + gain);
 
-      // SADECE ve SADECE: Stres kırılma eşiğini aştıysa VE şüpheli gerçekten suçluysa itiraf gerçekleşir
       if (stress >= suspect.breakThreshold && suspect.isCulprit) {
         return {
           text: isEn ? suspect.confessionEn : suspect.confession,
@@ -85,7 +86,6 @@ export function processDeterministicInterrogation(
         };
       }
 
-      // Henüz kırılmadıysa panikle bir savunma veya 2. kademe yalan sunar
       const reply =
         isEn
           ? `(Voice shaking) Where... where did you get that ${clue.labelEn.toLowerCase()}?! I told you that wasn't me!`
@@ -134,16 +134,35 @@ export function processDeterministicInterrogation(
     };
   }
 
-  // 2. EYLEM: BLÖF YAPMA (Bluff) - Akıllı İki Yönlü Risk/Ödül Mekaniği
+  // 2. EYLEM: BLÖF YAPMA (Bluff) - Spam Korumalı & Ters Tepme (Backfire) Mekaniği
   if (actionType === "bluff") {
+    const priorBluffs = history.filter(
+      (m) => m.role === "user" && (m.content.includes("BLÖF") || m.content.includes("BLUFF"))
+    ).length;
+
+    // SPAM ENGELİ: 2. veya daha fazla blöfte şüpheli dedektifin elinde bir şey olmadığını anlar ve ÖZGÜVEN KAZANIR
+    if (priorBluffs >= 1) {
+      stress = Math.max(5, stress - 14);
+      const spamReply = isEn
+        ? "(Laughs dismissively) The exact same bluff again? Detective, if you actually had conclusive proof, you would have charged me already. Your empty threats are pathetic."
+        : "(Alaycı bir tebessümle başını sallıyor) Yine mi aynı temelsiz blöf dedektif? Elinizde gerçekten bir kayıt ya da somut delil olsaydı şimdiye kadar masaya koymuştunuz. Bu boş tehditleriniz sadece çaresizliğinizi gösteriyor!";
+
+      return {
+        text: spamReply,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false,
+      };
+    }
+
+    // İlk blöf: Risk & Ödül
     if (suspect.isCulprit) {
-      // Suçlu düşük stresteyken blöfü görür ve dedektifin elinin boş olduğunu anlar
       if (startStress < 45) {
         stress = Math.max(5, stress - 12);
-        const reply =
-          isEn
-            ? `(Smiles coldly) You're trying to bluff me, detective. You don't have a shred of surveillance footage or testimony, or you would have handcuffed me already.`
-            : `(Soğukça gülümsüyor) Bana blöf yapmaya çalışıyorsunuz dedektif. Elinizde ne kamera kaydı ne de görgü tanığı var; olsaydı çoktan kelepçeyi takmıştınız.`;
+        const reply = isEn
+          ? "(Smiles coldly) You're trying to bluff me, detective. You don't have a shred of surveillance footage or testimony, or you would have handcuffed me already."
+          : "(Soğukça gülümsüyor) Bana blöf yapmaya çalışıyorsunuz dedektif. Elinizde ne kamera kaydı ne de görgü tanığı var; olsaydı çoktan kelepçeyi takmıştınız.";
 
         return {
           text: reply,
@@ -154,12 +173,10 @@ export function processDeterministicInterrogation(
         };
       }
 
-      // Suçlu zaten stresliyken blöf yapılırsa paniğe kapılır
       stress = Math.min(100, stress + 16);
-      const reply =
-        isEn
-          ? `(Blinks rapidly, sweating) What... you pulled that record?! No, you can't have! The blind spot... I mean, you're bluffing! You have nothing!`
-          : `(Hızla gözlerini kırpıştırıyor, terliyor) Ne... o kaydı mı buldunuz?! Hayır, bulmuş olamazsınız! O saatteki kör noktayı... Yani, blöf yapıyorsunuz!`;
+      const reply = isEn
+        ? "(Blinks rapidly, sweating) What... you pulled that record?! No, you can't have! The blind spot... I mean, you're bluffing! You have nothing!"
+        : "(Hızla gözlerini kırpıştırıyor, terliyor) Ne... o kaydı mı buldunuz?! Hayır, bulmuş olamazsınız! O saatteki kör noktayı... Yani, blöf yapıyorsunuz!";
 
       return {
         text: reply,
@@ -169,12 +186,10 @@ export function processDeterministicInterrogation(
         confessed: false,
       };
     } else {
-      // Masum şüpheli blöf karşısında haksızlığa uğradığını hissedip sertleşir
       stress = Math.max(0, stress - 12);
-      const reply =
-        isEn
-          ? "Nice try detective, but that's an obvious bluff. I know my rights and I won't let you intimidate me."
-          : "Güzel deneme dedektif, ama bariz bir blöf yapıyorsunuz. Haklarımı biliyorum ve asılsız iddialarla beni yıldıramazsınız.";
+      const reply = isEn
+        ? "Nice try detective, but that's an obvious bluff. I know my rights and I won't let you intimidate me."
+        : "Güzel deneme dedektif, ama bariz bir blöf yapıyorsunuz. Haklarımı biliyorum ve asılsız iddialarla beni yıldıramazsınız.";
 
       return {
         text: reply,
@@ -186,7 +201,7 @@ export function processDeterministicInterrogation(
     }
   }
 
-  // 3. EYLEM: ÇAPRAZ SORGU (Cross-Examine / Quote other suspect)
+  // 3. EYLEM: ÇAPRAZ SORGU (Cross-Examine)
   if (actionType === "cross_examine" && payload.crossSuspectId) {
     const other = caseData.suspects.find((s) => s.id === payload.crossSuspectId);
     const otherName = other ? other.name : (isEn ? "the other witness" : "diğer tanık");
@@ -194,17 +209,15 @@ export function processDeterministicInterrogation(
     const gossipObj = suspect.gossip[payload.crossSuspectId];
     const gossipText = gossipObj ? (isEn ? gossipObj.en : gossipObj.tr) : "";
 
-    // Çapraz sorgu stresi artırır (soft-cap 75)
     if (stress < 75) {
       stress = Math.min(75, stress + 16);
     } else {
       stress = Math.min(80, stress + 4);
     }
 
-    const intro =
-      isEn
-        ? `${otherName} said that about me?! That liar is just trying to save their own neck!`
-        : `${otherName} benim hakkımda bunu mu söyledi?! O yalancı sırf kendi paçasını kurtarmak için iftira atıyor!`;
+    const intro = isEn
+      ? `${otherName} said that about me?! That liar is just trying to save their own neck!`
+      : `${otherName} benim hakkımda bunu mu söyledi?! O yalancı sırf kendi paçasını kurtarmak için iftira atıyor!`;
 
     const fullReply = gossipText ? `${intro} ${gossipText}` : intro;
 
@@ -217,9 +230,45 @@ export function processDeterministicInterrogation(
     };
   }
 
-  // 4. EYLEM: SESSİZ KALIP BEKLEME (Stay Silent)
+  // 4. EYLEM: SESSİZ KALIP BEKLEME (Stay Silent) - Spam Korumalı & Geri Tepme
   if (actionType === "stay_silent") {
-    // Sessizlik psikolojik baskı kurar ancak tek başına 55'i geçemez (soft-cap)
+    const priorSilences = history.filter(
+      (m) => m.role === "user" && (m.content.includes("SESSİZLİK") || m.content.includes("SILENCE"))
+    ).length;
+
+    // SPAM ENGELİ: 2'den fazla sessizlikte şüpheli dedektifin tıkandığını anlar, rahatlar ve stres düşer
+    if (priorSilences >= 2) {
+      stress = Math.max(10, stress - 8);
+      const spamReply = isEn
+        ? "(Crosses arms and checks wristwatch) Staring at me in silence is getting ridiculous, detective. It's clear you've run out of questions and have no case. Call my attorney or let me go."
+        : "(Kollarını kavuşturup saatine bakıyor) Dakikalardır boş boş susup bakmanız artık gülünç olmaya başladı dedektif. Soracak sorunuz ve elinizde tek bir delil dahi olmadığı aşikâr. Ya avukatımı çağırın ya da beni serbest bırakın!";
+
+      return {
+        text: spamReply,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false,
+      };
+    }
+
+    if (priorSilences === 1) {
+      // 2. Sessizlik: Şüpheli temkinli
+      if (stress < 55) stress = Math.min(55, stress + 3);
+      const reply = isEn
+        ? "(Shifts slightly) Prolonged silence won't fabricate evidence out of thin air, detective. Ask what you want to ask."
+        : "(Hafifçe kıpırdanıyor) Susarak havadan delil yaratamazsınız dedektif. Ne sormak istiyorsanız sorun artık.";
+
+      return {
+        text: reply,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false,
+      };
+    }
+
+    // İlk Sessizlik: Psikolojik baskı etkili (+10 stres, max 55)
     if (stress < 55) {
       stress = Math.min(55, stress + 10);
     }
@@ -227,21 +276,18 @@ export function processDeterministicInterrogation(
     let reply = "";
     if (suspect.isCulprit) {
       if (stress >= 50) {
-        reply =
-          isEn
-            ? "(Fidgets uncomfortably) Why are you staring at me like that?! Ask your questions or let me walk out of here!"
-            : "(Huzursuzca kıpırdanıyor) Neden bana öyle dik dik bakıyorsunuz?! Sorunuz varsa sorun, yoksa beni buradan bırakın!";
+        reply = isEn
+          ? "(Fidgets uncomfortably) Why are you staring at me like that?! Ask your questions or let me walk out of here!"
+          : "(Huzursuzca kıpırdanıyor) Neden bana öyle dik dik bakıyorsunuz?! Sorunuz varsa sorun, yoksa beni buradan bırakın!";
       } else {
-        reply =
-          isEn
-            ? "(Clears throat nervously) The silence won't fabricate an alibi for you, detective."
-            : "(Boğazını gergince temizliyor) Sessiz kalmanız gerçeği değiştirmez dedektif. Ne bilmek istiyorsunuz?";
+        reply = isEn
+          ? "(Clears throat nervously) Your silence won't change the facts, detective. What do you want to know?"
+          : "(Boğazını gergince temizliyor) Sessiz kalmanız gerçeği değiştirmez dedektif. Ne bilmek istiyorsunuz?";
       }
     } else {
-      reply =
-        isEn
-          ? "Staring at me in silence won't make me guilty. Call my lawyer if you're not going to speak."
-          : "Bana sessizce bakmanız beni suçlu yapmaz. Konuşmayacaksanız avukatımı arayacağım.";
+      reply = isEn
+        ? "Staring at me in silence won't make me guilty. Call my lawyer if you're not going to speak."
+        : "Bana sessizce bakmanız beni suçlu yapmaz. Konuşmayacaksanız avukatımı arayacağım.";
     }
 
     return {
@@ -253,29 +299,68 @@ export function processDeterministicInterrogation(
     };
   }
 
-  // 5. EYLEM: SERBEST SORU VE ANAHTAR KELİME ANALİZİ (Question)
-  // KURAL: Düz soru sormak ASLA suç itirafına yol açamaz!
-  // Soru sormak stresi sadece psikolojik tavan olan 55'e kadar yükseltebilir.
-  const qLower = (payload.question || "").toLowerCase().trim();
-  const triggerWords = [
-    "neredeydin", "saat", "alibi", "cinayet", "zehir", "kasa", "fırtına", "kamera", "neden", "yalan",
-    "para", "borç", "kurban", "ilişki", "sır", "bıçak", "anahtar", "nerede", "itiraf", "kim",
-    "where", "time", "murder", "poison", "vault", "storm", "camera", "why", "lie", "money", "debt", "victim", "secret", "weapon", "confess", "who",
+  // 5. EYLEM: SERBEST SORU VE BAĞLAMSAL ANALİZ (Question)
+  const qText = payload.question || "";
+  const qLower = qText.toLowerCase().trim();
+
+  // Şüphelinin sırrına, kurbana veya cinayet motifine temas eden soruları tespit et
+  const motiveWords = [
+    ...(suspect.motive || "").toLowerCase().split(/\s+/),
+    ...(suspect.minorSecret || "").toLowerCase().split(/\s+/),
+    (caseData.victim.name || "").toLowerCase(),
+    "kurban", "victim", "para", "money", "borç", "debt", "miras", "inheritance", "kavga", "fight", "sır", "secret", "cinayet", "murder", "öldür", "kill"
+  ].filter((w) => w.length > 3);
+
+  const alibiWords = [
+    "saat", "time", "neredeydin", "where", "kamera", "camera", "görgü", "witness", "fırtına", "storm", "oda", "room", "otel", "hotel"
   ];
 
-  const matched = triggerWords.some((w) => qLower.includes(w));
-  const gain = matched ? 6 : 3;
+  const touchesSecret = motiveWords.some((w) => qLower.includes(w));
+  const touchesAlibi = alibiWords.some((w) => qLower.includes(w));
 
-  if (stress < 55) {
-    stress = Math.min(55, stress + gain);
-  } else if (stress < 60) {
-    stress = Math.min(60, stress + 1);
+  // Son dedektif sorusunun aynısı mı (spam soru)?
+  const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
+  const isDuplicateQuestion = lastUserMsg && lastUserMsg.content.toLowerCase().trim() === qLower && qLower.length > 5;
+
+  if (isDuplicateQuestion) {
+    stress = Math.max(5, stress - 5);
+    const repReply = isEn
+      ? "You just asked me that exact same thing. Repeating questions won't change my answer, detective."
+      : "Bana az önce sorduğunuz sorunun tıpatıp aynısını soruyorsunuz. Tekrarlamanız cevabımı değiştirmeyecek dedektif.";
+
+    return {
+      text: repReply,
+      behavioralCue: getCue(stress),
+      newStress: stress,
+      stressDelta: stress - startStress,
+      confessed: false,
+    };
   }
-  // 60 ve üzerinde düz sorular ek stres üretmez; dedektif delil veya çelişki sunmalıdır.
 
-  // Kademeli yalanlar (Stres seviyesine göre hikayenin çatlaması)
+  let gain = 3;
+  if (touchesSecret) {
+    // Sırra veya kurbanla olan çatışmaya dokunursa yüksek stres
+    gain = stress < 60 ? 14 : 6;
+  } else if (touchesAlibi) {
+    // Savunma ve zaman çelişkisine dokunursa orta stres
+    gain = stress < 60 ? 8 : 4;
+  }
+
+  if (stress < 70) {
+    stress = Math.min(70, stress + gain);
+  }
+
+  // Kademeli ve bağlamsal yalanlar
   let replyText = "";
-  if (stress >= 65) {
+  if (touchesSecret) {
+    replyText = isEn
+      ? `(Eyes shifting nervously) That matter with ${caseData.victim.name} was strictly personal! ${stress >= 50 ? suspect.lies.level3 : suspect.lies.level2}`
+      : `(Gözleri gergince kaçıyor) ${caseData.victim.name} ile aramızdaki o mesele tamamen kişiseldi! ${stress >= 50 ? suspect.lies.level3 : suspect.lies.level2}`;
+  } else if (touchesAlibi) {
+    replyText = isEn
+      ? `I already gave my timeline to the precinct: ${stress >= 45 ? suspect.lies.level2 : suspect.lies.level1}`
+      : `İfade tutanağımda o saatte nerede olduğumu açıkça belirttim: ${stress >= 45 ? suspect.lies.level2 : suspect.lies.level1}`;
+  } else if (stress >= 65) {
     replyText = isEn ? suspect.lies.level3 : suspect.lies.level3;
   } else if (stress >= 35) {
     replyText = isEn ? suspect.lies.level2 : suspect.lies.level2;
@@ -288,6 +373,6 @@ export function processDeterministicInterrogation(
     behavioralCue: getCue(stress),
     newStress: stress,
     stressDelta: stress - startStress,
-    confessed: false, // Düz sorularla ASLA itiraf gerçekleşmez!
+    confessed: false,
   };
 }

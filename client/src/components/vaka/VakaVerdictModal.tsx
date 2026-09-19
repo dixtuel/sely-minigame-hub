@@ -153,7 +153,21 @@ export default function VakaVerdictModal({
                     onClick={() => setSelectedClueId(c.id)}
                   >
                     <b>{isEn ? c.labelEn : c.label}</b>
-                    <span className="vaka-clue-tag">{c.type.toUpperCase()}</span>
+                    <span className="vaka-clue-tag">
+                      {c.type === "alibi"
+                        ? (isEn ? "EVIDENCE" : "KANIT")
+                        : c.type === "object"
+                        ? (isEn ? "OBJECT" : "FİZİKSEL DELİL")
+                        : c.type === "forensic"
+                        ? (isEn ? "FORENSIC" : "ADLİ TIP")
+                        : c.type === "digital"
+                        ? (isEn ? "DIGITAL" : "DİJİTAL / LOG")
+                        : c.type === "spatial"
+                        ? (isEn ? "SPATIAL" : "MEKÂNSAL")
+                        : c.type === "numerical"
+                        ? (isEn ? "TIMELINE" : "ZAMAN / VERİ")
+                        : (isEn ? "BEHAVIORAL" : "DAVRANIŞSAL")}
+                    </span>
                   </button>
                 ))}
               </div>

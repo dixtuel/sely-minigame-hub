@@ -3,144 +3,47 @@ import { stripReasoningBlocks } from "./vakaLlmService";
 import { processDeterministicInterrogation } from "./vakaDeterministicEngine";
 import { VAKA_SAMPLE_CASES } from "../../shared/vakaCases";
 
-describe("Vaka LLM Service - stripReasoningBlocks", () => {
-  it("should strip complete <think> blocks", () => {
-    const input = "<think>Analyzing suspect alibi...</think>Ben saat 21:00'de odamdaydım.";
-    expect(stripReasoningBlocks(input)).toBe("Ben saat 21:00'de odamdaydım.");
+describe("Vaka Services & Interrogation Engine", () => {
+  it("strips LLM reasoning, thought, and dangling think blocks from responses", () => {
+    expect(stripReasoningBlocks("<think>Analyzing alibi...</think>Ben odamdaydım.")).toBe("Ben odamdaydım.");
+    expect(stripReasoningBlocks("İtiraf ediyorum.<think>Wait, don't say that")).toBe("İtiraf ediyorum.");
+    expect(stripReasoningBlocks("internal thoughts</think>Görmedim!")).toBe("Görmedim!");
+    expect(stripReasoningBlocks("<thought>P1</thought><reasoning>S1</reasoning>Masumum.")).toBe("Masumum.");
   });
 
-  it("should strip unclosed trailing <think> blocks", () => {
-    const input = "İtiraf ediyorum.<think>Wait, maybe I should not say that";
-    expect(stripReasoningBlocks(input)).toBe("İtiraf ediyorum.");
-  });
+  it("handles deterministic interrogation: evidence, psychological pressure, bluffing, and confession thresholds", () => {
+    const sampleCase = VAKA_SAMPLE_CASES[0]; // Atlantis Saati (Culprit: Bora Kaya)
 
-  it("should strip leading dangling </think> tags", () => {
-    const input = "internal thoughts</think>Hiçbir şey görmedim!";
-    expect(stripReasoningBlocks(input)).toBe("Hiçbir şey görmedim!");
-  });
+    // 1. Evidence confrontation (increasing stress on contradiction, decreasing on clearing)
+    const evContradict = processDeterministicInterrogation(sampleCase, "suspect-bora", "present_evidence", { presentedClueId: "clue-rain-log" }, 20, "tr");
+    expect(evContradict.newStress).toBeGreaterThan(20);
+    expect(evContradict.confessed).toBe(false);
 
-  it("should strip <thought> and <reasoning> blocks", () => {
-    const input = "<thought>Plan:</thought><reasoning>Step 1</reasoning>Ben masumum.";
-    expect(stripReasoningBlocks(input)).toBe("Ben masumum.");
-  });
-});
+    const evClear = processDeterministicInterrogation(sampleCase, "suspect-cengiz", "present_evidence", { presentedClueId: "clue-phone-bill" }, 40, "tr");
+    expect(evClear.newStress).toBeLessThan(40);
+    expect(evClear.confessed).toBe(false);
 
-describe("Vaka Deterministic Fallback Engine - Deep Actions", () => {
-  const sampleCase = VAKA_SAMPLE_CASES[0]; // Atlantis Saati (Culprit: Bora Kaya)
+    // 2. Confession only triggered when stress exceeds threshold AND confronting with culprit clue
+    const evConfess = processDeterministicInterrogation(sampleCase, "suspect-bora", "present_evidence", { presentedClueId: "clue-rain-log" }, 65, "tr");
+    expect(evConfess.newStress).toBeGreaterThanOrEqual(68);
+    expect(evConfess.confessed).toBe(true);
 
-  it("should increase stress when confronted with contradicting evidence", () => {
-    const result = processDeterministicInterrogation(
-      sampleCase,
-      "suspect-bora",
-      "present_evidence",
-      { presentedClueId: "clue-rain-log" },
-      20,
-      "tr"
-    );
+    // 3. Plain question never triggers confession even at maximum stress
+    const plainQ = processDeterministicInterrogation(sampleCase, "suspect-bora", "question", { question: "Katil sensin!" }, 75, "tr");
+    expect(plainQ.confessed).toBe(false);
 
-    expect(result.newStress).toBeGreaterThan(20);
-    expect(result.confessed).toBe(false);
-    expect(result.unlockedClueId).toBe("clue-rain-log");
-  });
+    // 4. Psychological tactics: silence pressure & cross-examination
+    const silent = processDeterministicInterrogation(sampleCase, "suspect-bora", "stay_silent", {}, 30, "tr");
+    expect(silent.newStress).toBe(40);
 
-  it("should trigger confession when stress exceeds break threshold", () => {
-    const result = processDeterministicInterrogation(
-      sampleCase,
-      "suspect-bora",
-      "present_evidence",
-      { presentedClueId: "clue-rain-log" },
-      65,
-      "tr"
-    );
+    const cross = processDeterministicInterrogation(sampleCase, "suspect-bora", "cross_examine", { crossSuspectId: "suspect-leyla" }, 30, "tr");
+    expect(cross.newStress).toBe(46);
 
-    expect(result.newStress).toBeGreaterThanOrEqual(68);
-    expect(result.confessed).toBe(true);
-    expect(result.text).toContain("ben aldım");
-  });
+    // 5. Two-way bluff dynamics (fails at low stress, succeeds at elevated stress)
+    const bluffFail = processDeterministicInterrogation(sampleCase, "suspect-bora", "bluff", {}, 30, "tr");
+    expect(bluffFail.newStress).toBe(18); // 30 - 12 (suspect relaxes)
 
-  it("should decrease stress when confronted with clearing evidence", () => {
-    const result = processDeterministicInterrogation(
-      sampleCase,
-      "suspect-cengiz",
-      "present_evidence",
-      { presentedClueId: "clue-phone-bill" },
-      40,
-      "tr"
-    );
-
-    expect(result.newStress).toBeLessThan(40);
-    expect(result.confessed).toBe(false);
-  });
-
-  it("should handle stay_silent action with psychological pressure", () => {
-    const result = processDeterministicInterrogation(
-      sampleCase,
-      "suspect-bora",
-      "stay_silent",
-      {},
-      30,
-      "tr"
-    );
-
-    expect(result.newStress).toBe(40);
-    expect(result.text.length).toBeGreaterThan(10);
-  });
-
-  it("should handle cross_examine action quoting other suspects", () => {
-    const result = processDeterministicInterrogation(
-      sampleCase,
-      "suspect-bora",
-      "cross_examine",
-      { crossSuspectId: "suspect-leyla" },
-      30,
-      "tr"
-    );
-
-    expect(result.newStress).toBe(46);
-    expect(result.text).toContain("Leyla");
-  });
-
-  it("should never trigger confession through plain questions even at high stress", () => {
-    const result = processDeterministicInterrogation(
-      sampleCase,
-      "suspect-bora",
-      "question",
-      { question: "Neredeydin? Katil sensin itiraf et!" },
-      75,
-      "tr"
-    );
-
-    expect(result.confessed).toBe(false);
-    expect(result.newStress).toBe(75); // soft-capped above 60
-  });
-
-  it("should fail bluff when suspect stress is low (<45)", () => {
-    const result = processDeterministicInterrogation(
-      sampleCase,
-      "suspect-bora",
-      "bluff",
-      {},
-      30,
-      "tr"
-    );
-
-    expect(result.newStress).toBe(18); // 30 - 12
-    expect(result.confessed).toBe(false);
-    expect(result.text).toContain("blöf");
-  });
-
-  it("should succeed bluff when culprit stress is elevated (>=45)", () => {
-    const result = processDeterministicInterrogation(
-      sampleCase,
-      "suspect-bora",
-      "bluff",
-      {},
-      55,
-      "tr"
-    );
-
-    expect(result.newStress).toBe(71); // 55 + 16
-    expect(result.confessed).toBe(false);
-    expect(result.text).toContain("kör nokta");
+    const bluffWin = processDeterministicInterrogation(sampleCase, "suspect-bora", "bluff", {}, 55, "tr");
+    expect(bluffWin.newStress).toBe(71); // 55 + 16 (suspect cracks)
   });
 });

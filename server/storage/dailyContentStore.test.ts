@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { cleanupDailyContent, createDailyManifest, ensureDailyContent } from "./dailyContentStore";
 
 describe("daily content generator", () => {
-  it("creates the same compact seven-game manifest for the same UTC date", () => {
+  it("creates deterministic 7-game manifests per UTC date and enforces retention cleanup", async () => {
+    // Deterministic manifest check
     const first = createDailyManifest("2026-08-25");
     const second = createDailyManifest("2026-08-25");
     expect(first.games).toHaveLength(7);
@@ -10,15 +11,12 @@ describe("daily content generator", () => {
     expect(first.games.every(game => game.checksum.length === 16)).toBe(true);
     expect(first.games.every(game => game.rulesetVersion === "5" && game.params.v === 5)).toBe(true);
     expect(first.games.every(game => game.difficulty >= 1 && game.difficulty <= 4)).toBe(true);
-  });
 
-  it("changes the deterministic level seed when the date changes", () => {
-    const today = createDailyManifest("2026-08-25");
+    // Changes across dates
     const tomorrow = createDailyManifest("2026-08-26");
-    expect(today.games[0].seed).not.toBe(tomorrow.games[0].seed);
-  });
+    expect(first.games[0].seed).not.toBe(tomorrow.games[0].seed);
 
-  it("removes only daily manifests older than the configured retention threshold", async () => {
+    // Retention cleanup
     await ensureDailyContent("2026-01-01");
     await ensureDailyContent("2026-08-25");
     const removed = await cleanupDailyContent(90, "2026-08-25");

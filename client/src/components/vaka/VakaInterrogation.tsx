@@ -48,6 +48,8 @@ export default function VakaInterrogation({
   const currentStress = stressMap[selectedSuspectId] || 12;
 
   const interrogateMutation = trpc.vaka.interrogate.useMutation();
+  const configQuery = trpc.vaka.config.useQuery();
+  const hasLlm = Boolean(configQuery.data?.hasLlmKeys);
 
   // Vaka değiştiğinde sorgu odasını, şüpheliyi, mesajları, delilleri ve stres haritasını sıfırla
   useEffect(() => {
@@ -87,15 +89,13 @@ export default function VakaInterrogation({
   ) => {
     if (interrogateMutation.isPending || solved) return;
 
-    let userDisplayText = "";
     const clueId = customPayload?.clueId || (actionType === "present_evidence" ? selectedClueId : undefined);
     const crossId = customPayload?.crossId || (actionType === "cross_examine" ? crossSuspectId : undefined);
-    const qText = customPayload?.question || inputText.trim();
+    const qText = customPayload?.question || (actionType === "question" ? inputText.trim() : undefined);
 
-    if (actionType === "question") {
-      if (!qText) return;
-      userDisplayText = qText;
-    } else if (actionType === "present_evidence") {
+    let userDisplayText = qText || "";
+
+    if (actionType === "present_evidence") {
       if (!clueId) {
         alert(isEn ? "Select a piece of evidence first!" : "Önce yüzleştireceğiniz delili seçin!");
         return;
@@ -111,16 +111,38 @@ export default function VakaInterrogation({
       }
       const other = vakaCase.suspects.find((s) => s.id === crossId);
       userDisplayText = isEn
-        ? `[CROSS-EXAMINATION] ${other?.name} told me your alibi is completely fake!`
-        : `[ÇAPRAZ SORGU] ${other?.name} bana senin alibinin tamamen yalan olduğunu söyledi!`;
+        ? `[CROSS-EXAMINATION] ${other?.name} told me your statements and defenses are completely fabricated!`
+        : `[ÇAPRAZ SORGU] ${other?.name} bana senin ifadelerinin ve savunmanın tamamen yalan olduğunu söyledi!`;
     } else if (actionType === "stay_silent") {
+      const silentCount = messages.filter((m) => m.text.includes("SESSİZ") || m.text.includes("SILEN")).length;
+      const silentVariationsTr = [
+        "[SESSİZLİK & BASKI] Dedektif kollarını kavuşturup doğrudan şüphelinin gözlerinin içine bakıyor.",
+        "[SESSİZLİK & BASKI] Dedektif parmaklarını yavaşça masaya vurarak gerilimli sessizliği uzatıyor...",
+        "[SESSİZLİK & BASKI] Dedektif hiçbir şey söylemeden şüpheliyi soğukça süzüyor.",
+      ];
+      const silentVariationsEn = [
+        "[SILENCE & PRESSURE] Detective crosses arms and maintains unbroken eye contact.",
+        "[SILENCE & PRESSURE] Detective taps slowly on the desk, letting the tension mount...",
+        "[SILENCE & PRESSURE] Detective remains completely silent, measuring the suspect's breathing.",
+      ];
       userDisplayText = isEn
-        ? "[DETECTIVE STARES IN UTTER SILENCE] (Applying psychological pressure...)"
-        : "[DEDEKTİF SESSİZCE GÖZLERİNİN İÇİNE BAKIYOR] (Psikolojik baskı kuruluyor...)";
+        ? silentVariationsEn[silentCount % silentVariationsEn.length]
+        : silentVariationsTr[silentCount % silentVariationsTr.length];
     } else if (actionType === "bluff") {
+      const bluffCount = messages.filter((m) => m.text.includes("BLÖF") || m.text.includes("BLUFF")).length;
+      const bluffVariationsTr = [
+        "[TAKTİKSEL BLÖF] O saatte orada olduğunu gösteren gizli kamera kayıtları elimizde!",
+        "[TAKTİKSEL BLÖF] Telefonunun olay yerindeki baz istasyonundan sinyal verdiği kesinleşti!",
+        "[TAKTİKSEL BLÖF] Adli tıp kurbanın kıyafetlerinde senin parmak izlerini ve DNA izlerini buldu!",
+      ];
+      const bluffVariationsEn = [
+        "[TACTICAL BLUFF] We already pulled the security surveillance footage that places you there!",
+        "[TACTICAL BLUFF] Cell tower triangulation places your phone right at the murder scene!",
+        "[TACTICAL BLUFF] Forensics recovered your fingerprints and DNA from the victim's jacket!",
+      ];
       userDisplayText = isEn
-        ? "[TACTICAL BLUFF] We already pulled the security surveillance footage that places you there!"
-        : "[TAKTİKSEL BLÖF] O saatte orada olduğunu gösteren gizli kamera kayıtları elimizde!";
+        ? bluffVariationsEn[bluffCount % bluffVariationsEn.length]
+        : bluffVariationsTr[bluffCount % bluffVariationsTr.length];
     }
 
     setInputText("");
@@ -444,8 +466,8 @@ export default function VakaInterrogation({
         </div>
       )}
 
-      {/* Serbest Soru Metin Girişi */}
-      {!solved && (
+      {/* Serbest Soru Metin Girişi - Yalnızca AI anahtarları mevcutken aktif */}
+      {!solved && hasLlm && (
         <div className="vaka-input-row">
           <input
             type="text"
@@ -453,8 +475,8 @@ export default function VakaInterrogation({
             value={inputText}
             placeholder={
               isEn
-                ? "Type a tailored question or choose a tactic above..."
-                : "Özel sorunuzu yazın veya yukarıdaki taktiklerden birini seçin..."
+                ? "Type a tailored question to interrogate via AI..."
+                : "Yapay zekâ ile şüpheliye özel sorunuzu yöneltin..."
             }
             disabled={interrogateMutation.isPending}
             onChange={(e) => setInputText(e.target.value)}
@@ -470,6 +492,17 @@ export default function VakaInterrogation({
           >
             {isEn ? "Ask Question" : "Soruyu Sor"}
           </button>
+        </div>
+      )}
+
+      {!solved && !hasLlm && (
+        <div className="vaka-ai-gated-banner">
+          <span>⚖️</span>
+          <p>
+            {isEn
+              ? "Tactical interrogation mode: Use the panels above (Prepared Questions, Evidence, Cross-Exam, and Tactics) to break the suspect."
+              : "Taktiksel sorgu modu: Şüpheliyi çözmek için yukarıdaki panelleri (Hazır Sorular, Deliller, Çapraz Sorgu ve Taktikler) kullanın."}
+          </p>
         </div>
       )}
 
