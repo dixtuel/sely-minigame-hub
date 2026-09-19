@@ -12,6 +12,23 @@ type Props = {
   onSolved?: (score: number) => void;
 };
 
+function getInitialMessagesMap(vakaCase: VakaDetailedCase, isEn: boolean): Record<string, VakaInterrogationMessage[]> {
+  const map: Record<string, VakaInterrogationMessage[]> = {};
+  vakaCase.suspects.forEach((s) => {
+    map[s.id] = [
+      {
+        id: `init-${vakaCase.id}-${s.id}`,
+        sender: "system",
+        text: isEn
+          ? `Interrogation room prepared for ${s.name} (${s.roleEn || s.role}). Confront with evidence, cross-examine, or question.`
+          : `${s.name} (${s.role}) için sorgu odası hazırlandı. Sorular sorabilir, delillerle yüzleştirebilir veya çapraz sorgulayabilirsiniz.`,
+        timestamp: Date.now(),
+      },
+    ];
+  });
+  return map;
+}
+
 export default function VakaInterrogation({
   vakaCase,
   locale,
@@ -21,21 +38,41 @@ export default function VakaInterrogation({
 }: Props) {
   const isEn = locale === "en";
   const [selectedSuspectId, setSelectedSuspectId] = useState<string>(vakaCase.suspects[0]?.id || "");
+
+  // Şüpheli bazında izole edilmiş mesaj geçmişi (suspectId -> VakaInterrogationMessage[])
+  const [suspectMessagesMap, setSuspectMessagesMap] = useState<Record<string, VakaInterrogationMessage[]>>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`sely_vaka_session_${vakaCase.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.messagesMap && typeof parsed.messagesMap === "object") {
+            return parsed.messagesMap;
+          }
+        }
+      }
+    } catch {}
+    return getInitialMessagesMap(vakaCase, isEn);
+  });
+
+  // Şüpheli bazında izole edilmiş stres haritası (suspectId -> number)
   const [stressMap, setStressMap] = useState<Record<string, number>>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`sely_vaka_session_${vakaCase.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.stressMap && typeof parsed.stressMap === "object") {
+            return parsed.stressMap;
+          }
+        }
+      }
+    } catch {}
     const map: Record<string, number> = {};
     vakaCase.suspects.forEach((s) => (map[s.id] = 12));
     return map;
   });
-  const [messages, setMessages] = useState<VakaInterrogationMessage[]>([
-    {
-      id: "init-msg",
-      sender: "system",
-      text: isEn
-        ? "Interrogation room prepared. Choose a suspect and use questions, evidence confrontation, cross-examination, silence or bluffs to break them."
-        : "Sorgu odası hazırlandı. Bir şüpheli seçin; sorular, delil yüzleştirme, çapraz sorgu, sessizlik veya blöf ile baskı kurarak çözün.",
-      timestamp: Date.now(),
-    },
-  ]);
+
   const [inputText, setInputText] = useState("");
   const [selectedClueId, setSelectedClueId] = useState<string>("");
   const [crossSuspectId, setCrossSuspectId] = useState<string>("");
@@ -46,27 +83,63 @@ export default function VakaInterrogation({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const activeSuspect = vakaCase.suspects.find((s) => s.id === selectedSuspectId) || vakaCase.suspects[0];
   const currentStress = stressMap[selectedSuspectId] || 12;
+  const activeMessages = suspectMessagesMap[selectedSuspectId] || [];
 
   const interrogateMutation = trpc.vaka.interrogate.useMutation();
   const configQuery = trpc.vaka.config.useQuery();
   const hasLlm = Boolean(configQuery.data?.hasLlmKeys);
 
-  // Vaka değiştiğinde sorgu odasını, şüpheliyi, mesajları, delilleri ve stres haritasını sıfırla
+  const persistSession = (
+    updatedMessages: Record<string, VakaInterrogationMessage[]>,
+    updatedStress: Record<string, number>,
+    isSolved?: boolean,
+    vText?: string | null
+  ) => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          `sely_vaka_session_${vakaCase.id}`,
+          JSON.stringify({
+            messagesMap: updatedMessages,
+            stressMap: updatedStress,
+            solved: isSolved !== undefined ? isSolved : solved,
+            verdictText: vText !== undefined ? vText : verdictText,
+          })
+        );
+      }
+    } catch {}
+  };
+
+  // Vaka veya dil değiştiğinde (seviye atlama / günlük değişimi) o vakaya ait izole hafızayı yükle
   useEffect(() => {
     setSelectedSuspectId(vakaCase.suspects[0]?.id || "");
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`sely_vaka_session_${vakaCase.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.messagesMap && typeof parsed.messagesMap === "object") {
+            setSuspectMessagesMap(parsed.messagesMap);
+            if (parsed.stressMap && typeof parsed.stressMap === "object") {
+              setStressMap(parsed.stressMap);
+            }
+            if (parsed.solved !== undefined) setSolved(Boolean(parsed.solved));
+            if (parsed.verdictText !== undefined) setVerdictText(parsed.verdictText);
+            setInputText("");
+            setSelectedClueId("");
+            setCrossSuspectId("");
+            setActiveActionTab("chips");
+            return;
+          }
+        }
+      }
+    } catch {}
+
     const map: Record<string, number> = {};
     vakaCase.suspects.forEach((s) => (map[s.id] = 12));
+    const initMsgs = getInitialMessagesMap(vakaCase, isEn);
     setStressMap(map);
-    setMessages([
-      {
-        id: `init-${vakaCase.id}-${Date.now()}`,
-        sender: "system",
-        text: isEn
-          ? "Interrogation room prepared. Choose a suspect and use questions, evidence confrontation, cross-examination, silence or bluffs to break them."
-          : "Sorgu odası hazırlandı. Bir şüpheli seçin; sorular, delil yüzleştirme, çapraz sorgu, sessizlik veya blöf ile baskı kurarak çözün.",
-        timestamp: Date.now(),
-      },
-    ]);
+    setSuspectMessagesMap(initMsgs);
     setInputText("");
     setSelectedClueId("");
     setCrossSuspectId("");
@@ -77,7 +150,7 @@ export default function VakaInterrogation({
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [activeMessages, selectedSuspectId]);
 
   const dispatchAction = async (
     actionType: "question" | "present_evidence" | "cross_examine" | "stay_silent" | "bluff",
@@ -94,6 +167,8 @@ export default function VakaInterrogation({
     const qText = customPayload?.question || (actionType === "question" ? inputText.trim() : undefined);
 
     let userDisplayText = qText || "";
+
+    const currentSuspectMsgs = suspectMessagesMap[selectedSuspectId] || [];
 
     if (actionType === "present_evidence") {
       if (!clueId) {
@@ -114,7 +189,7 @@ export default function VakaInterrogation({
         ? `[CROSS-EXAMINATION] ${other?.name} told me your statements and defenses are completely fabricated!`
         : `[ÇAPRAZ SORGU] ${other?.name} bana senin ifadelerinin ve savunmanın tamamen yalan olduğunu söyledi!`;
     } else if (actionType === "stay_silent") {
-      const silentCount = messages.filter((m) => m.text.includes("SESSİZ") || m.text.includes("SILEN")).length;
+      const silentCount = currentSuspectMsgs.filter((m) => m.text.includes("SESSİZ") || m.text.includes("SILEN")).length;
       const silentVariationsTr = [
         "[SESSİZLİK & BASKI] Dedektif kollarını kavuşturup doğrudan şüphelinin gözlerinin içine bakıyor.",
         "[SESSİZLİK & BASKI] Dedektif parmaklarını yavaşça masaya vurarak gerilimli sessizliği uzatıyor...",
@@ -129,7 +204,7 @@ export default function VakaInterrogation({
         ? silentVariationsEn[silentCount % silentVariationsEn.length]
         : silentVariationsTr[silentCount % silentVariationsTr.length];
     } else if (actionType === "bluff") {
-      const bluffCount = messages.filter((m) => m.text.includes("BLÖF") || m.text.includes("BLUFF")).length;
+      const bluffCount = currentSuspectMsgs.filter((m) => m.text.includes("BLÖF") || m.text.includes("BLUFF")).length;
       const bluffVariationsTr = [
         "[TAKTİKSEL BLÖF] O saatte orada olduğunu gösteren gizli kamera kayıtları elimizde!",
         "[TAKTİKSEL BLÖF] Telefonunun olay yerindeki baz istasyonundan sinyal verdiği kesinleşti!",
@@ -156,12 +231,20 @@ export default function VakaInterrogation({
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    // Sadece aktif şüphelinin geçmişine ekle
+    const newSuspectMsgs = [...currentSuspectMsgs, userMsg];
+    const mapWithUser = {
+      ...suspectMessagesMap,
+      [selectedSuspectId]: newSuspectMsgs,
+    };
+    setSuspectMessagesMap(mapWithUser);
+    persistSession(mapWithUser, stressMap);
 
     try {
-      const history = messages
+      // YALNIZCA bu şüpheliyle yapılan diyalog geçmişini gönder (izole ve temiz)
+      const history = newSuspectMsgs
         .filter((m) => m.sender === "detective" || m.sender === "suspect")
-        .slice(-4)
+        .slice(-8)
         .map((m) => ({
           role: m.sender === "detective" ? ("user" as const) : ("assistant" as const),
           content: m.text,
@@ -179,10 +262,11 @@ export default function VakaInterrogation({
         history,
       });
 
-      setStressMap((prev) => ({
-        ...prev,
+      const updatedStressMap = {
+        ...stressMap,
         [selectedSuspectId]: res.stress,
-      }));
+      };
+      setStressMap(updatedStressMap);
 
       const suspectMsg: VakaInterrogationMessage = {
         id: `susp-${Date.now()}`,
@@ -194,29 +278,43 @@ export default function VakaInterrogation({
         timestamp: Date.now(),
       };
 
-      setMessages((prev) => [...prev, suspectMsg]);
+      const finalSuspectMsgs = [...newSuspectMsgs, suspectMsg];
+      const finalMap = {
+        ...mapWithUser,
+        [selectedSuspectId]: finalSuspectMsgs,
+      };
+      setSuspectMessagesMap(finalMap);
 
-      if (res.confessed) {
+      const isConfessed = res.confessed;
+      const vText = isConfessed
+        ? isEn
+          ? `BREAKING POINT CONFESSION! ${activeSuspect.name} broke down under relentless pressure and confessed to the crime! You can now take them to court.`
+          : `KIRILMA NOKTASI İTİRAFI! ${activeSuspect.name} aralıksız baskıya dayanamayarak suçunu itiraf etti! Artık resmi mahkemeye sevk edebilirsiniz.`
+        : verdictText;
+
+      if (isConfessed) {
         playContradiction(soundOn);
         setSolved(true);
-        setVerdictText(
-          isEn
-            ? `BREAKING POINT CONFESSION! ${activeSuspect.name} broke down under relentless pressure and confessed to the crime! You can now take them to court.`
-            : `KIRILMA NOKTASI İTİRAFI! ${activeSuspect.name} aralıksız baskıya dayanamayarak suçunu itiraf etti! Artık resmi mahkemeye sevk edebilirsiniz.`
-        );
+        setVerdictText(vText);
       } else if (res.stressDelta > 15) {
         playContradiction(soundOn);
       }
+
+      persistSession(finalMap, updatedStressMap, isConfessed || solved, vText);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          sender: "suspect",
-          text: isEn ? "(Clenches jaw and refuses to reply)" : "(Çenesini sıkıp yanıt vermeyi reddediyor)",
-          timestamp: Date.now(),
-        },
-      ]);
+      const errorMsg: VakaInterrogationMessage = {
+        id: `err-${Date.now()}`,
+        sender: "suspect",
+        text: isEn ? "(Clenches jaw and refuses to reply)" : "(Çenesini sıkıp yanıt vermeyi reddediyor)",
+        timestamp: Date.now(),
+      };
+      const errorSuspectMsgs = [...newSuspectMsgs, errorMsg];
+      const errorMap = {
+        ...mapWithUser,
+        [selectedSuspectId]: errorSuspectMsgs,
+      };
+      setSuspectMessagesMap(errorMap);
+      persistSession(errorMap, stressMap);
     }
   };
 
@@ -314,7 +412,7 @@ export default function VakaInterrogation({
 
       {/* Sohbet / Tutanak Akışı */}
       <div className="vaka-chat-transcript">
-        {messages.map((msg) => (
+        {activeMessages.map((msg) => (
           <div key={msg.id} className={`vaka-chat-bubble is-${msg.sender}`}>
             <div className="vaka-bubble-meta">
               <b>

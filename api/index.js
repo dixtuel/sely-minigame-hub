@@ -4418,7 +4418,8 @@ STRICT INTERROGATION RULES:
    - Medium Stress (36-70): Irritable, deflecting suspicion to other suspects. "Why are you grilling me instead of checking their story?"
    - High Stress (71-100): Cornered, stammering, defensive, but denying guilt unless broken by physical evidence.
 7. CONFESSION THRESHOLD: Never confess to the murder unless presented with undeniable physical/forensic evidence directly disproving your story AND your stress is above 80.
-8. LANGUAGE: Respond strictly in English.`;
+8. DIALOGUE MEMORY & PROGRESSIVE ACTION: Maintain strict continuity with previous messages in this conversation. If the detective repeats a question you already addressed, show irritation and call it out ("I already told you that, detective"). If the detective corners you with an earlier contradiction, falter or get defensive, but do not pretend this is a brand-new conversation.
+9. LANGUAGE: Respond strictly in English.`;
   }
   return `SENARYO VE ROL\xDCN:
 Sen bir polis merkezinin sorgu odas\u0131nda dedektif taraf\u0131ndan sorgulanan ${suspect.name} isimli \u015F\xFCphelisin.
@@ -4451,7 +4452,8 @@ GER\xC7EK\xC7\u0130 POL\u0130S SORGUSU KURALLARI (BU KURALLARA KES\u0130NL\u0130
    - Orta Stres (36-70): Rahats\u0131z, konuyu sapt\u0131ran veya di\u011Fer \u015F\xFCphelileri ima eden. "Bana hesap soraca\u011F\u0131n\u0131za onun ifadesini bir daha okuyun."
    - Y\xFCksek Stres (71-100): Panikleyen, k\xF6\u015Feye s\u0131k\u0131\u015Fan, kesik konu\u015Fan ama delilsiz itiraf etmeyen.
 7. \u0130T\u0130RAF \u015EARTI: Dedektif \xF6n\xFCne g\xF6z ard\u0131 edilemez somut bir delil koymad\u0131k\xE7a ve stresin 80'in \xFCzerinde olmad\u0131k\xE7a cinayeti asla kabul etme.
-8. D\u0130L: Yan\u0131t\u0131n\u0131 kesinlikle do\u011Fal bir T\xFCrk\xE7e ile ver.`;
+8. D\u0130YALOG HAFIZASI VE S\xDCREKL\u0130L\u0130K: Bu sorgudaki \xF6nceki konu\u015Fmalar\u0131 kesinlikle hat\u0131rla. Dedektif daha \xF6nce yan\u0131tlad\u0131\u011F\u0131n bir konuyu tekrar sorarsa b\u0131kk\u0131nl\u0131\u011F\u0131n\u0131 g\xF6ster ("Bunu az \xF6nce s\xF6yledim dedektif", "Ayn\u0131 \u015Feyi tekrarlat\u0131p durmay\u0131n"). \xD6nceki ifadelerinle tutarl\u0131 kal; dedektif seni ge\xE7mi\u015F ifadenle k\xF6\u015Feye s\u0131k\u0131\u015Ft\u0131rd\u0131\u011F\u0131nda panikleyip toparlamaya \xE7al\u0131\u015F. Her soruyu yeni bir sohbete ba\u015Flam\u0131\u015F gibi kar\u015F\u0131lama.
+9. D\u0130L: Yan\u0131t\u0131n\u0131 kesinlikle do\u011Fal bir T\xFCrk\xE7e ile ver.`;
 }
 var VAKA_MODEL_CANDIDATES = [
   // 1. Kademe: Ultra Hızlı Modeller (~150ms - ~1s)
@@ -5093,7 +5095,7 @@ var vakaRouter = router({
       const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId ? isEn ? `Detective: "${crossSuspectName} told me you were lying about your whereabouts!"` : `Dedektif: "${crossSuspectName} bana olay saatinde senin yalan s\xF6yledi\u011Fini anlatt\u0131!"` : input.question || (isEn ? "Explain yourself!" : "Kendini a\xE7\u0131kla!");
       const messages = [
         { role: "system", content: systemPrompt },
-        ...(input.history || []).slice(-4).map((h) => ({
+        ...(input.history || []).slice(-10).map((h) => ({
           role: h.role === "user" ? "user" : "assistant",
           content: h.content
         })),

@@ -195,7 +195,7 @@ export const vakaRouter = router({
 
         const messages: LlmMessage[] = [
           { role: "system", content: systemPrompt },
-          ...(input.history || []).slice(-4).map((h) => ({
+          ...(input.history || []).slice(-10).map((h) => ({
             role: h.role === "user" ? ("user" as const) : ("assistant" as const),
             content: h.content,
           })),
