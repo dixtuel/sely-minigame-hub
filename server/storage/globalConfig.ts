@@ -70,8 +70,8 @@ export async function fetchGlobalConfig(): Promise<AppGlobalConfig> {
  * Express handler for GET /api/config
  */
 export async function getGlobalConfigHandler(_req: Request, res: Response) {
-  // CDN cache: 15s browser, 30s Edge CDN, 60s stale-while-revalidate
-  res.setHeader("Cache-Control", "public, max-age=15, s-maxage=30, stale-while-revalidate=60");
+  // Edge CDN cache: 5m browser, 10m Edge CDN, 30m stale-while-revalidate
+  res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600, stale-while-revalidate=1800");
 
   try {
     const config = await fetchGlobalConfig();

@@ -5,5 +5,5 @@ export const assets = {
   archiveStoneNormal: "/assets/textures/stone-wall-normal.jpg",
   echoGlyph: "/assets/echo-glyph.png",
   logo: "/assets/logo-mark.png",
-  visualTarget: "/assets/yanki-reference.png",
+  visualTarget: "/assets/yanki-reference.webp",
 } as const;

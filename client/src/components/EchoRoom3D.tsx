@@ -350,7 +350,7 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
 
       {!ready && (
         <div className="boot-panel">
-          <img src={assets.visualTarget} alt="" />
+          <img src={assets.visualTarget} alt="" decoding="async" />
           <div>
             <span>{local(locale, "YANSIMA ARŞİVİ", "REFLECTION ARCHIVE")}</span>
             <b>{local(locale, "Oda dinleniyor…", "Listening to room…")}</b>

@@ -21,22 +21,41 @@ export default function GlobalAnnouncementBanner({ locale }: GlobalAnnouncementB
 
   useEffect(() => {
     let active = true;
+    const CONFIG_CACHE_KEY = "sely_global_config_cache";
+    const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    const applyAnnouncement = (data: any) => {
+      if (!active || !data?.announcement?.enabled) return;
+      const ann = data.announcement as AppAnnouncement;
+      const dismissKey = `sely-dismissed-announcement-${ann.textEn || ann.textTr}`;
+      try {
+        if (sessionStorage.getItem(dismissKey)) return;
+      } catch {}
+      setAnnouncement(ann);
+    };
+
+    try {
+      const cached = sessionStorage.getItem(CONFIG_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.timestamp < CONFIG_CACHE_TTL) {
+          applyAnnouncement(parsed.data);
+          return;
+        }
+      }
+    } catch {}
 
     fetch("/api/config")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (active && data?.announcement?.enabled) {
-          const ann = data.announcement as AppAnnouncement;
-          // Check if user previously dismissed this exact message
-          const dismissKey = `sely-dismissed-announcement-${ann.textEn || ann.textTr}`;
+        if (data) {
           try {
-            if (sessionStorage.getItem(dismissKey)) {
-              return;
-            }
-          } catch {
-            // SessionStorage may be disabled
-          }
-          setAnnouncement(ann);
+            sessionStorage.setItem(
+              CONFIG_CACHE_KEY,
+              JSON.stringify({ data, timestamp: Date.now() })
+            );
+          } catch {}
+          applyAnnouncement(data);
         }
       })
       .catch(() => {

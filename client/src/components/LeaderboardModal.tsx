@@ -39,6 +39,10 @@ const GAME_TABS: Array<{ id: GameId; labelTr: string; labelEn: string; accent: s
   { id: "spark", labelTr: "Kıvılcım", labelEn: "Spark", accent: "#e9563f" },
 ];
 
+// Client-side in-memory leaderboard cache to avoid repeated network requests
+const leaderboardClientCache = new Map<string, { data: LeaderboardResponse; timestamp: number }>();
+const LEADERBOARD_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
 export default function LeaderboardModal({
   isOpen,
   onClose,
@@ -67,11 +71,19 @@ export default function LeaderboardModal({
     }
   }, [isOpen, initialGameId]);
 
-  // Fetch leaderboard data
+  // Fetch leaderboard data with in-memory caching
   useEffect(() => {
     if (!isOpen) return;
 
     trackEvent("view_leaderboard", { game: selectedGame });
+
+    const cacheKey = `${selectedGame}_${todayStr}`;
+    const cached = leaderboardClientCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < LEADERBOARD_CACHE_TTL_MS) {
+      setLeaderboardData(cached.data);
+      setLoading(false);
+      return;
+    }
 
     let active = true;
     setLoading(true);
@@ -80,6 +92,7 @@ export default function LeaderboardModal({
       .then((res) => (res.ok ? res.json() : null))
       .then((data: LeaderboardResponse | null) => {
         if (active && data) {
+          leaderboardClientCache.set(cacheKey, { data, timestamp: Date.now() });
           setLeaderboardData(data);
         }
       })

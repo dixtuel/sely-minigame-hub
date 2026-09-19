@@ -1,3 +1,5 @@
+import { shouldLoadHighFidelityMedia } from "@/lib/networkSaver";
+
 // Lightweight WebAudio-based sound manager for the Echo room.
 // Uses a handful of real CC0 Kenney SFX samples (see public/assets/CREDITS.md)
 // plus a procedurally synthesized ambient drone (no sample needed for that one).
@@ -38,13 +40,20 @@ export class GameAudio {
       this.masterGain.gain.value = this.muted ? 0 : 0.85;
       this.masterGain.connect(ctx.destination);
       this.startDrone();
-      await Promise.all([
+
+      const loadTasks = [
         this.loadBuffer(SFX_URLS.pulse),
         this.loadBuffer(SFX_URLS.mark),
         this.loadBuffer(SFX_URLS.gate),
         this.loadBuffer(SFX_URLS.caught),
-        ...SFX_URLS.footstep.map((url) => this.loadBuffer(url)),
-      ]).catch(() => undefined);
+      ];
+
+      // Defer high-bandwidth multi-footsteps if client has Save-Data active
+      if (shouldLoadHighFidelityMedia()) {
+        loadTasks.push(...SFX_URLS.footstep.map((url) => this.loadBuffer(url)));
+      }
+
+      await Promise.all(loadTasks).catch(() => undefined);
     })();
     return this.unlocking;
   }
@@ -115,6 +124,10 @@ export class GameAudio {
     if (now - this.lastFootstepAt < 0.34) return;
     this.lastFootstepAt = now;
     const url = SFX_URLS.footstep[Math.floor(Math.random() * SFX_URLS.footstep.length)];
+    if (!this.buffers.has(url)) {
+      this.loadBuffer(url).then(() => this.play(url, 0.32, 0.1));
+      return;
+    }
     this.play(url, 0.32, 0.1);
   }
 

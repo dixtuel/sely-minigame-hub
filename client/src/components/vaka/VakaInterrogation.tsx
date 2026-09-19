@@ -179,7 +179,7 @@ export default function VakaInterrogation({
   const activeMessages = suspectMessagesMap[selectedSuspectId] || [];
 
   const interrogateMutation = trpc.vaka.interrogate.useMutation();
-  const configQuery = trpc.vaka.config.useQuery();
+  const configQuery = trpc.vaka.config.useQuery(undefined, { staleTime: Infinity, refetchOnWindowFocus: false });
   const hasLlm = Boolean(configQuery.data?.hasLlmKeys);
 
   const persistSession = (

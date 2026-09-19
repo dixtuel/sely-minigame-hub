@@ -7,9 +7,17 @@ import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
-
-const queryClient = new QueryClient();
-
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 10 * 60 * 1000, // 10 dakika boyunca taze kabul et
+      gcTime: 60 * 60 * 1000, // 1 saat bellekte tut
+      refetchOnWindowFocus: false, // Sekme değişimlerinde arka plan tRPC isteklerini kes
+      refetchOnReconnect: false,
+      retry: 1,
+    },
+  },
+});
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
   if (typeof window === "undefined") return;
@@ -79,3 +87,12 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </trpc.Provider>
 );
+
+// Register Service Worker for Client Bandwidth & Zero-Egress Repeat Visits
+if (typeof window !== "undefined" && "serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Graceful fallback if SW cannot register
+    });
+  });
+}

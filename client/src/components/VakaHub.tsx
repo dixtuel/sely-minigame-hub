@@ -20,9 +20,9 @@ type Props = {
 export default function VakaHub({ locale, soundOn, onSolved, isGameFinished }: Props) {
   const isEn = locale === "en";
 
-  // tRPC Konfigürasyon ve Vaka sorguları
-  const configQuery = trpc.vaka.config.useQuery(undefined, { staleTime: 60_000 });
-  const dailyQuery = trpc.vaka.getDailyCase.useQuery(undefined, { staleTime: 60_000 });
+  // tRPC Konfigürasyon ve Vaka sorguları (Ağ verisi tasarrufu için yüksek TTL)
+  const configQuery = trpc.vaka.config.useQuery(undefined, { staleTime: Infinity, refetchOnWindowFocus: false });
+  const dailyQuery = trpc.vaka.getDailyCase.useQuery(undefined, { staleTime: 24 * 60 * 60 * 1000, refetchOnWindowFocus: false });
 
   const allowedModes = configQuery.data?.enabledModes || ["daily", "interrogation", "contradiction"];
   const defaultMode = configQuery.data?.defaultMode || "daily";

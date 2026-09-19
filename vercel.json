@@ -60,11 +60,24 @@
       ]
     },
     {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
       "source": "/storage/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=2592000, stale-while-revalidate=86400"
+          "value": "public, max-age=31536000, immutable"
         }
       ]
     },
@@ -73,7 +86,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=2592000, stale-while-revalidate=86400"
+          "value": "public, max-age=31536000, immutable"
         }
       ]
     },
@@ -136,6 +149,10 @@
     {
       "source": "/storage/(.*)",
       "destination": "/storage/$1"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/sw.js"
     },
     {
       "source": "/manus-storage/(.*)",
