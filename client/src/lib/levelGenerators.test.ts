@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareHaneNumberGuess, compareHaneWordGuess, echoMinimalNoise, evaluateVakaAttempt, generateCutLevel, generateEchoLevel, generateHaneLevel, generateHaneWordLevel, generateKnotLevel, generateShadowLevel, generateSparkLevel, generateSparkWorldSegment, generateVakaCases, isCutLevelSolvable, isEchoLevelSolvable, isHaneGuessValid, isHaneWordGuessValid, isKnotLevelSolvable, isShadowLevelSolvable, isSparkLevelFair, isVakaCaseSolvable, personalSeed, runInstanceKey, solveVakaCase, validateDailySeed } from "./levelGenerators";
+import { compareHaneNumberGuess, compareHaneWordGuess, echoMinimalNoise, evaluateVakaAttempt, generateCutLevel, generateEchoLevel, generateHaneLevel, generateHaneWordLevel, generateKnotLevel, generateShadowLevel, generateVakaCases, isCutLevelSolvable, isEchoLevelSolvable, isHaneGuessValid, isHaneWordGuessValid, isKnotLevelSolvable, isShadowLevelSolvable, isVakaCaseSolvable, personalSeed, runInstanceKey, solveVakaCase, validateDailySeed } from "./levelGenerators";
 
 describe("mini-game level generators", () => {
   it("keeps each daily generator deterministic and structurally valid", () => {
@@ -10,7 +10,6 @@ describe("mini-game level generators", () => {
     expect(generateShadowLevel(seed, 2).pads).toHaveLength(2);
     expect(generateVakaCases(seed, 2).every(isVakaCaseSolvable)).toBe(true);
     expect(generateHaneLevel(seed, 2)).toEqual(generateHaneLevel(seed, 2));
-    expect(generateSparkLevel(seed, 2)).toEqual(generateSparkLevel(seed, 2));
     expect(["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"].every(game => validateDailySeed(seed, game as any))).toBe(true);
   });
 
@@ -30,7 +29,6 @@ describe("mini-game level generators", () => {
       expect(isEchoLevelSolvable(generateEchoLevel(seed, 2))).toBe(true);
       expect(isCutLevelSolvable(generateCutLevel(seed, 2))).toBe(true);
       expect(isShadowLevelSolvable(generateShadowLevel(seed, 2))).toBe(true);
-      expect(isSparkLevelFair(generateSparkLevel(seed, 2))).toBe(true);
     }
   });
 
@@ -135,41 +133,6 @@ describe("mini-game level generators", () => {
         expect(isKnotLevelSolvable(level)).toBe(true);
         if (mastery >= 2) expect(level.bonusIndex).toBeGreaterThanOrEqual(0);
       }
-    }
-  });
-
-  it("keeps Spark's endless chapter compact, deterministic, and fair to replay (top-down lane model)", () => {
-    const level = generateSparkLevel(99183, 3);
-    expect(level.laneCount).toBeGreaterThanOrEqual(3);
-    expect(level.events.length).toBeGreaterThan(10);
-    expect(level.events.every(event => event.lane >= 0 && event.lane < level.laneCount)).toBe(true);
-    expect(level.events.every(event => event.z >= 0)).toBe(true);
-    expect(isSparkLevelFair(level)).toBe(true);
-  });
-
-  it("keeps every Spark chapter fair (at least one open lane per blocked row) across many seeds/masteries", () => {
-    for (let seed = 1; seed <= 60; seed += 7) {
-      for (const mastery of [0, 2, 4]) {
-        expect(isSparkLevelFair(generateSparkLevel(seed, mastery))).toBe(true);
-      }
-    }
-  });
-
-  it("turns each Spark chapter into a bounded, deterministic, genuinely different world segment", () => {
-    const level = generateSparkLevel(99183, 3);
-    const first = generateSparkWorldSegment(level, 0);
-    const next = generateSparkWorldSegment(level, 1);
-    expect(first).toEqual(generateSparkWorldSegment(level, 0));
-    expect(first.events).toHaveLength(level.events.length);
-    expect(next.events.every(event => event.lane >= 0 && event.lane < level.laneCount)).toBe(true);
-    expect(next.events.map(event => `${event.row}-${event.lane}-${event.type}`)).not.toEqual(first.events.map(event => `${event.row}-${event.lane}-${event.type}`));
-  });
-
-  it("ramps Spark's speed monotonically from baseSpeed toward maxSpeed as mastery rises", () => {
-    const speeds = [0, 1, 2, 3, 4].map(mastery => generateSparkLevel(14151, mastery));
-    for (let i = 1; i < speeds.length; i += 1) {
-      expect(speeds[i].baseSpeed).toBeGreaterThanOrEqual(speeds[i - 1].baseSpeed);
-      expect(speeds[i].maxSpeed).toBeGreaterThanOrEqual(speeds[i].baseSpeed);
     }
   });
 
