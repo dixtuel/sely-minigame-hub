@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
+import { logger } from "./logger";
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -58,11 +59,9 @@ export function serveStatic(app: Express) {
   const distPath = candidatePaths.find(candidate => fs.existsSync(candidate)) || candidatePaths[0];
 
   if (!fs.existsSync(distPath)) {
-    console.warn(
-      `[Static] Build directory not found: ${distPath}. Make sure to build the client (pnpm run build) first.`
-    );
+    logger.warn("static", `Build directory not found: ${distPath}. Make sure to build client first.`);
   } else {
-    console.log(`[Static] Serving static assets from: ${distPath}`);
+    logger.info("static", `Serving static assets from: ${distPath}`);
   }
 
   app.use(express.static(distPath));

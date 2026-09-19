@@ -2,6 +2,7 @@ import { createClient, type Client } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
 import type { GameId, LeaderboardEntry } from "./leaderboard";
+import { logger } from "../_core/logger";
 
 /**
  * Turso Database Integration for SELY MiniGame Hub
@@ -94,7 +95,7 @@ export function getTursoClient(): Client | null {
         authToken: config.authToken,
       });
     } catch (err) {
-      console.warn("[Turso] Failed to initialize client:", err);
+      logger.warn("turso", "Failed to initialize client", err);
       tursoClient = null;
     }
   }
@@ -153,7 +154,7 @@ export async function ensureTursoSchema(): Promise<boolean> {
     schemaInitialized = true;
     return true;
   } catch (err) {
-    console.error("[Turso] Schema initialization failed:", err);
+    logger.error("turso", "Schema initialization failed", err);
     return false;
   }
 }
@@ -198,7 +199,7 @@ export async function saveTursoScore(
 
     return true;
   } catch (err) {
-    console.warn("[Turso] Error saving score:", err);
+    logger.warn("turso", "Error saving score", err);
     return false;
   }
 }
@@ -293,7 +294,7 @@ export async function getTursoTopScores(
 
     return result;
   } catch (err) {
-    console.warn("[Turso] Error querying top scores:", err);
+    logger.warn("turso", "Error querying top scores", err);
     return null;
   }
 }
@@ -331,7 +332,7 @@ export async function getTursoAllTimeTopScores(
       timestamp: Number(row.created_at),
     }));
   } catch (err) {
-    console.warn("[Turso] Error querying all-time scores:", err);
+    logger.warn("turso", "Error querying all-time scores", err);
     return [];
   }
 }
@@ -366,7 +367,7 @@ export async function getTursoUserByOpenId(openId: string) {
       lastSignedIn: new Date(Number(row.last_signed_in)),
     };
   } catch (err) {
-    console.warn("[Turso] Error looking up user:", err);
+    logger.warn("turso", "Error looking up user", err);
     return undefined;
   }
 }
@@ -416,7 +417,7 @@ export async function upsertTursoUser(user: {
       ],
     });
   } catch (err) {
-    console.error("[Turso] Failed to upsert user:", err);
+    logger.error("turso", "Failed to upsert user", err);
     throw err;
   }
 }

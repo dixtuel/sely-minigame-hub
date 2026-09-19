@@ -6,6 +6,7 @@ import {
   saveTursoScore,
   getTursoPlayerRank,
 } from "./turso";
+import { logger } from "../_core/logger";
 
 export type GameId = "echo" | "knot" | "cut" | "shadow" | "marker" | "hane" | "spark" | "vaka";
 
@@ -76,11 +77,11 @@ async function getTcpRedisClient(): Promise<IORedis | null> {
       });
 
       tcpRedisInstance.on("error", (err) => {
-        console.warn("[Leaderboard:Redis] Connection error:", err.message);
+        logger.warn("leaderboard:redis", "Connection error", err);
       });
 
       tcpRedisConnecting = tcpRedisInstance.connect().catch((err) => {
-        console.warn("[Leaderboard:Redis] Initial connect failed:", err.message);
+        logger.warn("leaderboard:redis", "Initial connect failed", err);
         tcpRedisInstance = null;
         tcpRedisConnecting = null;
       });

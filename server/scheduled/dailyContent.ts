@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { cleanupDailyContent, ensureDailyContent } from "../dailyContent";
+import { logger } from "../_core/logger";
 import { sdk } from "../_core/sdk";
 
 function tokenMatches(received: string | undefined, expected: string | undefined) {
@@ -36,7 +37,7 @@ export async function dailyContentHandler(req: Request, res: Response) {
     const manifest = await ensureDailyContent();
     return res.json({ ok: true, date: manifest.date, generated: manifest.games.length, version: "2" });
   } catch (error) {
-    console.error("[daily-content] generation failed", error);
+    logger.error("cron:daily", "Content generation failed", error);
     return res.status(500).json({ error: "daily-generation-failed" });
   }
 }
@@ -47,7 +48,7 @@ export async function dailyCleanupHandler(req: Request, res: Response) {
     const removed = await cleanupDailyContent();
     return res.json({ ok: true, removed, retentionDays: 90 });
   } catch (error) {
-    console.error("[daily-content] cleanup failed", error);
+    logger.error("cron:cleanup", "Cleanup failed", error);
     return res.status(500).json({ error: "daily-cleanup-failed" });
   }
 }

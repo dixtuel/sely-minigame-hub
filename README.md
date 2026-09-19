@@ -168,8 +168,8 @@ graph TD
 | **Vektörel Simgeler** | Lucide React | `^0.475.0` | Tutarlı ve hafif arayüz ikon seti |
 | **İstemci Yönlendirme** | Wouter | `^3.5.0` | Minimalist (~1.5KB), bağımsızlıksız hashless router |
 | **Uçtan Uca RPC** | tRPC | `^11.6.0` | İstemci ile sunucu arasında tam tip-güvenli RPC iletişimi |
-| **Veritabanı & ORM** | Drizzle ORM | `^0.44.5` | PostgreSQL ve libSQL destekli hafif TypeScript ORM |
-| **Birim & Çözücü Testi** | Vitest | `^3.0.5` | 14 test dosyasında 86 test ve 9.300'den fazla doğrulama |
+| **Veritabanı Deposu** | PostgreSQL / libSQL | `pg / @libsql/client` | PostgreSQL (Neon/yerel) ve Turso / yerel SQLite (`sely.db`) çoklu depo |
+| **Birim & Çözücü Testi** | Vitest | `^3.0.5` | 19 test dosyasında 107 test ve 14.300'den fazla doğrulama |
 | **Paketleyici & HMR** | Vite & esbuild | `^6.1.0` | Hızlı HMR, istemci optimizasyonu ve serverless derleme |
 | **Çalışma Ortamı** | Node.js / Bun | `Node 22 LTS / Bun 1.x` | Canlıda Node.js 22 LTS; yerel geliştirmede ultra hızlı Bun |
 
@@ -224,6 +224,40 @@ pnpm audit:public
 # Üretim derlemesi testi
 pnpm build
 ```
+
+---
+
+## Kendi Sunucunda Host Etme (Self-Hosting)
+
+Platform, **Vercel Serverless & Edge CDN** üzerinde sıfır maliyetle çalışabildiği gibi; dileyen herkesin kendi **PC, VPS, VDS veya Docker** sunucusunda **%100 bağımsız ve sıfır konfigürasyonla** host edebileceği hibrit mimaride tasarlanmıştır.
+
+### Seçenek A: Docker Compose ile Tek Komutla Kurulum
+Herhangi bir veritabanı veya Redis kurmanıza gerek yoktur. Yerel SQLite (`data/sely.db`) otomatik olarak devreye girer:
+
+```bash
+# 1. Konfigürasyon dosyasını oluşturun (isteğe bağlı)
+cp .env.example .env
+
+# 2. Container'ı arka planda başlatın
+docker compose up -d
+
+# Uygulama http://localhost:3000 üzerinde hazırdır.
+```
+
+### Seçenek B: Standalone Node.js / Bun Sunucusu
+```bash
+# 1. Bağımlılıkları kurun ve derleyin
+pnpm install
+pnpm build
+
+# 2. Üretim sunucusunu başlatın
+pnpm start
+# http://localhost:3000 üzerinde hem statik varlıklar hem de API sunulur.
+```
+
+* **Sıfır Konfigürasyon SQLite:** Harici PostgreSQL veya Turso tanımlanmazsa, sunucu verileri otomatik olarak `./data/sely.db` yerel SQLite dosyasında kalıcılaştırır.
+* **Otomatik İçerik Hazırlığı (Pre-warm):** Sunucu başladığında günün oyun içerikleri deterministik olarak önceden üretilir ve önbelleğe alınır.
+* **Yüksek Sinyalli Gizlilik Odaklı Loglar:** IP adresleri ve veritabanı şifreleri loglarda otomatik maskelenir; gereksiz bilgi gürültüsü engellenir.
 
 ---
 

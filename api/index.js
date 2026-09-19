@@ -47,6 +47,73 @@ var ENV = {
 import { createClient } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
+
+// server/_core/logger.ts
+var LOG_LEVEL_WEIGHTS = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40
+};
+var isDev = process.env.NODE_ENV === "development";
+var isDebugEnabled = Boolean(process.env.DEBUG) && process.env.DEBUG !== "false" && process.env.DEBUG !== "0";
+var currentLevelThreshold = isDebugEnabled || isDev ? "debug" : "info";
+function sanitizeLogText(input) {
+  if (!input) return "";
+  return input.replace(/(:\/\/[\w%.-]+:)([^@]+)(@)/g, "$1***$3").replace(/(Bearer\s+)[A-Za-z0-9._~+/-]{8,}/gi, "$1***").replace(/(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9._-]{10,})/g, "jwt:***").replace(/\b(\d{1,3}\.\d{1,3})\.\d{1,3}\.\d{1,3}\b/g, "$1.*.*");
+}
+function formatError(err) {
+  if (!err) return "";
+  if (err instanceof Error) {
+    if (isDebugEnabled || isDev) {
+      return sanitizeLogText(err.stack || err.message);
+    }
+    return sanitizeLogText(err.message);
+  }
+  return sanitizeLogText(String(err));
+}
+function shouldLog(level) {
+  return LOG_LEVEL_WEIGHTS[level] >= LOG_LEVEL_WEIGHTS[currentLevelThreshold];
+}
+var logger = {
+  /**
+   * Debug level: only active when DEBUG=true/1 or NODE_ENV=development.
+   * Suppressed in normal production to protect Vercel log limits.
+   */
+  debug(scope, message, ...args) {
+    if (!shouldLog("debug")) return;
+    const sanitizedMsg = sanitizeLogText(message);
+    console.debug(`[sely:${scope}] ${sanitizedMsg}`, ...args);
+  },
+  /**
+   * Info level: key lifecycle events (server boot, cron jobs, schema migrations).
+   */
+  info(scope, message, ...args) {
+    if (!shouldLog("info")) return;
+    const sanitizedMsg = sanitizeLogText(message);
+    console.info(`[sely:${scope}] ${sanitizedMsg}`, ...args);
+  },
+  /**
+   * Warn level: actionable system warnings (fallbacks engaged, config discrepancies).
+   * Routine unauthenticated visitor events should NOT be logged as warnings.
+   */
+  warn(scope, message, ...args) {
+    if (!shouldLog("warn")) return;
+    const sanitizedMsg = sanitizeLogText(message);
+    console.warn(`[sely:${scope}] ${sanitizedMsg}`, ...args);
+  },
+  /**
+   * Error level: unexpected exceptions or storage failures.
+   */
+  error(scope, message, err) {
+    if (!shouldLog("error")) return;
+    const sanitizedMsg = sanitizeLogText(message);
+    const errText = err ? ` \u2014 ${formatError(err)}` : "";
+    console.error(`[sely:${scope}] ${sanitizedMsg}${errText}`);
+  }
+};
+
+// server/storage/turso.ts
 var tursoClient = null;
 var schemaInitialized = false;
 var boardCache = /* @__PURE__ */ new Map();
@@ -88,7 +155,7 @@ function getTursoClient() {
         authToken: config.authToken
       });
     } catch (err) {
-      console.warn("[Turso] Failed to initialize client:", err);
+      logger.warn("turso", "Failed to initialize client", err);
       tursoClient = null;
     }
   }
@@ -135,7 +202,7 @@ async function ensureTursoSchema() {
     schemaInitialized = true;
     return true;
   } catch (err) {
-    console.error("[Turso] Schema initialization failed:", err);
+    logger.error("turso", "Schema initialization failed", err);
     return false;
   }
 }
@@ -164,7 +231,7 @@ async function saveTursoScore(gameId, score, nick, signature, dateStr) {
     }
     return true;
   } catch (err) {
-    console.warn("[Turso] Error saving score:", err);
+    logger.warn("turso", "Error saving score", err);
     return false;
   }
 }
@@ -232,7 +299,7 @@ async function getTursoTopScores(gameId, dateStr, limit = 10) {
     boardCache.set(cacheKey, { timestamp: now, data: result });
     return result;
   } catch (err) {
-    console.warn("[Turso] Error querying top scores:", err);
+    logger.warn("turso", "Error querying top scores", err);
     return null;
   }
 }
@@ -259,7 +326,7 @@ async function getTursoUserByOpenId(openId) {
       lastSignedIn: new Date(Number(row.last_signed_in))
     };
   } catch (err) {
-    console.warn("[Turso] Error looking up user:", err);
+    logger.warn("turso", "Error looking up user", err);
     return void 0;
   }
 }
@@ -295,7 +362,7 @@ async function upsertTursoUser(user) {
       ]
     });
   } catch (err) {
-    console.error("[Turso] Failed to upsert user:", err);
+    logger.error("turso", "Failed to upsert user", err);
     throw err;
   }
 }
@@ -311,8 +378,9 @@ function warnIfDatabaseUrlSchemeMismatch(callerLabel, expectedSchemes) {
   const matches = expectedSchemes.some((scheme) => url.startsWith(scheme));
   if (!matches) {
     warnedCallers.add(callerLabel);
-    console.warn(
-      `[Storage:${callerLabel}] DATABASE_URL is set but doesn't match the expected scheme(s) (${expectedSchemes.join(", ")}) \u2014 it will be ignored here and fall through to the next storage strategy.`
+    logger.warn(
+      `storage:${callerLabel}`,
+      `DATABASE_URL is set but doesn't match the expected scheme(s) (${expectedSchemes.join(", ")}) \u2014 falling through to next storage strategy.`
     );
   }
 }
@@ -347,10 +415,10 @@ function getPgPool() {
         ssl: isCloud ? { rejectUnauthorized: false } : void 0
       });
       _pgPool.on("error", (err) => {
-        console.warn("[Database:PostgreSQL] Unexpected error on idle client:", err.message);
+        logger.warn("db:postgres", "Unexpected error on idle client", err);
       });
     } catch (error) {
-      console.warn("[Database:PostgreSQL] Failed to initialize pool:", error);
+      logger.warn("db:postgres", "Failed to initialize pool", error);
       _pgPool = null;
     }
   }
@@ -375,7 +443,7 @@ async function ensurePgSchema(pool) {
     _pgSchemaInitialized = true;
     return true;
   } catch (err) {
-    console.error("[Database:PostgreSQL] Failed to ensure schema:", err);
+    logger.error("db:postgres", "Failed to ensure schema", err);
     return false;
   }
 }
@@ -412,7 +480,7 @@ async function upsertUser(user) {
       );
       return;
     } catch (err) {
-      console.error("[Database:PostgreSQL] Failed to upsert user:", err);
+      logger.error("db:postgres", "Failed to upsert user", err);
       throw err;
     }
   }
@@ -426,7 +494,7 @@ async function upsertUser(user) {
       lastSignedIn: user.lastSignedIn
     });
   }
-  console.warn("[Database] Cannot upsert user: database not available");
+  logger.debug("db", "Cannot upsert user: database not available (running in memory mode)");
 }
 async function getUserByOpenId(openId) {
   const pgPool = getPgPool();
@@ -446,14 +514,14 @@ async function getUserByOpenId(openId) {
       );
       return res.rows.length > 0 ? res.rows[0] : void 0;
     } catch (err) {
-      console.error("[Database:PostgreSQL] Failed to get user:", err);
+      logger.error("db:postgres", "Failed to get user", err);
       return void 0;
     }
   }
   if (isTursoConfigured()) {
     return await getTursoUserByOpenId(openId);
   }
-  console.warn("[Database] Cannot get user: database not available");
+  logger.debug("db", "Cannot get user: database not available (running in memory mode)");
   return void 0;
 }
 
@@ -495,10 +563,11 @@ var GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInf
 var OAuthService = class {
   constructor(client) {
     this.client = client;
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
+    logger.debug("oauth", `Initialized with baseURL: ${ENV.oAuthServerUrl || "none"}`);
     if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
+      logger.debug(
+        "oauth",
+        "OAUTH_SERVER_URL is not configured; running in standalone / anonymous mode"
       );
     }
   }
@@ -617,7 +686,7 @@ var SDKServer = class {
   }
   async verifySession(cookieValue) {
     if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
+      logger.debug("auth", "No session cookie provided for request");
       return null;
     }
     try {
@@ -627,7 +696,7 @@ var SDKServer = class {
       });
       const { openId, appId, name } = payload;
       if (!isNonEmptyString(openId) || !isNonEmptyString(appId) || !isNonEmptyString(name)) {
-        console.warn("[Auth] Session payload missing required fields");
+        logger.warn("auth", "Session payload missing required fields");
         return null;
       }
       return {
@@ -636,7 +705,7 @@ var SDKServer = class {
         name
       };
     } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
+      logger.debug("auth", "Session verification failed (token expired or invalid)");
       return null;
     }
   }
@@ -687,7 +756,7 @@ var SDKServer = class {
         });
         user = await getUserByOpenId(userInfo.openId);
       } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
+        logger.error("auth", "Failed to sync user from OAuth", error);
         throw ForbiddenError("Failed to sync user info");
       }
     }
@@ -762,7 +831,7 @@ function registerOAuthRoutes(app2) {
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
       res.redirect(302, "/");
     } catch (error) {
-      console.error("[OAuth] Callback failed", error);
+      logger.error("oauth", "Callback processing failed", error);
       res.status(500).json({ error: "OAuth callback failed" });
     }
   });
@@ -880,14 +949,15 @@ async function notifyOwner(payload) {
     });
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      console.warn(
-        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
+      logger.warn(
+        "notify",
+        `Failed to notify owner (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
       );
       return false;
     }
     return true;
   } catch (error) {
-    console.warn("[Notification] Error calling notification service:", error);
+    logger.warn("notify", "Error calling notification service", error);
     return false;
   }
 }
@@ -5050,7 +5120,7 @@ async function dailyContentHandler(req, res) {
     const manifest = await ensureDailyContent();
     return res.json({ ok: true, date: manifest.date, generated: manifest.games.length, version: "2" });
   } catch (error) {
-    console.error("[daily-content] generation failed", error);
+    logger.error("cron:daily", "Content generation failed", error);
     return res.status(500).json({ error: "daily-generation-failed" });
   }
 }
@@ -5060,7 +5130,7 @@ async function dailyCleanupHandler(req, res) {
     const removed = await cleanupDailyContent();
     return res.json({ ok: true, removed, retentionDays: 90 });
   } catch (error) {
-    console.error("[daily-content] cleanup failed", error);
+    logger.error("cron:cleanup", "Cleanup failed", error);
     return res.status(500).json({ error: "daily-cleanup-failed" });
   }
 }
@@ -5109,10 +5179,10 @@ async function getTcpRedisClient() {
         }
       });
       tcpRedisInstance.on("error", (err) => {
-        console.warn("[Leaderboard:Redis] Connection error:", err.message);
+        logger.warn("leaderboard:redis", "Connection error", err);
       });
       tcpRedisConnecting = tcpRedisInstance.connect().catch((err) => {
-        console.warn("[Leaderboard:Redis] Initial connect failed:", err.message);
+        logger.warn("leaderboard:redis", "Initial connect failed", err);
         tcpRedisInstance = null;
         tcpRedisConnecting = null;
       });
@@ -5494,7 +5564,12 @@ function createApp() {
     publicApiLimiter,
     createExpressMiddleware({
       router: appRouter,
-      createContext
+      createContext,
+      onError: ({ path: path3, error }) => {
+        if (error.code === "INTERNAL_SERVER_ERROR") {
+          logger.error("trpc", `Procedure '${path3}' failed`, error);
+        }
+      }
     })
   );
   return app2;

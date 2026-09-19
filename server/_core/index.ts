@@ -3,6 +3,7 @@ import { createServer } from "http";
 import net from "net";
 import app from "../app";
 import { ensureDailyContent } from "../dailyContent";
+import { logger } from "./logger";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -38,16 +39,18 @@ async function startServer() {
   const port = await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+    logger.info("server", `Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    logger.info("server", `Standalone server running on http://localhost:${port}/`);
     // Pre-warm today's daily game content on standalone server startup
     ensureDailyContent().catch(err => {
-      console.warn("[Startup] Failed to pre-warm daily content:", err.message);
+      logger.warn("startup", "Failed to pre-warm daily content", err);
     });
   });
 }
 
-startServer().catch(console.error);
+startServer().catch(err => {
+  logger.error("server", "Fatal startup failure", err);
+});

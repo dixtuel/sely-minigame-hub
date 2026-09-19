@@ -2,6 +2,7 @@ import pg from "pg";
 import { ENV } from "../_core/env";
 import { isTursoConfigured, getTursoUserByOpenId, upsertTursoUser } from "./turso";
 import { isCloudPostgresUrl, warnIfDatabaseUrlSchemeMismatch } from "./dbUrl";
+import { logger } from "../_core/logger";
 
 const { Pool } = pg;
 
@@ -71,10 +72,10 @@ function getPgPool(): pg.Pool | null {
       });
 
       _pgPool.on("error", (err) => {
-        console.warn("[Database:PostgreSQL] Unexpected error on idle client:", err.message);
+        logger.warn("db:postgres", "Unexpected error on idle client", err);
       });
     } catch (error) {
-      console.warn("[Database:PostgreSQL] Failed to initialize pool:", error);
+      logger.warn("db:postgres", "Failed to initialize pool", error);
       _pgPool = null;
     }
   }
@@ -102,7 +103,7 @@ async function ensurePgSchema(pool: pg.Pool): Promise<boolean> {
     _pgSchemaInitialized = true;
     return true;
   } catch (err) {
-    console.error("[Database:PostgreSQL] Failed to ensure schema:", err);
+    logger.error("db:postgres", "Failed to ensure schema", err);
     return false;
   }
 }
@@ -150,7 +151,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       );
       return;
     } catch (err) {
-      console.error("[Database:PostgreSQL] Failed to upsert user:", err);
+      logger.error("db:postgres", "Failed to upsert user", err);
       throw err;
     }
   }
@@ -167,7 +168,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     });
   }
 
-  console.warn("[Database] Cannot upsert user: database not available");
+  logger.debug("db", "Cannot upsert user: database not available (running in memory mode)");
 }
 
 export async function getUserByOpenId(openId: string): Promise<User | undefined> {
@@ -189,7 +190,7 @@ export async function getUserByOpenId(openId: string): Promise<User | undefined>
       );
       return res.rows.length > 0 ? (res.rows[0] as User) : undefined;
     } catch (err) {
-      console.error("[Database:PostgreSQL] Failed to get user:", err);
+      logger.error("db:postgres", "Failed to get user", err);
       return undefined;
     }
   }
@@ -199,6 +200,6 @@ export async function getUserByOpenId(openId: string): Promise<User | undefined>
     return (await getTursoUserByOpenId(openId)) as User | undefined;
   }
 
-  console.warn("[Database] Cannot get user: database not available");
+  logger.debug("db", "Cannot get user: database not available (running in memory mode)");
   return undefined;
 }

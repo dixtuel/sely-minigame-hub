@@ -10,6 +10,7 @@ import { getLeaderboardHandler, submitLeaderboardHandler } from "./leaderboard";
 import { getGlobalConfigHandler } from "./globalConfig";
 import { createRateLimiter, securityHeaders } from "./_core/security";
 import { registerSeoAndVerificationRoutes } from "./seoRoutes";
+import { logger } from "./_core/logger";
 
 // tRPC procedures that never depend on session/cookie state and are therefore safe to cache
 // publicly at the Vercel Edge CDN. Anything not listed here (e.g. auth.me) stays private/no-store.
@@ -73,6 +74,11 @@ export function createApp() {
     createExpressMiddleware({
       router: appRouter,
       createContext,
+      onError: ({ path, error }) => {
+        if (error.code === "INTERNAL_SERVER_ERROR") {
+          logger.error("trpc", `Procedure '${path}' failed`, error);
+        }
+      },
     })
   );
 

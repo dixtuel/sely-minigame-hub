@@ -21,6 +21,8 @@ export function isCloudPostgresUrl(url: string): boolean {
  * next fallback with no error — warn once so this is visible in prod logs
  * without changing which provider actually gets picked.
  */
+import { logger } from "../_core/logger";
+
 const warnedCallers = new Set<string>();
 export function warnIfDatabaseUrlSchemeMismatch(callerLabel: string, expectedSchemes: readonly string[]): void {
   const url = process.env.DATABASE_URL;
@@ -28,8 +30,9 @@ export function warnIfDatabaseUrlSchemeMismatch(callerLabel: string, expectedSch
   const matches = expectedSchemes.some(scheme => url.startsWith(scheme));
   if (!matches) {
     warnedCallers.add(callerLabel);
-    console.warn(
-      `[Storage:${callerLabel}] DATABASE_URL is set but doesn't match the expected scheme(s) (${expectedSchemes.join(", ")}) — it will be ignored here and fall through to the next storage strategy.`
+    logger.warn(
+      `storage:${callerLabel}`,
+      `DATABASE_URL is set but doesn't match the expected scheme(s) (${expectedSchemes.join(", ")}) — falling through to next storage strategy.`
     );
   }
 }
