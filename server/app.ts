@@ -11,6 +11,16 @@ import { getGlobalConfigHandler } from "./globalConfig";
 import { createRateLimiter, securityHeaders } from "./_core/security";
 import { registerSeoAndVerificationRoutes } from "./seoRoutes";
 
+// tRPC procedures that never depend on session/cookie state and are therefore safe to cache
+// publicly at the Vercel Edge CDN. Anything not listed here (e.g. auth.me) stays private/no-store.
+const PUBLIC_CACHEABLE_TRPC_PROCEDURES = new Set([
+  "daily.today",
+  "vaka.config",
+  "vaka.getCases",
+  "vaka.getDailyCase",
+  "system.health",
+]);
+
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
@@ -37,10 +47,21 @@ export function createApp() {
   app.all("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);
   app.all("/api/scheduled/daily-cleanup", scheduledLimiter, dailyCleanupHandler);
 
-  // Edge Caching Hook for read-only tRPC requests to minimize Function Invocations & compute units
+  // Edge Caching Hook for read-only tRPC requests to minimize Function Invocations & compute units.
+  // tRPC's httpBatchLink batches multiple queries into a single GET (e.g. "/api/trpc/auth.me,daily.today"),
+  // so this must only cache when EVERY procedure in the batch is known to be session-independent.
+  // Anything else (auth.me, future protectedProcedure calls, unknown paths) must stay private/no-store,
+  // otherwise the Edge CDN could serve one user's session data to another user for up to an hour.
   app.use("/api/trpc", (req, res, next) => {
     if (req.method === "GET") {
-      res.setHeader("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
+      const procedures = req.path.replace(/^\//, "").split(",");
+      const allCacheable = procedures.length > 0 && procedures.every(p => PUBLIC_CACHEABLE_TRPC_PROCEDURES.has(p));
+      res.setHeader(
+        "Cache-Control",
+        allCacheable
+          ? "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400"
+          : "private, no-store"
+      );
     }
     next();
   });

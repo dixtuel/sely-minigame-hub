@@ -5575,6 +5575,13 @@ Sitemap: ${sitemapUrl}
 }
 
 // server/app.ts
+var PUBLIC_CACHEABLE_TRPC_PROCEDURES = /* @__PURE__ */ new Set([
+  "daily.today",
+  "vaka.config",
+  "vaka.getCases",
+  "vaka.getDailyCase",
+  "system.health"
+]);
 function createApp() {
   const app2 = express();
   app2.disable("x-powered-by");
@@ -5594,7 +5601,12 @@ function createApp() {
   app2.all("/api/scheduled/daily-cleanup", scheduledLimiter, dailyCleanupHandler);
   app2.use("/api/trpc", (req, res, next) => {
     if (req.method === "GET") {
-      res.setHeader("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");
+      const procedures = req.path.replace(/^\//, "").split(",");
+      const allCacheable = procedures.length > 0 && procedures.every((p) => PUBLIC_CACHEABLE_TRPC_PROCEDURES.has(p));
+      res.setHeader(
+        "Cache-Control",
+        allCacheable ? "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400" : "private, no-store"
+      );
     }
     next();
   });
