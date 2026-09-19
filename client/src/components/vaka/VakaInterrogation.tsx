@@ -110,16 +110,63 @@ export default function VakaInterrogation({
     } catch {}
   };
 
+function cleanInterrogationText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/^\[(TAKTİKSEL BLÖF|TACTICAL BLUFF|SESSİZLİK & BASKI|SILENCE & PRESSURE|ÇAPRAZ SORGU|CROSS-EXAM|DELİLLE YÜZLEŞTİRME|CONFRONT WITH EVIDENCE)\]\s*/i, "")
+    .replace(/\[(TAKTİKSEL BLÖF|TACTICAL BLUFF|SESSİZLİK & BASKI|SILENCE & PRESSURE|ÇAPRAZ SORGU|CROSS-EXAM|DELİLLE YÜZLEŞTİRME|CONFRONT WITH EVIDENCE)\]/gi, "")
+    .trim();
+}
+
+  // Çelişki Avı'nda yakalanan şüphelilerin haritası
+  const [exposedMap, setExposedMap] = useState<
+    Record<string, { sentenceId: string; clueId: string; explanation?: string; timestamp?: number }>
+  >({});
+
   // Vaka veya dil değiştiğinde (seviye atlama / günlük değişimi) o vakaya ait izole hafızayı yükle
   useEffect(() => {
     setSelectedSuspectId(vakaCase.suspects[0]?.id || "");
+
+    // Çelişki Avı tespiti kontrolü
+    try {
+      if (typeof window !== "undefined") {
+        const expStr = localStorage.getItem(`sely_vaka_exposed_${vakaCase.id}`);
+        if (expStr) {
+          setExposedMap(JSON.parse(expStr));
+        } else {
+          setExposedMap({});
+        }
+      }
+    } catch {}
+
     try {
       if (typeof window !== "undefined") {
         const saved = localStorage.getItem(`sely_vaka_session_${vakaCase.id}`);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed.messagesMap && typeof parsed.messagesMap === "object") {
-            setSuspectMessagesMap(parsed.messagesMap);
+            // Eski oturumlardaki yapay [TAKTİKSEL BLÖF] vb. etiketleri temizleyip rozete dönüştür
+            const cleanedMap: Record<string, VakaInterrogationMessage[]> = {};
+            for (const [sId, msgs] of Object.entries(parsed.messagesMap)) {
+              if (Array.isArray(msgs)) {
+                cleanedMap[sId] = msgs.map((m: VakaInterrogationMessage) => {
+                  let badge = m.actionBadge;
+                  if (!badge && m.text) {
+                    if (m.text.includes("BLÖF") || m.text.includes("BLUFF")) badge = isEn ? "BLUFF" : "BLÖF";
+                    else if (m.text.includes("SESSİZ") || m.text.includes("SILEN")) badge = isEn ? "SILENCE" : "SESSİZLİK";
+                    else if (m.text.includes("ÇAPRAZ") || m.text.includes("CROSS")) badge = isEn ? "CROSS-EXAM" : "ÇAPRAZ SORGU";
+                    else if (m.text.includes("DELİL") || m.text.includes("EVIDENCE")) badge = isEn ? "EVIDENCE" : "DELİL";
+                  }
+                  return {
+                    ...m,
+                    text: cleanInterrogationText(m.text),
+                    actionBadge: badge,
+                  };
+                });
+              }
+            }
+
+            setSuspectMessagesMap(cleanedMap);
             if (parsed.stressMap && typeof parsed.stressMap === "object") {
               setStressMap(parsed.stressMap);
             }
@@ -158,15 +205,18 @@ export default function VakaInterrogation({
       question?: string;
       clueId?: string;
       crossId?: string;
+      crossMode?: "ask_about" | "confront";
     }
   ) => {
     if (interrogateMutation.isPending || solved) return;
 
     const clueId = customPayload?.clueId || (actionType === "present_evidence" ? selectedClueId : undefined);
     const crossId = customPayload?.crossId || (actionType === "cross_examine" ? crossSuspectId : undefined);
+    const crossMode = customPayload?.crossMode || (actionType === "cross_examine" ? "confront" : undefined);
     const qText = customPayload?.question || (actionType === "question" ? inputText.trim() : undefined);
 
     let userDisplayText = qText || "";
+    let actionBadge: string | undefined = undefined;
 
     const currentSuspectMsgs = suspectMessagesMap[selectedSuspectId] || [];
 
@@ -176,44 +226,62 @@ export default function VakaInterrogation({
         return;
       }
       const cObj = vakaCase.clues.find((c) => c.id === clueId);
-      userDisplayText = isEn
-        ? `[CONFRONT WITH EVIDENCE: ${cObj?.labelEn}] Explain this immediately!`
-        : `[DELİLLE YÜZLEŞTİRME: ${cObj?.label}] Derhal bunu açıkla!`;
+      actionBadge = isEn ? "EVIDENCE" : "DELİL";
+      userDisplayText = cObj
+        ? isEn
+          ? `Take a look at this ${cObj.labelEn}. Explain this immediately!`
+          : `Önüne şu delili koyuyorum: ${cObj.label}. Bunu derhal açıkla!`
+        : (isEn ? "Explain this evidence!" : "Bu delili açıkla!");
     } else if (actionType === "cross_examine") {
       if (!crossId) {
         alert(isEn ? "Select the other suspect to quote!" : "İfadesini yüzleştireceğiniz diğer şüpheliyi seçin!");
         return;
       }
       const other = vakaCase.suspects.find((s) => s.id === crossId);
-      userDisplayText = isEn
-        ? `[CROSS-EXAMINATION] ${other?.name} told me your statements and defenses are completely fabricated!`
-        : `[ÇAPRAZ SORGU] ${other?.name} bana senin ifadelerinin ve savunmanın tamamen yalan olduğunu söyledi!`;
+      const otherName = other?.name || (isEn ? "The other suspect" : "Diğer şüpheli");
+      actionBadge = isEn ? "CROSS-EXAM" : "ÇAPRAZ SORGU";
+
+      if (crossMode === "ask_about") {
+        userDisplayText = isEn
+          ? `What can you tell me about ${otherName}? Did you notice anything suspicious about them that night?`
+          : `${otherName} hakkında ne biliyorsun? O gece onunla ilgili şüpheli bir şey gördün mü?`;
+      } else {
+        userDisplayText = isEn
+          ? `${otherName} claims you were lying about your whereabouts and saw you near the scene! How do you explain that?!`
+          : `${otherName} senin olay anında yalan söylediğini ve suç mahallinin yakınında olduğunu anlattı! Buna ne diyeceksin?!`;
+      }
     } else if (actionType === "stay_silent") {
-      const silentCount = currentSuspectMsgs.filter((m) => m.text.includes("SESSİZ") || m.text.includes("SILEN")).length;
+      actionBadge = isEn ? "SILENCE" : "SESSİZLİK";
+      const silentCount = currentSuspectMsgs.filter(
+        (m) => m.actionType === "stay_silent" || m.text.includes("sessizliği") || m.text.includes("silent")
+      ).length;
       const silentVariationsTr = [
-        "[SESSİZLİK & BASKI] Dedektif kollarını kavuşturup doğrudan şüphelinin gözlerinin içine bakıyor.",
-        "[SESSİZLİK & BASKI] Dedektif parmaklarını yavaşça masaya vurarak gerilimli sessizliği uzatıyor...",
-        "[SESSİZLİK & BASKI] Dedektif hiçbir şey söylemeden şüpheliyi soğukça süzüyor.",
+        "(Dedektif kollarını kavuşturup doğrudan şüphelinin gözlerinin içine bakıyor.)",
+        "(Dedektif parmaklarını yavaşça masaya vurarak gerilimli sessizliği uzatıyor...)",
+        "(Dedektif hiçbir şey söylemeden şüpheliyi soğukça süzüyor.)",
       ];
       const silentVariationsEn = [
-        "[SILENCE & PRESSURE] Detective crosses arms and maintains unbroken eye contact.",
-        "[SILENCE & PRESSURE] Detective taps slowly on the desk, letting the tension mount...",
-        "[SILENCE & PRESSURE] Detective remains completely silent, measuring the suspect's breathing.",
+        "(Detective crosses arms and maintains unbroken eye contact.)",
+        "(Detective taps slowly on the desk, letting the tension mount...)",
+        "(Detective remains completely silent, measuring the suspect's breathing.)",
       ];
       userDisplayText = isEn
         ? silentVariationsEn[silentCount % silentVariationsEn.length]
         : silentVariationsTr[silentCount % silentVariationsTr.length];
     } else if (actionType === "bluff") {
-      const bluffCount = currentSuspectMsgs.filter((m) => m.text.includes("BLÖF") || m.text.includes("BLUFF")).length;
+      actionBadge = isEn ? "BLUFF" : "BLÖF";
+      const bluffCount = currentSuspectMsgs.filter(
+        (m) => m.actionType === "bluff" || m.text.includes("kamera") || m.text.includes("surveillance")
+      ).length;
       const bluffVariationsTr = [
-        "[TAKTİKSEL BLÖF] O saatte orada olduğunu gösteren gizli kamera kayıtları elimizde!",
-        "[TAKTİKSEL BLÖF] Telefonunun olay yerindeki baz istasyonundan sinyal verdiği kesinleşti!",
-        "[TAKTİKSEL BLÖF] Adli tıp kurbanın kıyafetlerinde senin parmak izlerini ve DNA izlerini buldu!",
+        "O saatte orada olduğunu gösteren gizli kamera kayıtları elimizde!",
+        "Telefonunun olay yerindeki baz istasyonundan sinyal verdiği kesinleşti!",
+        "Adli tıp kurbanın kıyafetlerinde senin parmak izlerini ve DNA izlerini buldu!",
       ];
       const bluffVariationsEn = [
-        "[TACTICAL BLUFF] We already pulled the security surveillance footage that places you there!",
-        "[TACTICAL BLUFF] Cell tower triangulation places your phone right at the murder scene!",
-        "[TACTICAL BLUFF] Forensics recovered your fingerprints and DNA from the victim's jacket!",
+        "We already pulled the security surveillance footage that places you there!",
+        "Cell tower triangulation places your phone right at the murder scene!",
+        "Forensics recovered your fingerprints and DNA from the victim's jacket!",
       ];
       userDisplayText = isEn
         ? bluffVariationsEn[bluffCount % bluffVariationsEn.length]
@@ -228,6 +296,10 @@ export default function VakaInterrogation({
       id: `usr-${Date.now()}`,
       sender: "detective",
       text: userDisplayText,
+      actionType,
+      actionBadge,
+      crossSuspectId: crossId,
+      crossMode,
       timestamp: Date.now(),
     };
 
@@ -241,22 +313,37 @@ export default function VakaInterrogation({
     persistSession(mapWithUser, stressMap);
 
     try {
+      // Çelişki Avı tespiti var mı kontrol et
+      let isExposed = false;
+      let expSentenceId: string | undefined;
+      let expClueId: string | undefined;
+      if (exposedMap && exposedMap[selectedSuspectId]) {
+        isExposed = true;
+        expSentenceId = exposedMap[selectedSuspectId].sentenceId;
+        expClueId = exposedMap[selectedSuspectId].clueId;
+      }
+
       // YALNIZCA bu şüpheliyle yapılan diyalog geçmişini gönder (izole ve temiz)
       const history = newSuspectMsgs
         .filter((m) => m.sender === "detective" || m.sender === "suspect")
         .slice(-8)
         .map((m) => ({
           role: m.sender === "detective" ? ("user" as const) : ("assistant" as const),
-          content: m.text,
+          content: cleanInterrogationText(m.text),
+          actionType: m.actionType,
         }));
 
       const res = await interrogateMutation.mutateAsync({
         caseId: vakaCase.id,
         suspectId: selectedSuspectId,
         actionType,
-        question: qText || undefined,
+        question: userDisplayText || undefined,
         presentedClueId: clueId,
         crossSuspectId: crossId,
+        crossMode,
+        isExposedByContradiction: isExposed,
+        exposedSentenceId: expSentenceId,
+        exposedClueId: expClueId,
         currentStress,
         locale: isEn ? "en" : "tr",
         history,
@@ -391,6 +478,14 @@ export default function VakaInterrogation({
             }}
           />
         </div>
+
+        {/* Çelişki Avı Tespiti Rozeti (Katilin yalanı yakalandığında görünür) */}
+        {exposedMap[selectedSuspectId] && (
+          <div className="vaka-exposed-badge-banner">
+            <span>⚖️ {isEn ? "OFFICIAL CONTRADICTION EXPOSED IN COURT" : "RESMİ TUTANAKTA ÇELİŞKİSİ YAKALANDI"}</span>
+            <small>{exposedMap[selectedSuspectId].explanation}</small>
+          </div>
+        )}
       </div>
 
       {/* İtiraf Rozeti */}
@@ -408,8 +503,6 @@ export default function VakaInterrogation({
         </div>
       )}
 
-
-
       {/* Sohbet / Tutanak Akışı */}
       <div className="vaka-chat-transcript">
         {activeMessages.map((msg) => (
@@ -422,6 +515,11 @@ export default function VakaInterrogation({
                   ? activeSuspect.name
                   : (isEn ? "Stenographer" : "Zabıt")}
               </b>
+              {msg.actionBadge && (
+                <span className={`vaka-action-badge badge-${msg.actionType || "tactic"}`}>
+                  {msg.actionBadge}
+                </span>
+              )}
               {msg.behavioralCue && (
                 <span className="vaka-behavioral-cue">👁️ {msg.behavioralCue}</span>
               )}
@@ -511,22 +609,46 @@ export default function VakaInterrogation({
               </div>
             )}
 
-            {/* 3. Çapraz Sorgu */}
+            {/* 3. Çapraz Sorgu & Dedikodu */}
             {activeActionTab === "cross" && (
               <div className="vaka-cross-subpanel">
-                <label>{isEn ? "Quote another suspect's testimony:" : "Diğer şüphelinin ifadesiyle köşeye sıkıştır:"}</label>
-                <div className="vaka-cross-pills">
+                <label>
+                  {isEn
+                    ? "Cross-examine using other suspects' relations and gossip:"
+                    : "Diğer şüphelilerle ilgili bilgi topla veya ifadelerini yüzleştir:"}
+                </label>
+                <div className="vaka-cross-list">
                   {vakaCase.suspects
                     .filter((s) => s.id !== selectedSuspectId)
                     .map((other) => (
-                      <button
-                        key={other.id}
-                        type="button"
-                        className="vaka-cross-pill"
-                        onClick={() => dispatchAction("cross_examine", { crossId: other.id })}
-                      >
-                        🗣️ {other.name} ({isEn ? other.roleEn : other.role})
-                      </button>
+                      <div key={other.id} className="vaka-cross-card-row">
+                        <div className="vaka-cross-card-info">
+                          <b>🗣️ {other.name}</b>
+                          <small>{isEn ? other.roleEn : other.role}</small>
+                        </div>
+                        <div className="vaka-cross-card-actions">
+                          <button
+                            type="button"
+                            className="vaka-cross-action-btn btn-ask"
+                            disabled={interrogateMutation.isPending}
+                            onClick={() =>
+                              dispatchAction("cross_examine", { crossId: other.id, crossMode: "ask_about" })
+                            }
+                          >
+                            💬 {isEn ? "Ask About" : "Dedikodu Sor"}
+                          </button>
+                          <button
+                            type="button"
+                            className="vaka-cross-action-btn btn-confront"
+                            disabled={interrogateMutation.isPending}
+                            onClick={() =>
+                              dispatchAction("cross_examine", { crossId: other.id, crossMode: "confront" })
+                            }
+                          >
+                            ⚡ {isEn ? "Confront" : "İfadeyi Yüzüne Çarp"}
+                          </button>
+                        </div>
+                      </div>
                     ))}
                 </div>
               </div>

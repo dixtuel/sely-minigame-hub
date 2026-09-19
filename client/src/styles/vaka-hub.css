@@ -656,6 +656,124 @@
   letter-spacing: 0.02em;
 }
 
+.vaka-action-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font: 700 9px var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  border: 1px solid var(--vaka-border);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.vaka-action-badge.badge-bluff {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #f59e0b;
+}
+
+.vaka-action-badge.badge-cross_examine {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #38bdf8;
+}
+
+.vaka-action-badge.badge-stay_silent {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border-color: #c084fc;
+}
+
+.vaka-action-badge.badge-present_evidence {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #4ade80;
+}
+
+.vaka-exposed-badge-banner {
+  background: #fee2e2;
+  border: 1.5px solid #ef4444;
+  border-radius: var(--vaka-radius);
+  padding: 8px 12px;
+  margin-top: 8px;
+  font: 700 11px var(--font-mono);
+  color: #991b1b;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vaka-cross-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.vaka-cross-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid var(--vaka-border);
+  border-radius: var(--vaka-radius);
+  gap: 10px;
+  box-shadow: 1px 1px 0 var(--vaka-ink);
+}
+
+.vaka-cross-card-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.vaka-cross-card-info b {
+  font-size: 13px;
+  color: var(--vaka-ink);
+}
+
+.vaka-cross-card-info small {
+  font: 600 11px var(--font-mono);
+  color: #64748b;
+}
+
+.vaka-cross-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vaka-cross-action-btn {
+  font: 700 10px var(--font-mono);
+  padding: 5px 9px;
+  border-radius: var(--vaka-radius);
+  border: 1px solid var(--vaka-border);
+  cursor: pointer;
+  transition: transform 120ms ease, background-color 120ms ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.vaka-cross-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.vaka-cross-action-btn.btn-ask {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.vaka-cross-action-btn.btn-confront {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
 /* Hızlı Soru Çipleri */
 .vaka-quick-chips {
   display: flex;

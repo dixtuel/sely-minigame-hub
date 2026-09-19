@@ -3,7 +3,13 @@ import { publicProcedure, router } from "../_core/trpc";
 import { logger } from "../_core/logger";
 import { VAKA_SAMPLE_CASES } from "../../shared/vakaCases";
 import type { VakaConfig, VakaGameMode, VakaDetailedCase } from "../../shared/vakaTypes";
-import { executeVakaLlmChain, hasLlmApiKey, buildVakaInterrogationPrompt, type LlmMessage } from "../services/vakaLlmService";
+import {
+  executeVakaLlmChain,
+  hasLlmApiKey,
+  buildVakaInterrogationPrompt,
+  cleanInterrogationText,
+  type LlmMessage,
+} from "../services/vakaLlmService";
 import { processDeterministicInterrogation, type InterrogationActionType } from "../services/vakaDeterministicEngine";
 
 /** Public-safe case shape shared by getCaseDetail and getDailyCase — redacts contradiction-explanation spoilers. */
@@ -36,47 +42,44 @@ function toPublicCaseDto(found: VakaDetailedCase) {
       statementEn: s.statementEn,
       alibi: s.alibi,
       alibiEn: s.alibiEn,
-      detailedStatements: s.detailedStatements.map((sent) => ({
-        id: sent.id,
-        text: sent.text,
-        textEn: sent.textEn,
-        isContradiction: sent.isContradiction,
-        contradictionClueId: sent.contradictionClueId,
+      detailedStatements: s.detailedStatements.map((ds) => ({
+        id: ds.id,
+        text: ds.text,
+        textEn: ds.textEn,
+        isContradiction: ds.isContradiction,
       })),
+      gossip: s.gossip,
+      behavioralCues: s.behavioralCues,
     })),
-    clues: found.clues,
-  };
-}
-
-function getVakaConfig(): VakaConfig {
-  const envModes = process.env.VAKA_ENABLED_MODES;
-  let enabledModes: VakaGameMode[] = ["daily", "interrogation", "contradiction"];
-  if (envModes) {
-    const parsed = envModes.split(",").map((m) => m.trim().toLowerCase()) as VakaGameMode[];
-    const valid = parsed.filter((m) => ["daily", "interrogation", "contradiction"].includes(m));
-    if (valid.length > 0) enabledModes = valid;
-  }
-
-  let defaultMode: VakaGameMode = "daily";
-  const envDefault = process.env.VAKA_DEFAULT_MODE?.trim().toLowerCase() as VakaGameMode;
-  if (envDefault && enabledModes.includes(envDefault)) {
-    defaultMode = envDefault;
-  } else if (!enabledModes.includes("daily")) {
-    defaultMode = enabledModes[0];
-  }
-
-  const hasLlmKeys = hasLlmApiKey();
-
-  return {
-    enabledModes,
-    defaultMode,
-    hasLlmKeys,
+    clues: found.clues.map((c) => ({
+      id: c.id,
+      label: c.label,
+      labelEn: c.labelEn,
+      detail: c.detail,
+      detailEn: c.detailEn,
+      category: c.category,
+      type: c.type,
+      significance: c.significance,
+      significanceEn: c.significanceEn,
+    })),
   };
 }
 
 export const vakaRouter = router({
-  config: publicProcedure.query(() => {
-    return getVakaConfig();
+  config: publicProcedure.query((): VakaConfig => {
+    return {
+      enabledModes: ["interrogation", "contradiction", "daily"],
+      defaultMode: "interrogation",
+      hasLlmKeys: hasLlmApiKey(),
+    };
+  }),
+
+  getConfig: publicProcedure.query((): VakaConfig => {
+    return {
+      enabledModes: ["interrogation", "contradiction", "daily"],
+      defaultMode: "interrogation",
+      hasLlmKeys: hasLlmApiKey(),
+    };
   }),
 
   getCases: publicProcedure.query(() => {
@@ -107,7 +110,6 @@ export const vakaRouter = router({
     const today = new Date();
     const dayIndex = (today.getFullYear() * 365 + today.getMonth() * 31 + today.getDate()) % VAKA_SAMPLE_CASES.length;
     const selected = VAKA_SAMPLE_CASES[dayIndex] || VAKA_SAMPLE_CASES[0];
-
     return {
       date: today.toISOString().split("T")[0],
       caseIndex: dayIndex + 1,
@@ -121,11 +123,15 @@ export const vakaRouter = router({
         caseId: z.string(),
         suspectId: z.string(),
         actionType: z.enum(["question", "present_evidence", "cross_examine", "stay_silent", "bluff", "confront"]).default("question"),
-        question: z.string().max(300).optional(),
+        question: z.string().max(400).optional(),
         presentedClueId: z.string().optional(),
         crossSuspectId: z.string().optional(),
+        crossMode: z.enum(["ask_about", "confront"]).optional(),
         crossQuote: z.string().optional(),
         bluffClaim: z.string().optional(),
+        isExposedByContradiction: z.boolean().optional(),
+        exposedSentenceId: z.string().optional(),
+        exposedClueId: z.string().optional(),
         currentStress: z.number().min(0).max(100).default(10),
         locale: z.enum(["tr", "en"]).default("tr"),
         history: z
@@ -133,6 +139,7 @@ export const vakaRouter = router({
             z.object({
               role: z.enum(["user", "assistant"]),
               content: z.string(),
+              actionType: z.string().optional(),
             })
           )
           .optional(),
@@ -142,18 +149,58 @@ export const vakaRouter = router({
       const caseData = VAKA_SAMPLE_CASES.find((c) => c.id === input.caseId) || VAKA_SAMPLE_CASES[0];
       const suspect = caseData.suspects.find((s) => s.id === input.suspectId) || caseData.suspects[0];
 
+      // Dedektifin sözlerini ve geçmişini yapay etiketlerden ([TAKTİKSEL BLÖF] vb.) arındır
+      const cleanQuestion = cleanInterrogationText(input.question || "");
+      const cleanHistory = (input.history || []).map((h) => ({
+        role: h.role,
+        content: cleanInterrogationText(h.content),
+        actionType: h.actionType,
+      }));
+
+      // Çelişki Avı tespiti bilgisi (varsa)
+      let exposedInfo: { sentence?: string; clue?: string; explanation?: string } | undefined = undefined;
+      if (input.isExposedByContradiction) {
+        const st = suspect.detailedStatements.find((s) => s.id === input.exposedSentenceId);
+        const cl = caseData.clues.find((c) => c.id === input.exposedClueId);
+        exposedInfo = {
+          sentence: input.locale === "en" ? (st?.textEn || st?.text) : st?.text,
+          clue: input.locale === "en" ? (cl?.labelEn || cl?.label) : cl?.label,
+          explanation: input.locale === "en" ? (st?.explanationEn || st?.explanation) : st?.explanation,
+        };
+      }
+
+      // Çapraz Referans Tespiti (Serbest soruda başka bir şüphelinin adı geçiyorsa veya butonla seçilmişse)
+      let crossSuspect = input.crossSuspectId
+        ? caseData.suspects.find((s) => s.id === input.crossSuspectId) || null
+        : null;
+      let crossMode = input.crossMode || (input.actionType === "cross_examine" ? "confront" : undefined);
+
+      if (!crossSuspect && cleanQuestion) {
+        const lowerQ = cleanQuestion.toLowerCase();
+        const foundOther = caseData.suspects.find(
+          (s) => s.id !== suspect.id && lowerQ.includes(s.name.toLowerCase())
+        );
+        if (foundOther) {
+          crossSuspect = foundOther;
+          crossMode = "ask_about";
+        }
+      }
+
       // Deterministik kural motorunu işlet
       const deterministic = processDeterministicInterrogation(
         caseData,
         suspect.id,
         input.actionType as InterrogationActionType,
         {
-          question: input.question,
+          question: cleanQuestion,
           presentedClueId: input.presentedClueId,
-          crossSuspectId: input.crossSuspectId,
+          crossSuspectId: crossSuspect ? crossSuspect.id : input.crossSuspectId,
+          crossMode,
           crossQuote: input.crossQuote,
           bluffClaim: input.bluffClaim,
-          history: input.history,
+          isExposedByContradiction: input.isExposedByContradiction,
+          exposedContradictionInfo: exposedInfo,
+          history: cleanHistory,
         },
         input.currentStress,
         input.locale
@@ -166,8 +213,12 @@ export const vakaRouter = router({
 
       const hasKeys = hasLlmApiKey();
 
-      // Canlı LLM denemesi (Eğer soru serbestse ve henüz itiraf gerçekleşmediyse)
-      if (hasKeys && !deterministic.confessed && (input.actionType === "question" || input.actionType === "cross_examine")) {
+      // Canlı LLM denemesi: serbest soru, çapraz sorgu veya taktiksel blöf durumlarında çalışır
+      if (
+        hasKeys &&
+        !deterministic.confessed &&
+        (input.actionType === "question" || input.actionType === "cross_examine" || input.actionType === "bluff")
+      ) {
         const isEn = input.locale === "en";
         const presentedClue = input.presentedClueId
           ? caseData.clues.find((c) => c.id === input.presentedClueId) ?? null
@@ -183,19 +234,36 @@ export const vakaRouter = router({
           newStress: deterministic.newStress,
           otherSuspectsInfo,
           presentedClue,
+          actionType: input.actionType as any,
+          crossSuspect,
+          crossMode,
+          isExposedByContradiction: input.isExposedByContradiction,
+          exposedContradictionInfo: exposedInfo,
           locale: input.locale,
         });
 
-        const crossSuspectName = caseData.suspects.find(s => s.id === input.crossSuspectId)?.name || "Başka bir şüpheli";
-        const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId
-          ? (isEn
-              ? `Detective: "${crossSuspectName} told me you were lying about your whereabouts!"`
-              : `Dedektif: "${crossSuspectName} bana olay saatinde senin yalan söylediğini anlattı!"`)
-          : input.question || (isEn ? "Explain yourself!" : "Kendini açıkla!");
+        let userPrompt = cleanQuestion;
+        if (input.actionType === "cross_examine" && crossSuspect) {
+          if (crossMode === "ask_about") {
+            userPrompt = isEn
+              ? `What can you tell me about ${crossSuspect.name}? Did you notice anything suspicious about them that night?`
+              : `${crossSuspect.name} hakkında ne biliyorsun? O gece onunla ilgili şüpheli bir şey gördün mü?`;
+          } else {
+            userPrompt = isEn
+              ? `${crossSuspect.name} claims you were lying about your whereabouts and saw you near the scene! How do you explain that?!`
+              : `${crossSuspect.name} senin olay anında yalan söylediğini ve suç mahallinin yakınında olduğunu anlattı! Buna ne diyeceksin?!`;
+          }
+        } else if (input.actionType === "bluff") {
+          userPrompt = cleanQuestion || (isEn
+            ? "We already have surveillance footage and forensic records proving you were there!"
+            : "O saatte orada olduğunu gösteren gizli kamera kayıtları ve adli tıp raporları elimizde!");
+        } else if (!userPrompt) {
+          userPrompt = isEn ? "Explain yourself!" : "Kendini açıkla!";
+        }
 
         const messages: LlmMessage[] = [
           { role: "system", content: systemPrompt },
-          ...(input.history || []).slice(-10).map((h) => ({
+          ...cleanHistory.slice(-10).map((h) => ({
             role: h.role === "user" ? ("user" as const) : ("assistant" as const),
             content: h.content,
           })),

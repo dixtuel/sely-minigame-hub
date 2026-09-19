@@ -116,10 +116,22 @@ export type VakaDetailedCase = {
   };
 };
 
+export type VakaInterrogationActionType =
+  | "question"
+  | "present_evidence"
+  | "cross_examine"
+  | "stay_silent"
+  | "bluff"
+  | "confront";
+
 export type VakaInterrogationMessage = {
   id: string;
   sender: "detective" | "suspect" | "analyst" | "system";
   text: string;
+  actionType?: VakaInterrogationActionType;
+  actionBadge?: string; // e.g. "BLÖF", "ÇAPRAZ SORGU", "SESSİZLİK", "DELİL"
+  crossSuspectId?: string;
+  crossMode?: "ask_about" | "confront";
   behavioralCue?: string;
   stressChange?: number;
   currentStress?: number;

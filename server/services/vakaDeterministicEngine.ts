@@ -25,10 +25,17 @@ export function processDeterministicInterrogation(
     question?: string;
     presentedClueId?: string;
     crossSuspectId?: string;
+    crossMode?: "ask_about" | "confront";
     crossQuote?: string;
     bluffClaim?: string;
     sentenceId?: string;
-    history?: Array<{ role: "user" | "assistant"; content: string }>;
+    isExposedByContradiction?: boolean;
+    exposedContradictionInfo?: {
+      sentence?: string;
+      clue?: string;
+      explanation?: string;
+    };
+    history?: Array<{ role: "user" | "assistant"; content: string; actionType?: string }>;
   },
   currentStress = 10,
   locale: "tr" | "en" = "tr"
@@ -47,6 +54,39 @@ export function processDeterministicInterrogation(
 
   let stress = Math.max(0, Math.min(100, currentStress));
   const startStress = stress;
+
+  // Çelişki Avında Yakalanmış Şüpheli Kontrolü (Cross-Mode Contradiction Awareness)
+  if (payload.isExposedByContradiction) {
+    if (suspect.isCulprit) {
+      stress = Math.max(88, Math.min(100, stress + 8));
+      const expSentence = payload.exposedContradictionInfo?.sentence || suspect.alibi;
+      const expClue = payload.exposedContradictionInfo?.clue || "resmi kanıt";
+      const reply = isEn
+        ? `(Head hung in defeat, voice trembling) I know you caught my contradiction regarding "${expSentence}" with the ${expClue}, detective... There's no point in lying anymore. The debt was suffocating me, I was backed into a corner!`
+        : `(Başını ellerinin arasına alıp yere bakıyor, sesi titriyor) O resmi ifademdeki "${expSentence}" yalanımı ${expClue} ile yakaladığınızı biliyorum dedektif... Artık inkar etmenin bir anlamı kalmadı. Borçlar gırtlağıma dayanmıştı, tefeciler kapımdaydı!`;
+
+      return {
+        text: reply,
+        behavioralCue: isEn ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr,
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: true,
+      };
+    } else {
+      stress = Math.min(65, Math.max(35, stress));
+      const reply = isEn
+        ? "(Embarrassed, clearing throat) Fine! You caught that discrepancy in my official statement. But I only lied about my personal embarrassment, I swear to you I didn't murder anyone!"
+        : "(Mahcupça boğazını temizliyor) Tamam! Resmi ifademdeki o tutarsızlığı yakaladınız. Ama o sadece kendi küçük utancımı gizlemek içindi; yemin ederim cinayetle en ufak bir ilgim yok!";
+
+      return {
+        text: reply,
+        behavioralCue: isEn ? suspect.behavioralCues.nervous.en : suspect.behavioralCues.nervous.tr,
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false,
+      };
+    }
+  }
 
   // Beden dili ipucu seçici
   const getCue = (st: number) => {
@@ -137,7 +177,15 @@ export function processDeterministicInterrogation(
   // 2. EYLEM: BLÖF YAPMA (Bluff) - Spam Korumalı & Ters Tepme (Backfire) Mekaniği
   if (actionType === "bluff") {
     const priorBluffs = history.filter(
-      (m) => m.role === "user" && (m.content.includes("BLÖF") || m.content.includes("BLUFF"))
+      (m) =>
+        m.role === "user" &&
+        (m.actionType === "bluff" ||
+          m.content.includes("BLÖF") ||
+          m.content.includes("BLUFF") ||
+          m.content.includes("kamera kayıtları") ||
+          m.content.includes("surveillance footage") ||
+          m.content.includes("baz istasyon") ||
+          m.content.includes("parmak izlerini ve DNA"))
     ).length;
 
     // SPAM ENGELİ: 2. veya daha fazla blöfte şüpheli dedektifin elinde bir şey olmadığını anlar ve ÖZGÜVEN KAZANIR
@@ -201,7 +249,7 @@ export function processDeterministicInterrogation(
     }
   }
 
-  // 3. EYLEM: ÇAPRAZ SORGU (Cross-Examine)
+  // 3. EYLEM: ÇAPRAZ SORGU & DEDİKODU (Cross-Examine & Gossip)
   if (actionType === "cross_examine" && payload.crossSuspectId) {
     const other = caseData.suspects.find((s) => s.id === payload.crossSuspectId);
     const otherName = other ? other.name : (isEn ? "the other witness" : "diğer tanık");
@@ -209,31 +257,74 @@ export function processDeterministicInterrogation(
     const gossipObj = suspect.gossip[payload.crossSuspectId];
     const gossipText = gossipObj ? (isEn ? gossipObj.en : gossipObj.tr) : "";
 
+    const isAskAbout = payload.crossMode === "ask_about";
+
+    if (isAskAbout) {
+      // 3A: DİĞER KİŞİ HAKKINDA İSTİHBARAT / DEDİKODU ALMA (Ask About)
+      if (stress > 25) stress = Math.max(20, stress - 4);
+      const reply = gossipText
+        ? (isEn
+            ? `Regarding ${otherName}? Let me tell you: ${gossipText}`
+            : `${otherName} hakkında mı? Size şunu söyleyeyim: ${gossipText}`)
+        : (isEn
+            ? `I haven't paid much attention to ${otherName}, but their demeanor around here is always suspicious.`
+            : `${otherName} ile pek muhatap olmam ama hareketleri bana hep tekinsiz ve şüpheli gelmiştir.`);
+
+      return {
+        text: reply,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false,
+      };
+    }
+
+    // 3B: DİĞER KİŞİNİN İFADESİNİ YÜZÜNE ÇARPMA / YÜZLEŞTİRME (Confront)
     if (stress < 75) {
       stress = Math.min(75, stress + 16);
     } else {
       stress = Math.min(80, stress + 4);
     }
 
-    const intro = isEn
-      ? `${otherName} said that about me?! That liar is just trying to save their own neck!`
-      : `${otherName} benim hakkımda bunu mu söyledi?! O yalancı sırf kendi paçasını kurtarmak için iftira atıyor!`;
+    if (suspect.isCulprit) {
+      const attack = isEn
+        ? `${otherName} said that about me?! That liar is just trying to save their own neck! ${gossipText ? `You should investigate them instead: ${gossipText}` : "Don't believe their slander!"}`
+        : `${otherName} benim hakkımda bunu mu söyledi?! O yalancı sırf kendi paçasını kurtarmak için bana iftira atıyor! ${gossipText ? `Asıl onun yaptıklarına bakın: ${gossipText}` : "Onun uydurmalarına mı inanacaksınız?!"}`;
 
-    const fullReply = gossipText ? `${intro} ${gossipText}` : intro;
+      return {
+        text: attack,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false,
+      };
+    } else {
+      const innocentDefense = isEn
+        ? `${otherName} is lying through their teeth! Bring them in here right now, I'll say it to their face!`
+        : `${otherName} kuyruklu bir yalan söylüyor! Getirin onu buraya, bu iftirayı yüzüme karşı söylesin!`;
 
-    return {
-      text: fullReply,
-      behavioralCue: getCue(stress),
-      newStress: stress,
-      stressDelta: stress - startStress,
-      confessed: false,
-    };
+      return {
+        text: innocentDefense,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false,
+      };
+    }
   }
 
   // 4. EYLEM: SESSİZ KALIP BEKLEME (Stay Silent) - Spam Korumalı & Geri Tepme
   if (actionType === "stay_silent") {
     const priorSilences = history.filter(
-      (m) => m.role === "user" && (m.content.includes("SESSİZLİK") || m.content.includes("SILENCE"))
+      (m) =>
+        m.role === "user" &&
+        (m.actionType === "stay_silent" ||
+          m.content.includes("SESSİZLİK") ||
+          m.content.includes("SILENCE") ||
+          m.content.includes("sessizliği uzatıyor") ||
+          m.content.includes("soğukça süzüyor") ||
+          m.content.includes("unbroken eye contact") ||
+          m.content.includes("measuring the suspect"))
     ).length;
 
     // SPAM ENGELİ: 2'den fazla sessizlikte şüpheli dedektifin tıkandığını anlar, rahatlar ve stres düşer

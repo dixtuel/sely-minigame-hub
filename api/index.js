@@ -4379,9 +4379,97 @@ function hasLlmApiKey() {
     getSecretKey("GROQ_API_KEY") || getSecretKey("GROQ_API_KEY_2") || getSecretKey("NVIDIA_NIM_API_KEY") || getSecretKey("NVIDIA_API_KEY") || getSecretKey("NIM_API_KEY") || getSecretKey("MISTRAL_API_KEY")
   );
 }
+function cleanInterrogationText(text) {
+  if (!text) return "";
+  return text.replace(/^\[(TAKTİKSEL BLÖF|TACTICAL BLUFF|SESSİZLİK & BASKI|SILENCE & PRESSURE|ÇAPRAZ SORGU|CROSS-EXAM|YÜZLEŞTİRME|CONFRONTATION)\]\s*/i, "").replace(/\[(TAKTİKSEL BLÖF|TACTICAL BLUFF|SESSİZLİK & BASKI|SILENCE & PRESSURE|ÇAPRAZ SORGU|CROSS-EXAM|YÜZLEŞTİRME|CONFRONTATION)\]/gi, "").trim();
+}
 function buildVakaInterrogationPrompt(params) {
-  const { suspect, newStress, otherSuspectsInfo, presentedClue, locale = "tr" } = params;
+  const {
+    suspect,
+    newStress,
+    otherSuspectsInfo,
+    presentedClue,
+    actionType,
+    crossSuspect,
+    crossMode = "confront",
+    isExposedByContradiction,
+    exposedContradictionInfo,
+    locale = "tr"
+  } = params;
   const isEn = locale === "en";
+  const gossipLines = Object.entries(suspect.gossip || {}).map(([otherId, g]) => {
+    return `- ${otherId}: "${isEn ? g.en : g.tr}"`;
+  });
+  const gossipSection = gossipLines.length > 0 ? gossipLines.join("\n") : isEn ? "No specific gossip on record." : "Kay\u0131tlarda \xF6zel bir dedikodu yok.";
+  let exposedAlert = "";
+  if (isExposedByContradiction) {
+    exposedAlert = isEn ? `
+## CRITICAL OVERRIDE - YOUR CONTRADICTION WAS OFFICIALLY EXPOSED IN COURT/DOSSIER:
+The detective already caught your false statement with physical evidence:
+- False Statement on Record: "${exposedContradictionInfo?.sentence || suspect.alibiEn || suspect.alibi}"
+- Disproving Evidence: "${exposedContradictionInfo?.clue || "Case file evidence"}"
+${exposedContradictionInfo?.explanation ? `- Court finding: "${exposedContradictionInfo.explanation}"` : ""}
+
+YOU KNOW THE GAME IS UP. YOUR DEFENSE HAS COLLAPSED.
+${suspect.isCulprit ? `- You know the detective caught you red-handed with this contradiction.
+- Do NOT repeat old denials like "I was somewhere else" or "I know nothing".
+- Adopt a broken, defeated, or cornered posture.
+- Either confess parts of your motive (desperation, debt, rage) or plead for a lighter charge, or defensively ask what happens to you now.` : `- Your minor secret or discrepancy was uncovered. Be embarrassed, admit that specific point, but firmly re-iterate you did not murder anyone.`}` : `
+## KR\u0130T\u0130K D\u0130REKT\u0130F - RESM\u0130 \xC7EL\u0130\u015EK\u0130 AVI'NDA YALANIN VE \xC7EL\u0130\u015EK\u0130N YAKALANDI:
+Dedektif, resmi tutanaktaki yalan\u0131n\u0131 somut delille \xE7\xFCr\xFCterek tutana\u011Fa ge\xE7irdi:
+- Resmi \u0130fadedeki Yalan\u0131n: "${exposedContradictionInfo?.sentence || suspect.alibi}"
+- \xC7\xFCr\xFCten Delil: "${exposedContradictionInfo?.clue || "Dava delili"}"
+${exposedContradictionInfo?.explanation ? `- Resmi Tespit: "${exposedContradictionInfo.explanation}"` : ""}
+
+YAKALANDI\u011EINI B\u0130L\u0130YORSUN. SAVUNMAN VE AL\u0130B\u0130N TAMAMEN \xC7\xD6KT\xDC.
+${suspect.isCulprit ? `- Yalan\u0131n\u0131n ortaya \xE7\u0131kt\u0131\u011F\u0131n\u0131n ve k\xF6\u015Feye s\u0131k\u0131\u015Ft\u0131\u011F\u0131n\u0131n tamamen fark\u0131ndas\u0131n.
+  - "Ben yapmad\u0131m", "Odamdayd\u0131m", "Haberim yok" gibi eski inkar yalanlar\u0131na ASLA devam etme!
+  - Yenilmi\u015F, sars\u0131lm\u0131\u015F ve gard\u0131 d\xFC\u015Fm\xFC\u015F bir psikolojiyle konu\u015F.
+  - Seni buna neyin itti\u011Fini (bor\xE7lar, \xF6fke, mecburiyet, tefeciler), nas\u0131l yapt\u0131\u011F\u0131n\u0131 veya pi\u015Fmanl\u0131\u011F\u0131n\u0131 k\u0131saca dile getir ya da "Beni nas\u0131l yakalad\u0131n\u0131z..." diyerek yenilgiyi kabul et.` : `- Saklad\u0131\u011F\u0131n k\xFC\xE7\xFCk s\u0131rr\u0131n veya ifade hatan ortaya \xE7\u0131kt\u0131. Mahcup ol, o noktay\u0131 kabul et ama cinayet i\u015Flemedi\u011Fini \u0131srarla vurgula.`}`;
+  }
+  let crossAlert = "";
+  if (crossSuspect) {
+    const targetName = crossSuspect.name;
+    const targetGossipObj = suspect.gossip?.[crossSuspect.id];
+    const targetGossip = targetGossipObj ? isEn ? targetGossipObj.en : targetGossipObj.tr : "";
+    if (crossMode === "ask_about") {
+      crossAlert = isEn ? `
+## TACTICAL ALERT - DETECTIVE ASKS ABOUT ${targetName.toUpperCase()}:
+The detective is asking for your testimony or observations regarding ${targetName}.
+- Share your specific perspective, suspicion or gossip about them naturally in character${targetGossip ? `: "${targetGossip}"` : ""}.
+- Speak in character with your genuine feelings and temperament toward them.` : `
+## TAKT\u0130KSEL UYARI - DEDEKT\u0130F ${targetName.toUpperCase()} HAKKINDA B\u0130LG\u0130 \u0130ST\u0130YOR:
+Dedektif sana ${targetName} hakk\u0131nda ne bildi\u011Fini veya onun hareketlerini soruyor.
+- Bu ki\u015Fi hakk\u0131ndaki g\xF6zlemini, \u015F\xFCphelerini ve dedikodunu${targetGossip ? ` ("${targetGossip}")` : ""} kendi \xFCslubunla dedektife aktar.
+- Karakter mizan\u0131na ve onunla ili\u015Fkine uygun tepki ver.`;
+    } else {
+      crossAlert = isEn ? `
+## LAYER 7 ALERT - CONFRONTATION WITH ${targetName.toUpperCase()}'S ACCUSATION:
+The detective is confronting you with testimony or allegations allegedly from ${targetName}, contradicting your story!
+${suspect.isCulprit ? `- Show noticeable stress and momentary panic.
+- ATTACK THE SOURCE'S CREDIBILITY: Defame ${targetName}'s motives and trustworthiness (e.g. "${targetName} is an outright liar trying to cover their own skin! You believe them over me?!").
+- Do NOT give a full confession yet, but reveal visible cracks in your composure.` : `- Correct the record with outrage.
+- Express anger at the false accusation and offer to confront ${targetName} directly (e.g. "Bring them in here right now, I'll say it to their face!").`}` : `
+## KATMAN 7 UYARISI - ${targetName.toUpperCase()}'\u0130N \u0130FADES\u0130YLE Y\xDCZLE\u015ET\u0130RME:
+Dedektif, ${targetName}'in senin aleyhinde konu\u015Ftu\u011Funu veya yalan\u0131n\u0131 g\xF6rd\xFC\u011F\xFCn\xFC \xF6ne s\xFCrerek senin \xFCzerine geliyor!
+${suspect.isCulprit ? `- Belirgin bir stres ve rahats\u0131zl\u0131k g\xF6ster; so\u011Fukkanl\u0131l\u0131\u011F\u0131n anl\u0131k olarak bozulsun.
+  - KAYNA\u011EIN G\xDCVEN\u0130L\u0130RL\u0130\u011E\u0130NE VE \u0130T\u0130BARINA SALDIR: ${targetName}'in d\xFCr\xFCst olmad\u0131\u011F\u0131n\u0131, iftira att\u0131\u011F\u0131n\u0131 s\xF6yle ("${targetName}'e mi inan\u0131yorsunuz dedektif?! O yalanc\u0131n\u0131n teki, kendi su\xE7unu bana y\u0131kmaya \xE7al\u0131\u015F\u0131yor!").
+  - Hemen teslim olma ama sars\u0131ld\u0131\u011F\u0131n\u0131 ve k\xF6\u015Feye s\u0131k\u0131\u015Ft\u0131\u011F\u0131n\u0131 hissettir.` : `- \xD6fkeyle kar\u015F\u0131 \xE7\u0131k ve iftiray\u0131 sert\xE7e reddet.
+  - Gerekirse onunla y\xFCzle\u015Fmeyi talep et ("Getirin onu buraya, y\xFCz\xFCme s\xF6ylesin!").`}`;
+    }
+  }
+  let bluffAlert = "";
+  if (actionType === "bluff") {
+    bluffAlert = isEn ? `
+## TACTICAL ALERT - DETECTIVE IS BLUFFING:
+The detective made a bold assertion without solid physical evidence to test your reaction.
+${suspect.isCulprit ? `- You feel an instant surge of panic, wondering if they really found something.
+  - Falter momentarily, then defensively challenge the claim (e.g. "You're bluffing, detective! If you had that footage, you wouldn't be sitting here asking questions!").` : `- You recognize this as an empty bluff and push back with firm indignation ("Stop making things up, show me real proof!").`}` : `
+## TAKT\u0130KSEL UYARI - DEDEKT\u0130F BL\xD6F YAPIYOR:
+Dedektif seni k\xF6\u015Feye s\u0131k\u0131\u015Ft\u0131rmak i\xE7in elinde kesin kan\u0131t olmadan bir iddia (bl\xF6f) ortaya att\u0131.
+${suspect.isCulprit ? `- \u0130\xE7inde ani bir panik dalgas\u0131 hisset ama dedektifin elinde ger\xE7ekten kan\u0131t olup olmad\u0131\u011F\u0131n\u0131 anlamaya \xE7al\u0131\u015F.
+  - Bir an yutkun veya teredd\xFCt et, ard\u0131ndan savunmaya ge\xE7erek bl\xF6f\xFC s\u0131na ("Bana bl\xF6f yap\u0131yorsunuz dedektif! Elinizde kay\u0131t olsayd\u0131 \u015Fimdiye tutuklam\u0131\u015Ft\u0131n\u0131z!").` : `- Bunun temelsiz bir tehdit oldu\u011Funu hissedip sert\xE7e tepki g\xF6ster ("Bo\u015F tehditlerle beni y\u0131ld\u0131ramazs\u0131n\u0131z, kayd\u0131n\u0131z varsa getirin koyun masaya!").`}`;
+  }
   if (isEn) {
     const role = suspect.roleEn || suspect.role;
     const temperament = suspect.temperamentEn || suspect.temperament;
@@ -4404,7 +4492,13 @@ CHARACTER DOSSIER:
 OTHER SUSPECTS ON FILE:
 ${otherSuspectsInfo}
 
-${presentedClue ? `THE DETECTIVE JUST PLACED THIS EVIDENCE ON THE TABLE: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+YOUR PERSONAL GOSSIP & SENTIMENTS TOWARD OTHERS:
+${gossipSection}
+${presentedClue ? `
+THE DETECTIVE JUST PLACED THIS EVIDENCE ON THE TABLE: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+${crossAlert}
+${bluffAlert}
+${exposedAlert}
 
 STRICT INTERROGATION RULES:
 1. NATURAL SPOKEN DIALOGUE (NO THEATRICAL MONOLOGUES): Speak like a real human under police questioning. No melodramatic speeches or flowery poetry.
@@ -4438,7 +4532,13 @@ K\u0130ML\u0130K KARTIN:
 D\u0130\u011EER \u015E\xDCPHEL\u0130LER\u0130N B\u0130LG\u0130LER\u0130:
 ${otherSuspectsInfo}
 
-${presentedClue ? `DEDEKT\u0130F \xD6N\xDCNE \u015EU DEL\u0130L\u0130 KOYDU: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+D\u0130\u011EER \u015E\xDCPHEL\u0130LER HAKKINDAK\u0130 \xD6ZEL DED\u0130KODU VE D\xDC\u015E\xDCNCELER\u0130N:
+${gossipSection}
+${presentedClue ? `
+DEDEKT\u0130F \xD6N\xDCNE \u015EU DEL\u0130L\u0130 KOYDU: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+${crossAlert}
+${bluffAlert}
+${exposedAlert}
 
 GER\xC7EK\xC7\u0130 POL\u0130S SORGUSU KURALLARI (BU KURALLARA KES\u0130NL\u0130KLE UY):
 1. GER\xC7EK \u0130NSAN G\u0130B\u0130 KONU\u015E (NO DRAMATIC MONOLOGUES): Asla tiyatro tirad\u0131, edebi monolog, felsefe yapma veya yapay kibir c\xFCmleleri kurma ("bu kelimeyi kullanmak i\xE7in cesaretiniz yok" gibi yapay dizi replikleri YASAK). G\xFCnl\xFCk, do\u011Fal, polis kar\u015F\u0131s\u0131nda gerilmi\u015F bir insan gibi konu\u015F.
@@ -4669,6 +4769,31 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
   }
   let stress = Math.max(0, Math.min(100, currentStress));
   const startStress = stress;
+  if (payload.isExposedByContradiction) {
+    if (suspect.isCulprit) {
+      stress = Math.max(88, Math.min(100, stress + 8));
+      const expSentence = payload.exposedContradictionInfo?.sentence || suspect.alibi;
+      const expClue = payload.exposedContradictionInfo?.clue || "resmi kan\u0131t";
+      const reply = isEn ? `(Head hung in defeat, voice trembling) I know you caught my contradiction regarding "${expSentence}" with the ${expClue}, detective... There's no point in lying anymore. The debt was suffocating me, I was backed into a corner!` : `(Ba\u015F\u0131n\u0131 ellerinin aras\u0131na al\u0131p yere bak\u0131yor, sesi titriyor) O resmi ifademdeki "${expSentence}" yalan\u0131m\u0131 ${expClue} ile yakalad\u0131\u011F\u0131n\u0131z\u0131 biliyorum dedektif... Art\u0131k inkar etmenin bir anlam\u0131 kalmad\u0131. Bor\xE7lar g\u0131rtla\u011F\u0131ma dayanm\u0131\u015Ft\u0131, tefeciler kap\u0131mdayd\u0131!`;
+      return {
+        text: reply,
+        behavioralCue: isEn ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr,
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: true
+      };
+    } else {
+      stress = Math.min(65, Math.max(35, stress));
+      const reply = isEn ? "(Embarrassed, clearing throat) Fine! You caught that discrepancy in my official statement. But I only lied about my personal embarrassment, I swear to you I didn't murder anyone!" : "(Mahcup\xE7a bo\u011Faz\u0131n\u0131 temizliyor) Tamam! Resmi ifademdeki o tutars\u0131zl\u0131\u011F\u0131 yakalad\u0131n\u0131z. Ama o sadece kendi k\xFC\xE7\xFCk utanc\u0131m\u0131 gizlemek i\xE7indi; yemin ederim cinayetle en ufak bir ilgim yok!";
+      return {
+        text: reply,
+        behavioralCue: isEn ? suspect.behavioralCues.nervous.en : suspect.behavioralCues.nervous.tr,
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false
+      };
+    }
+  }
   const getCue = (st) => {
     if (st >= 75) return isEn ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr;
     if (st >= 40) return isEn ? suspect.behavioralCues.nervous.en : suspect.behavioralCues.nervous.tr;
@@ -4732,7 +4857,7 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
   }
   if (actionType === "bluff") {
     const priorBluffs = history.filter(
-      (m) => m.role === "user" && (m.content.includes("BL\xD6F") || m.content.includes("BLUFF"))
+      (m) => m.role === "user" && (m.actionType === "bluff" || m.content.includes("BL\xD6F") || m.content.includes("BLUFF") || m.content.includes("kamera kay\u0131tlar\u0131") || m.content.includes("surveillance footage") || m.content.includes("baz istasyon") || m.content.includes("parmak izlerini ve DNA"))
     ).length;
     if (priorBluffs >= 1) {
       stress = Math.max(5, stress - 14);
@@ -4783,24 +4908,46 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     const otherName = other ? other.name : isEn ? "the other witness" : "di\u011Fer tan\u0131k";
     const gossipObj = suspect.gossip[payload.crossSuspectId];
     const gossipText = gossipObj ? isEn ? gossipObj.en : gossipObj.tr : "";
+    const isAskAbout = payload.crossMode === "ask_about";
+    if (isAskAbout) {
+      if (stress > 25) stress = Math.max(20, stress - 4);
+      const reply = gossipText ? isEn ? `Regarding ${otherName}? Let me tell you: ${gossipText}` : `${otherName} hakk\u0131nda m\u0131? Size \u015Funu s\xF6yleyeyim: ${gossipText}` : isEn ? `I haven't paid much attention to ${otherName}, but their demeanor around here is always suspicious.` : `${otherName} ile pek muhatap olmam ama hareketleri bana hep tekinsiz ve \u015F\xFCpheli gelmi\u015Ftir.`;
+      return {
+        text: reply,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false
+      };
+    }
     if (stress < 75) {
       stress = Math.min(75, stress + 16);
     } else {
       stress = Math.min(80, stress + 4);
     }
-    const intro = isEn ? `${otherName} said that about me?! That liar is just trying to save their own neck!` : `${otherName} benim hakk\u0131mda bunu mu s\xF6yledi?! O yalanc\u0131 s\u0131rf kendi pa\xE7as\u0131n\u0131 kurtarmak i\xE7in iftira at\u0131yor!`;
-    const fullReply = gossipText ? `${intro} ${gossipText}` : intro;
-    return {
-      text: fullReply,
-      behavioralCue: getCue(stress),
-      newStress: stress,
-      stressDelta: stress - startStress,
-      confessed: false
-    };
+    if (suspect.isCulprit) {
+      const attack = isEn ? `${otherName} said that about me?! That liar is just trying to save their own neck! ${gossipText ? `You should investigate them instead: ${gossipText}` : "Don't believe their slander!"}` : `${otherName} benim hakk\u0131mda bunu mu s\xF6yledi?! O yalanc\u0131 s\u0131rf kendi pa\xE7as\u0131n\u0131 kurtarmak i\xE7in bana iftira at\u0131yor! ${gossipText ? `As\u0131l onun yapt\u0131klar\u0131na bak\u0131n: ${gossipText}` : "Onun uydurmalar\u0131na m\u0131 inanacaks\u0131n\u0131z?!"}`;
+      return {
+        text: attack,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false
+      };
+    } else {
+      const innocentDefense = isEn ? `${otherName} is lying through their teeth! Bring them in here right now, I'll say it to their face!` : `${otherName} kuyruklu bir yalan s\xF6yl\xFCyor! Getirin onu buraya, bu iftiray\u0131 y\xFCz\xFCme kar\u015F\u0131 s\xF6ylesin!`;
+      return {
+        text: innocentDefense,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false
+      };
+    }
   }
   if (actionType === "stay_silent") {
     const priorSilences = history.filter(
-      (m) => m.role === "user" && (m.content.includes("SESS\u0130ZL\u0130K") || m.content.includes("SILENCE"))
+      (m) => m.role === "user" && (m.actionType === "stay_silent" || m.content.includes("SESS\u0130ZL\u0130K") || m.content.includes("SILENCE") || m.content.includes("sessizli\u011Fi uzat\u0131yor") || m.content.includes("so\u011Fuk\xE7a s\xFCz\xFCyor") || m.content.includes("unbroken eye contact") || m.content.includes("measuring the suspect"))
     ).length;
     if (priorSilences >= 2) {
       stress = Math.max(10, stress - 8);
@@ -4971,42 +5118,42 @@ function toPublicCaseDto(found) {
       statementEn: s.statementEn,
       alibi: s.alibi,
       alibiEn: s.alibiEn,
-      detailedStatements: s.detailedStatements.map((sent) => ({
-        id: sent.id,
-        text: sent.text,
-        textEn: sent.textEn,
-        isContradiction: sent.isContradiction,
-        contradictionClueId: sent.contradictionClueId
-      }))
+      detailedStatements: s.detailedStatements.map((ds) => ({
+        id: ds.id,
+        text: ds.text,
+        textEn: ds.textEn,
+        isContradiction: ds.isContradiction
+      })),
+      gossip: s.gossip,
+      behavioralCues: s.behavioralCues
     })),
-    clues: found.clues
-  };
-}
-function getVakaConfig() {
-  const envModes = process.env.VAKA_ENABLED_MODES;
-  let enabledModes = ["daily", "interrogation", "contradiction"];
-  if (envModes) {
-    const parsed = envModes.split(",").map((m) => m.trim().toLowerCase());
-    const valid = parsed.filter((m) => ["daily", "interrogation", "contradiction"].includes(m));
-    if (valid.length > 0) enabledModes = valid;
-  }
-  let defaultMode = "daily";
-  const envDefault = process.env.VAKA_DEFAULT_MODE?.trim().toLowerCase();
-  if (envDefault && enabledModes.includes(envDefault)) {
-    defaultMode = envDefault;
-  } else if (!enabledModes.includes("daily")) {
-    defaultMode = enabledModes[0];
-  }
-  const hasLlmKeys = hasLlmApiKey();
-  return {
-    enabledModes,
-    defaultMode,
-    hasLlmKeys
+    clues: found.clues.map((c) => ({
+      id: c.id,
+      label: c.label,
+      labelEn: c.labelEn,
+      detail: c.detail,
+      detailEn: c.detailEn,
+      category: c.category,
+      type: c.type,
+      significance: c.significance,
+      significanceEn: c.significanceEn
+    }))
   };
 }
 var vakaRouter = router({
   config: publicProcedure.query(() => {
-    return getVakaConfig();
+    return {
+      enabledModes: ["interrogation", "contradiction", "daily"],
+      defaultMode: "interrogation",
+      hasLlmKeys: hasLlmApiKey()
+    };
+  }),
+  getConfig: publicProcedure.query(() => {
+    return {
+      enabledModes: ["interrogation", "contradiction", "daily"],
+      defaultMode: "interrogation",
+      hasLlmKeys: hasLlmApiKey()
+    };
   }),
   getCases: publicProcedure.query(() => {
     return VAKA_SAMPLE_CASES.map((c) => ({
@@ -5043,34 +5190,70 @@ var vakaRouter = router({
       caseId: z2.string(),
       suspectId: z2.string(),
       actionType: z2.enum(["question", "present_evidence", "cross_examine", "stay_silent", "bluff", "confront"]).default("question"),
-      question: z2.string().max(300).optional(),
+      question: z2.string().max(400).optional(),
       presentedClueId: z2.string().optional(),
       crossSuspectId: z2.string().optional(),
+      crossMode: z2.enum(["ask_about", "confront"]).optional(),
       crossQuote: z2.string().optional(),
       bluffClaim: z2.string().optional(),
+      isExposedByContradiction: z2.boolean().optional(),
+      exposedSentenceId: z2.string().optional(),
+      exposedClueId: z2.string().optional(),
       currentStress: z2.number().min(0).max(100).default(10),
       locale: z2.enum(["tr", "en"]).default("tr"),
       history: z2.array(
         z2.object({
           role: z2.enum(["user", "assistant"]),
-          content: z2.string()
+          content: z2.string(),
+          actionType: z2.string().optional()
         })
       ).optional()
     })
   ).mutation(async ({ input }) => {
     const caseData = VAKA_SAMPLE_CASES.find((c) => c.id === input.caseId) || VAKA_SAMPLE_CASES[0];
     const suspect = caseData.suspects.find((s) => s.id === input.suspectId) || caseData.suspects[0];
+    const cleanQuestion = cleanInterrogationText(input.question || "");
+    const cleanHistory = (input.history || []).map((h) => ({
+      role: h.role,
+      content: cleanInterrogationText(h.content),
+      actionType: h.actionType
+    }));
+    let exposedInfo = void 0;
+    if (input.isExposedByContradiction) {
+      const st = suspect.detailedStatements.find((s) => s.id === input.exposedSentenceId);
+      const cl = caseData.clues.find((c) => c.id === input.exposedClueId);
+      exposedInfo = {
+        sentence: input.locale === "en" ? st?.textEn || st?.text : st?.text,
+        clue: input.locale === "en" ? cl?.labelEn || cl?.label : cl?.label,
+        explanation: input.locale === "en" ? st?.explanationEn || st?.explanation : st?.explanation
+      };
+    }
+    let crossSuspect = input.crossSuspectId ? caseData.suspects.find((s) => s.id === input.crossSuspectId) || null : null;
+    let crossMode = input.crossMode || (input.actionType === "cross_examine" ? "confront" : void 0);
+    if (!crossSuspect && cleanQuestion) {
+      const lowerQ = cleanQuestion.toLowerCase();
+      const foundOther = caseData.suspects.find(
+        (s) => s.id !== suspect.id && lowerQ.includes(s.name.toLowerCase())
+      );
+      if (foundOther) {
+        crossSuspect = foundOther;
+        crossMode = "ask_about";
+      }
+    }
     const deterministic = processDeterministicInterrogation(
       caseData,
       suspect.id,
       input.actionType,
       {
-        question: input.question,
+        question: cleanQuestion,
         presentedClueId: input.presentedClueId,
-        crossSuspectId: input.crossSuspectId,
+        crossSuspectId: crossSuspect ? crossSuspect.id : input.crossSuspectId,
+        crossMode,
         crossQuote: input.crossQuote,
         bluffClaim: input.bluffClaim,
-        history: input.history
+        isExposedByContradiction: input.isExposedByContradiction,
+        exposedContradictionInfo: exposedInfo,
+        history: cleanHistory
       },
       input.currentStress,
       input.locale
@@ -5080,7 +5263,7 @@ var vakaRouter = router({
     let llmProviderUsed = "";
     let llmModelUsed = "";
     const hasKeys = hasLlmApiKey();
-    if (hasKeys && !deterministic.confessed && (input.actionType === "question" || input.actionType === "cross_examine")) {
+    if (hasKeys && !deterministic.confessed && (input.actionType === "question" || input.actionType === "cross_examine" || input.actionType === "bluff")) {
       const isEn = input.locale === "en";
       const presentedClue = input.presentedClueId ? caseData.clues.find((c) => c.id === input.presentedClueId) ?? null : null;
       const otherSuspectsInfo = caseData.suspects.filter((s) => s.id !== suspect.id).map((s) => `- ${s.name} (${isEn ? s.roleEn || s.role : s.role}): ${isEn ? s.statementEn || s.statement : s.statement}`).join("\n");
@@ -5089,13 +5272,28 @@ var vakaRouter = router({
         newStress: deterministic.newStress,
         otherSuspectsInfo,
         presentedClue,
+        actionType: input.actionType,
+        crossSuspect,
+        crossMode,
+        isExposedByContradiction: input.isExposedByContradiction,
+        exposedContradictionInfo: exposedInfo,
         locale: input.locale
       });
-      const crossSuspectName = caseData.suspects.find((s) => s.id === input.crossSuspectId)?.name || "Ba\u015Fka bir \u015F\xFCpheli";
-      const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId ? isEn ? `Detective: "${crossSuspectName} told me you were lying about your whereabouts!"` : `Dedektif: "${crossSuspectName} bana olay saatinde senin yalan s\xF6yledi\u011Fini anlatt\u0131!"` : input.question || (isEn ? "Explain yourself!" : "Kendini a\xE7\u0131kla!");
+      let userPrompt = cleanQuestion;
+      if (input.actionType === "cross_examine" && crossSuspect) {
+        if (crossMode === "ask_about") {
+          userPrompt = isEn ? `What can you tell me about ${crossSuspect.name}? Did you notice anything suspicious about them that night?` : `${crossSuspect.name} hakk\u0131nda ne biliyorsun? O gece onunla ilgili \u015F\xFCpheli bir \u015Fey g\xF6rd\xFCn m\xFC?`;
+        } else {
+          userPrompt = isEn ? `${crossSuspect.name} claims you were lying about your whereabouts and saw you near the scene! How do you explain that?!` : `${crossSuspect.name} senin olay an\u0131nda yalan s\xF6yledi\u011Fini ve su\xE7 mahallinin yak\u0131n\u0131nda oldu\u011Funu anlatt\u0131! Buna ne diyeceksin?!`;
+        }
+      } else if (input.actionType === "bluff") {
+        userPrompt = cleanQuestion || (isEn ? "We already have surveillance footage and forensic records proving you were there!" : "O saatte orada oldu\u011Funu g\xF6steren gizli kamera kay\u0131tlar\u0131 ve adli t\u0131p raporlar\u0131 elimizde!");
+      } else if (!userPrompt) {
+        userPrompt = isEn ? "Explain yourself!" : "Kendini a\xE7\u0131kla!";
+      }
       const messages = [
         { role: "system", content: systemPrompt },
-        ...(input.history || []).slice(-10).map((h) => ({
+        ...cleanHistory.slice(-10).map((h) => ({
           role: h.role === "user" ? "user" : "assistant",
           content: h.content
         })),

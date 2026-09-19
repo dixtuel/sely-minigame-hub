@@ -34,19 +34,143 @@ export function hasLlmApiKey(): boolean {
   );
 }
 
+// Dedektif repliklerinden veya geçmişten [TAKTİKSEL BLÖF], [SESSİZLİK & BASKI] gibi
+// yapay meta etiketleri temizler; böylece LLM karakteri yalnızca doğal insan konuşmasını duyar.
+export function cleanInterrogationText(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/^\[(TAKTİKSEL BLÖF|TACTICAL BLUFF|SESSİZLİK & BASKI|SILENCE & PRESSURE|ÇAPRAZ SORGU|CROSS-EXAM|YÜZLEŞTİRME|CONFRONTATION)\]\s*/i, "")
+    .replace(/\[(TAKTİKSEL BLÖF|TACTICAL BLUFF|SESSİZLİK & BASKI|SILENCE & PRESSURE|ÇAPRAZ SORGU|CROSS-EXAM|YÜZLEŞTİRME|CONFRONTATION)\]/gi, "")
+    .trim();
+}
+
 export type VakaInterrogationPromptParams = {
   suspect: VakaSuspect;
   newStress: number;
   otherSuspectsInfo: string;
   presentedClue: { label: string; detail: string } | null;
+  actionType?: "question" | "present_evidence" | "cross_examine" | "stay_silent" | "bluff" | "confront";
+  crossSuspect?: VakaSuspect | null;
+  crossMode?: "ask_about" | "confront";
+  isExposedByContradiction?: boolean;
+  exposedContradictionInfo?: {
+    sentence?: string;
+    clue?: string;
+    explanation?: string;
+  };
   locale?: "tr" | "en";
   langInstruction?: string;
 };
 
 /** System prompt for the interrogation roleplay LLM call — grounded in realistic police interrogation psychology. */
 export function buildVakaInterrogationPrompt(params: VakaInterrogationPromptParams): string {
-  const { suspect, newStress, otherSuspectsInfo, presentedClue, locale = "tr" } = params;
+  const {
+    suspect,
+    newStress,
+    otherSuspectsInfo,
+    presentedClue,
+    actionType,
+    crossSuspect,
+    crossMode = "confront",
+    isExposedByContradiction,
+    exposedContradictionInfo,
+    locale = "tr",
+  } = params;
   const isEn = locale === "en";
+
+  // Diğer şüpheliler hakkındaki dedikodu ve düşünceler
+  const gossipLines = Object.entries(suspect.gossip || {}).map(([otherId, g]) => {
+    return `- ${otherId}: "${isEn ? g.en : g.tr}"`;
+  });
+  const gossipSection = gossipLines.length > 0 ? gossipLines.join("\n") : (isEn ? "No specific gossip on record." : "Kayıtlarda özel bir dedikodu yok.");
+
+  // Çelişki Avında Yakalanma Uyarısı (Cross-Mode Contradiction Alert)
+  let exposedAlert = "";
+  if (isExposedByContradiction) {
+    exposedAlert = isEn
+      ? `\n## CRITICAL OVERRIDE - YOUR CONTRADICTION WAS OFFICIALLY EXPOSED IN COURT/DOSSIER:
+The detective already caught your false statement with physical evidence:
+- False Statement on Record: "${exposedContradictionInfo?.sentence || suspect.alibiEn || suspect.alibi}"
+- Disproving Evidence: "${exposedContradictionInfo?.clue || 'Case file evidence'}"
+${exposedContradictionInfo?.explanation ? `- Court finding: "${exposedContradictionInfo.explanation}"` : ""}
+
+YOU KNOW THE GAME IS UP. YOUR DEFENSE HAS COLLAPSED.
+${suspect.isCulprit
+  ? `- You know the detective caught you red-handed with this contradiction.
+- Do NOT repeat old denials like "I was somewhere else" or "I know nothing".
+- Adopt a broken, defeated, or cornered posture.
+- Either confess parts of your motive (desperation, debt, rage) or plead for a lighter charge, or defensively ask what happens to you now.`
+  : `- Your minor secret or discrepancy was uncovered. Be embarrassed, admit that specific point, but firmly re-iterate you did not murder anyone.`}`
+      : `\n## KRİTİK DİREKTİF - RESMİ ÇELİŞKİ AVI'NDA YALANIN VE ÇELİŞKİN YAKALANDI:
+Dedektif, resmi tutanaktaki yalanını somut delille çürüterek tutanağa geçirdi:
+- Resmi İfadedeki Yalanın: "${exposedContradictionInfo?.sentence || suspect.alibi}"
+- Çürüten Delil: "${exposedContradictionInfo?.clue || 'Dava delili'}"
+${exposedContradictionInfo?.explanation ? `- Resmi Tespit: "${exposedContradictionInfo.explanation}"` : ""}
+
+YAKALANDIĞINI BİLİYORSUN. SAVUNMAN VE ALİBİN TAMAMEN ÇÖKTÜ.
+${suspect.isCulprit
+  ? `- Yalanının ortaya çıktığının ve köşeye sıkıştığının tamamen farkındasın.
+  - "Ben yapmadım", "Odamdaydım", "Haberim yok" gibi eski inkar yalanlarına ASLA devam etme!
+  - Yenilmiş, sarsılmış ve gardı düşmüş bir psikolojiyle konuş.
+  - Seni buna neyin ittiğini (borçlar, öfke, mecburiyet, tefeciler), nasıl yaptığını veya pişmanlığını kısaca dile getir ya da "Beni nasıl yakaladınız..." diyerek yenilgiyi kabul et.`
+  : `- Sakladığın küçük sırrın veya ifade hatan ortaya çıktı. Mahcup ol, o noktayı kabul et ama cinayet işlemediğini ısrarla vurgula.`}`;
+  }
+
+  // Katman 7: Çapraz Referans ve İfade Yüzleştirme Uyarısı (Layer 7)
+  let crossAlert = "";
+  if (crossSuspect) {
+    const targetName = crossSuspect.name;
+    const targetGossipObj = suspect.gossip?.[crossSuspect.id];
+    const targetGossip = targetGossipObj ? (isEn ? targetGossipObj.en : targetGossipObj.tr) : "";
+
+    if (crossMode === "ask_about") {
+      crossAlert = isEn
+        ? `\n## TACTICAL ALERT - DETECTIVE ASKS ABOUT ${targetName.toUpperCase()}:
+The detective is asking for your testimony or observations regarding ${targetName}.
+- Share your specific perspective, suspicion or gossip about them naturally in character${targetGossip ? `: "${targetGossip}"` : ""}.
+- Speak in character with your genuine feelings and temperament toward them.`
+        : `\n## TAKTİKSEL UYARI - DEDEKTİF ${targetName.toUpperCase()} HAKKINDA BİLGİ İSTİYOR:
+Dedektif sana ${targetName} hakkında ne bildiğini veya onun hareketlerini soruyor.
+- Bu kişi hakkındaki gözlemini, şüphelerini ve dedikodunu${targetGossip ? ` ("${targetGossip}")` : ""} kendi üslubunla dedektife aktar.
+- Karakter mizanına ve onunla ilişkine uygun tepki ver.`;
+    } else {
+      crossAlert = isEn
+        ? `\n## LAYER 7 ALERT - CONFRONTATION WITH ${targetName.toUpperCase()}'S ACCUSATION:
+The detective is confronting you with testimony or allegations allegedly from ${targetName}, contradicting your story!
+${suspect.isCulprit
+  ? `- Show noticeable stress and momentary panic.
+- ATTACK THE SOURCE'S CREDIBILITY: Defame ${targetName}'s motives and trustworthiness (e.g. "${targetName} is an outright liar trying to cover their own skin! You believe them over me?!").
+- Do NOT give a full confession yet, but reveal visible cracks in your composure.`
+  : `- Correct the record with outrage.
+- Express anger at the false accusation and offer to confront ${targetName} directly (e.g. "Bring them in here right now, I'll say it to their face!").`}`
+        : `\n## KATMAN 7 UYARISI - ${targetName.toUpperCase()}'İN İFADESİYLE YÜZLEŞTİRME:
+Dedektif, ${targetName}'in senin aleyhinde konuştuğunu veya yalanını gördüğünü öne sürerek senin üzerine geliyor!
+${suspect.isCulprit
+  ? `- Belirgin bir stres ve rahatsızlık göster; soğukkanlılığın anlık olarak bozulsun.
+  - KAYNAĞIN GÜVENİLİRLİĞİNE VE İTİBARINA SALDIR: ${targetName}'in dürüst olmadığını, iftira attığını söyle ("${targetName}'e mi inanıyorsunuz dedektif?! O yalancının teki, kendi suçunu bana yıkmaya çalışıyor!").
+  - Hemen teslim olma ama sarsıldığını ve köşeye sıkıştığını hissettir.`
+  : `- Öfkeyle karşı çık ve iftirayı sertçe reddet.
+  - Gerekirse onunla yüzleşmeyi talep et ("Getirin onu buraya, yüzüme söylesin!").`}`;
+    }
+  }
+
+  // Taktiksel Blöf Uyarısı (AI konuşma metninde asla [TAKTİKSEL BLÖF] etiketi görmez, gizli direktif alır)
+  let bluffAlert = "";
+  if (actionType === "bluff") {
+    bluffAlert = isEn
+      ? `\n## TACTICAL ALERT - DETECTIVE IS BLUFFING:
+The detective made a bold assertion without solid physical evidence to test your reaction.
+${suspect.isCulprit
+  ? `- You feel an instant surge of panic, wondering if they really found something.
+  - Falter momentarily, then defensively challenge the claim (e.g. "You're bluffing, detective! If you had that footage, you wouldn't be sitting here asking questions!").`
+  : `- You recognize this as an empty bluff and push back with firm indignation ("Stop making things up, show me real proof!").`}`
+      : `\n## TAKTİKSEL UYARI - DEDEKTİF BLÖF YAPIYOR:
+Dedektif seni köşeye sıkıştırmak için elinde kesin kanıt olmadan bir iddia (blöf) ortaya attı.
+${suspect.isCulprit
+  ? `- İçinde ani bir panik dalgası hisset ama dedektifin elinde gerçekten kanıt olup olmadığını anlamaya çalış.
+  - Bir an yutkun veya tereddüt et, ardından savunmaya geçerek blöfü sına ("Bana blöf yapıyorsunuz dedektif! Elinizde kayıt olsaydı şimdiye tutuklamıştınız!").`
+  : `- Bunun temelsiz bir tehdit olduğunu hissedip sertçe tepki göster ("Boş tehditlerle beni yıldıramazsınız, kaydınız varsa getirin koyun masaya!").`}`;
+  }
 
   if (isEn) {
     const role = suspect.roleEn || suspect.role;
@@ -71,7 +195,12 @@ CHARACTER DOSSIER:
 OTHER SUSPECTS ON FILE:
 ${otherSuspectsInfo}
 
-${presentedClue ? `THE DETECTIVE JUST PLACED THIS EVIDENCE ON THE TABLE: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+YOUR PERSONAL GOSSIP & SENTIMENTS TOWARD OTHERS:
+${gossipSection}
+${presentedClue ? `\nTHE DETECTIVE JUST PLACED THIS EVIDENCE ON THE TABLE: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+${crossAlert}
+${bluffAlert}
+${exposedAlert}
 
 STRICT INTERROGATION RULES:
 1. NATURAL SPOKEN DIALOGUE (NO THEATRICAL MONOLOGUES): Speak like a real human under police questioning. No melodramatic speeches or flowery poetry.
@@ -107,7 +236,12 @@ KİMLİK KARTIN:
 DİĞER ŞÜPHELİLERİN BİLGİLERİ:
 ${otherSuspectsInfo}
 
-${presentedClue ? `DEDEKTİF ÖNÜNE ŞU DELİLİ KOYDU: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+DİĞER ŞÜPHELİLER HAKKINDAKİ ÖZEL DEDİKODU VE DÜŞÜNCELERİN:
+${gossipSection}
+${presentedClue ? `\nDEDEKTİF ÖNÜNE ŞU DELİLİ KOYDU: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+${crossAlert}
+${bluffAlert}
+${exposedAlert}
 
 GERÇEKÇİ POLİS SORGUSU KURALLARI (BU KURALLARA KESİNLİKLE UY):
 1. GERÇEK İNSAN GİBİ KONUŞ (NO DRAMATIC MONOLOGUES): Asla tiyatro tiradı, edebi monolog, felsefe yapma veya yapay kibir cümleleri kurma ("bu kelimeyi kullanmak için cesaretiniz yok" gibi yapay dizi replikleri YASAK). Günlük, doğal, polis karşısında gerilmiş bir insan gibi konuş.

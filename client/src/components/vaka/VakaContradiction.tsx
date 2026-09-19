@@ -60,6 +60,21 @@ export default function VakaContradiction({
         setFeedback({ text: res.message, isSuccess: true });
         const earned = Math.max(0, 240 - penalty);
         onCaseCompleted?.(vakaCase.id, earned);
+
+        // Çelişkiyi oturum hafızasına kaydet (Sorgu Odası katilin yakalandığını bilecek)
+        if (typeof window !== "undefined") {
+          try {
+            const expKey = `sely_vaka_exposed_${vakaCase.id}`;
+            const existing = JSON.parse(localStorage.getItem(expKey) || "{}");
+            existing[selectedSuspectId] = {
+              sentenceId: selectedSentenceId,
+              clueId: selectedClueId,
+              explanation: res.message,
+              timestamp: Date.now(),
+            };
+            localStorage.setItem(expKey, JSON.stringify(existing));
+          } catch {}
+        }
       } else {
         playHit(soundOn);
         setPenalty((prev) => prev + (res.penalty || 15));
