@@ -171,27 +171,27 @@ function escapeXml(unsafe: string): string {
 function getPerformanceNotice(score: number | undefined, isEn: boolean): string {
   if (typeof score !== "number" || score <= 0) {
     return isEn
-      ? "· SELY.TR Daily Catalog Expedition Record"
-      : "· SELY.TR Günlük Sefer ve Rota Kaydı";
+      ? "· SELY Daily Challenge · Can you beat it?"
+      : "· SELY Günün Seviyesi · Bu skoru geçebilir misin?";
   }
   if (score >= 2000) {
     return isEn
-      ? "★ Master Tier: Flawless route & peak efficiency score"
-      : "★ Usta Kademesi: Kusursuz rota ve zirve verimlilik skoru";
+      ? "★ Master Score: Flawless run, beat this if you can!"
+      : "★ Zirve Skoru: Kusursuz tur, geçebilen çıksın!";
   }
   if (score >= 1000) {
     return isEn
-      ? "▲ Expert Run: High precision finish above target threshold"
-      : "▲ Uzman Turu: Hedef eşiğin üzerinde yüksek hassasiyetli bitiriş";
+      ? "▲ Sharp Run: High precision finish, pure skill!"
+      : "▲ Usta Turu: Kusursuz reflekslerle hedefi aştı!";
   }
   if (score >= 400) {
     return isEn
-      ? "◆ Proven Record: Solid tactical completion on daily seed"
-      : "◆ Onaylı Kayıt: Günün seviyesinde taktiksel tamamlama";
+      ? "◆ Great Run: Cleared today's level clean!"
+      : "◆ Başarılı Tur: Günün seviyesini tek nefeste bitirdi!";
   }
   return isEn
-    ? "● Verified Finish: Daily catalog route recorded to archive"
-    : "● Tescilli Bitiriş: Günlük rota başarıyla kayda geçti";
+    ? "● Solid Finish: Level cleared, your turn now!"
+    : "● Temiz Bitiş: Günün turunu tamamladı, sıra sende!";
 }
 
 /**
@@ -266,9 +266,9 @@ export function generateOgSvg(params: OgParams): string {
   <rect x="24" y="24" width="1152" height="582" fill="none" stroke="#1B1A1B" stroke-width="3" />
   <rect x="32" y="32" width="1136" height="566" fill="none" stroke="#1B1A1B" stroke-width="1" stroke-dasharray="8 4" opacity="0.4" />
 
-  <g transform="translate(64, 60)">
-    <rect width="6" height="510" fill="#B91C1C" />
-    <text transform="rotate(-90)" x="-490" y="-14" font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#1B1A1B" letter-spacing="3">SELY POLİS SORGU BÜROSU · GİZLİ VAKA DEDEKTİF DOSYASI</text>
+  <g transform="translate(72, 60)">
+    <rect width="5" height="500" fill="#B91C1C" />
+    <text transform="rotate(-90)" x="-470" y="-12" font-family="Courier New, monospace" font-size="10.5" font-weight="700" fill="#1B1A1B" letter-spacing="2">SELY POLİS SORGU BÜROSU · GİZLİ VAKA DEDEKTİF DOSYASI</text>
   </g>
 
   <g transform="translate(110, 75)">
@@ -295,9 +295,11 @@ export function generateOgSvg(params: OgParams): string {
     <text x="40" y="136" font-family="system-ui, sans-serif" font-size="17" line-height="1.4" fill="#334155">${gameMechanic}</text>
     <text x="40" y="180" font-family="system-ui, sans-serif" font-size="15" font-style="italic" font-weight="600" fill="#64748B">“${gameMotto}”</text>
 
-    <g transform="translate(40, 215)">
-      <rect width="280" height="50" fill="#B91C1C" stroke="#1B1A1B" stroke-width="2" />
-      <text x="140" y="31" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="900" fill="#FFFFFF" letter-spacing="2">SORGUYA HEMEN BAŞLA →</text>
+    <g transform="translate(40, 218)">
+      <rect width="360" height="46" fill="#F4EBD9" stroke="#1B1A1B" stroke-width="1.5" />
+      <rect x="0" y="0" width="10" height="46" fill="#B91C1C" />
+      <text x="24" y="20" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="#B91C1C" letter-spacing="1">GÜNÜN DEDEKTİFLİK VAKASI</text>
+      <text x="24" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B">sely.tr/play/vaka · Katili bulabilir misin?</text>
     </g>
   </g>
 
@@ -329,9 +331,9 @@ export function generateOgSvg(params: OgParams): string {
   <rect x="24" y="24" width="1152" height="582" fill="none" stroke="#1B1A1B" stroke-width="3" />
   <rect x="32" y="32" width="1136" height="566" fill="none" stroke="#1B1A1B" stroke-width="1" stroke-dasharray="8 4" opacity="0.4" />
 
-  <g transform="translate(64, 60)">
-    <rect width="6" height="510" fill="#B91C1C" />
-    <text transform="rotate(-90)" x="-490" y="-14" font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#1B1A1B" letter-spacing="3">SELY POLİS SORGU BÜROSU · GİZLİ VAKA DEDEKTİF DOSYASI</text>
+  <g transform="translate(72, 60)">
+    <rect width="5" height="500" fill="#B91C1C" />
+    <text transform="rotate(-90)" x="-470" y="-12" font-family="Courier New, monospace" font-size="10.5" font-weight="700" fill="#1B1A1B" letter-spacing="2">SELY POLİS SORGU BÜROSU · GİZLİ VAKA DEDEKTİF DOSYASI</text>
   </g>
 
   <g transform="translate(110, 75)">
@@ -451,22 +453,24 @@ export function generateOgSvg(params: OgParams): string {
         <text x="18" y="26" font-family="system-ui, sans-serif" font-size="16" font-style="italic" font-weight="600" fill="#1B1A1B">“${gameMotto}”</text>
       </g>
 
-      <text y="170" font-family="system-ui, sans-serif" font-size="17" line-height="1.4" font-weight="500" fill="#334155">${gameMechanic}</text>
+      <text y="170" font-family="system-ui, sans-serif" font-size="15" line-height="1.4" font-weight="500" fill="#334155">${gameMechanic}</text>
 
       <g transform="translate(0, 205)">
         <text font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#64748B">SÜRE: ${theme.playTime} · KONTROL: ${theme.controls}</text>
       </g>
 
       <g transform="translate(0, 240)">
-        <rect width="250" height="48" fill="${accent}" stroke="#1B1A1B" stroke-width="2" />
-        <text x="125" y="30" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="900" fill="#FFFFFF" letter-spacing="1.5">GÜNÜN TURUNA BAŞLA →</text>
+        <rect width="360" height="46" fill="#F6F0E3" stroke="#1B1A1B" stroke-width="1.5" />
+        <rect x="0" y="0" width="10" height="46" fill="${accent}" />
+        <text x="24" y="20" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="${accent}" letter-spacing="1">GÜNÜN MEYDAN OKUMASI</text>
+        <text x="24" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B">sely.tr/play/${gameKey} · Skoru geçebilir misin?</text>
       </g>
     </g>
   </g>
 
   <g transform="translate(70, 565)">
     <text font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="800" fill="#1B1A1B">sely.tr/play/${gameKey}</text>
-    <text x="200" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">· Günlük mini oyun seferi · Her gün yeni deterministik rota</text>
+    <text x="200" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">· Günlük mini oyun serisi · Her gün yeni seviye · Sen de dene!</text>
   </g>
 
   <g transform="translate(860, 565)">
@@ -539,11 +543,11 @@ export function generateOgSvg(params: OgParams): string {
       <g transform="translate(340, 135)">
         <g transform="translate(0, 16)">
           <rect width="310" height="100" fill="#1B1A1B" />
-          <text x="18" y="30" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="700" fill="#94A3B8" letter-spacing="1.5">SEFERİ TAMAMLAYAN OYUNCU</text>
+          <text x="18" y="30" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="700" fill="#94A3B8" letter-spacing="1.5">GÜNÜN OYUNCUSU</text>
           
-          <g transform="translate(210, 10)">
-            <rect width="85" height="22" rx="4" fill="${accent}" />
-            <text x="42" y="15" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="800" fill="#FFFFFF" letter-spacing="1">TESCİLLİ ✓</text>
+          <g transform="translate(195, 10)">
+            <rect width="100" height="22" rx="4" fill="${accent}" />
+            <text x="50" y="15" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="800" fill="#FFFFFF" letter-spacing="1">GÜNÜN TURU ✓</text>
           </g>
           
           <text x="18" y="74" font-family="system-ui, -apple-system, sans-serif" font-size="${nickFontSize}" font-weight="800" fill="#F6F0E3" letter-spacing="0.5">${nick}</text>
@@ -552,7 +556,7 @@ export function generateOgSvg(params: OgParams): string {
 
       <g transform="translate(0, 275)">
         <rect width="650" height="38" fill="${accent}" stroke="#1B1A1B" stroke-width="1.5" />
-        <text x="325" y="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="900" fill="#FFFFFF" letter-spacing="1.5">TUR TAMAMLANDI · GÜNLÜK SEFER TESCİLLENDİ</text>
+        <text x="325" y="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="900" fill="#FFFFFF" letter-spacing="1.5">TUR TAMAMLANDI · SEN DE SKORUNU DENE →</text>
       </g>
     </g>
   </g>

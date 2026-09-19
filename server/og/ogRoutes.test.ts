@@ -99,7 +99,7 @@ describe("OG Image and Dynamic Social Sharing Routes", () => {
     expect(svg).toContain("</svg>");
     expect(svg).toContain("GÜNLÜK SEFER KATALOĞU");
     expect(svg).toContain("DÜĞÜM");
-    expect(svg).toContain("GÜNÜN TURUNA BAŞLA");
+    expect(svg).toContain("GÜNÜN MEYDAN OKUMASI");
     expect(svg).toContain("dugum-poster_684e5a01.png");
     expect(svg).not.toContain("<!--");
   });
@@ -165,14 +165,14 @@ describe("OG Image and Dynamic Social Sharing Routes", () => {
       expect(res.headers["content-type"]).toBe("text/html; charset=utf-8");
       expect(res.body).toContain('property="og:image"');
       expect(res.body).toContain('name="twitter:card" content="summary_large_image"');
-      expect(res.body).toContain("SELY Vaka");
+      expect(res.body).toContain("SELY");
     }
   });
 
-  it("redirects regular human browsers to the playable game route /play/:game with 302", () => {
+  it("serves lightweight, highly-cacheable editorial showcase to human browsers on /share/:game", () => {
     const req: any = {
       params: { game: "spark" },
-      query: {},
+      query: { score: "420", nick: "Pilot" },
       headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" },
       get: () => "sely.tr",
       protocol: "https",
@@ -181,7 +181,11 @@ describe("OG Image and Dynamic Social Sharing Routes", () => {
 
     handleShareBridgeRequest(req, res);
 
-    expect(res.statusCode).toBe(302);
-    expect(res.headers["location"]).toBe("/play/spark");
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toBe("text/html; charset=utf-8");
+    expect(res.headers["cache-control"]).toContain("public, max-age=86400");
+    expect(res.body).toContain("Görseli Kopyala");
+    expect(res.body).toContain("Hemen Sen de Oyna");
+    expect(res.body).toContain("/play/spark");
   });
 });

@@ -55,6 +55,13 @@ export type SparkParticle = {
   size: number;
 };
 
+export type SparkTrailPoint = {
+  x: number;
+  y: number;
+  vy: number;
+  time: number;
+};
+
 const clamp = (value: number, lower: number, upper: number) => Math.max(lower, Math.min(upper, value));
 
 /** Pylon yüksekliğini deterministik seed, index ve önceki pilon üzerinden dengeli hesaplar */
@@ -137,8 +144,7 @@ export function sparkFlightCollision(
 /* =========================================================================
    Web Audio API Sentezleyicisi (Sıfır Dış Medya Varlığı)
    Ses zarfı (envelope) şekillendirmesi Spark'a özel kalır; AudioContext
-   kendisi artık lib/sfx.ts ile paylaşılıyor (aynı sayfada 2 ayrı context
-   açılmasını önlemek için).
+   kendisi artık lib/sfx.ts ile paylaşılıyor.
    ========================================================================= */
 function getAudioContext(): AudioContext | null {
   return getSharedAudioContext();
@@ -168,20 +174,17 @@ function playSynthTone(freqStart: number, freqEnd: number, duration: number, typ
 
 function playSparkFlap(soundOn: boolean) {
   if (!soundOn) return;
-  // Elektrik kıvılcım zıplama sesi: hızlı frekans yükselişi
   playSynthTone(460, 840, 0.07, "sine", 0.16);
 }
 
 function playSparkScore(soundOn: boolean) {
   if (!soundOn) return;
-  // Harmonik iki-tonlu geçiş sesi
   playSynthTone(523.25, 523.25, 0.08, "triangle", 0.18, 0);
   playSynthTone(659.25, 659.25, 0.10, "triangle", 0.16, 0.05);
 }
 
 function playSparkCrash(soundOn: boolean) {
   if (!soundOn) return;
-  // Ark boşalması / çarpışma çıtırtısı
   playSynthTone(160, 35, 0.28, "sawtooth", 0.22);
   playSynthTone(90, 30, 0.22, "square", 0.15, 0.02);
 }
@@ -192,7 +195,6 @@ function playSparkComplete(soundOn: boolean) {
     playSynthTone(freq, freq, 0.15, "triangle", 0.14, idx * 0.08);
   });
 }
-
 
 /* =========================================================================
    Kıvılcım Canvas Bileşeni
@@ -249,6 +251,18 @@ export default function SparkCanvasGame({
     finishedRef.current = false;
     flapRequestedRef.current = false;
 
+    // Sabit yıldız arka planı tohumu
+    const starPrng = mulberry32(seed ^ 0xabcdef);
+    const stars: Array<{ x: number; y: number; size: number; phase: number }> = [];
+    for (let i = 0; i < 28; i++) {
+      stars.push({
+        x: starPrng() * CANVAS_WIDTH,
+        y: starPrng() * (GROUND_Y - 40),
+        size: 0.8 + starPrng() * 1.6,
+        phase: starPrng() * Math.PI * 2,
+      });
+    }
+
     // Oyun İçi Durum Değişkenleri
     let spark: SparkState = {
       x: SPARK_DEFAULTS.startX,
@@ -261,6 +275,7 @@ export default function SparkCanvasGame({
     let nextPylonIndex = 0;
     let pylons: Pylon[] = [];
     let particles: SparkParticle[] = [];
+    let trail: SparkTrailPoint[] = [];
     let groundScrollX = 0;
     let bgScrollX = 0;
     let shake = 0;
@@ -270,7 +285,7 @@ export default function SparkCanvasGame({
     let frameId = 0;
     let arcPhase = 0;
 
-    // İlk 3 pylon oluşturulur
+    // İlk pylonları oluştur
     function spawnPylon(index: number, startX: number, prevTopHeight?: number) {
       const { gap } = sparkDifficulty(score, mastery);
       const topHeight = sparkCalculatePylonHeight(seed, index, SPARK_DEFAULTS.minTopHeight, GROUND_Y - gap - 50, prevTopHeight);
@@ -314,29 +329,28 @@ export default function SparkCanvasGame({
       }
     }
 
-    // Tuval Boyutlandırma ve Retina/DPR Yönetimi
+    // Tuval Boyutlandırma ve Retina/DPR Yönetimi (Sabit 420x600 mantıksal koordinat)
     const handleResize = () => {
-      const container = containerRef.current;
-      if (!container || !canvas) return;
-      const rect = container.getBoundingClientRect();
+      const cvs = canvasRef.current;
+      if (!cvs) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-      canvas.width = Math.floor(CANVAS_WIDTH * dpr);
-      canvas.height = Math.floor(CANVAS_HEIGHT * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cvs.width = Math.floor(CANVAS_WIDTH * dpr);
+      cvs.height = Math.floor(CANVAS_HEIGHT * dpr);
+      const c = cvs.getContext("2d");
+      if (c) {
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
     };
 
     handleResize();
-    const resizeObserver = new ResizeObserver(handleResize);
-    if (containerRef.current) resizeObserver.observe(containerRef.current);
+    window.addEventListener("resize", handleResize);
 
     // Giriş (Input) Tetikleyici
     const doFlap = () => {
       if (gameEnded) return;
       flapRequestedRef.current = true;
       playSparkFlap(soundOnRef.current);
-      // Zıplama anında aşağıya dökülen minik kıvılcım pırıltıları
-      createSparks(spark.x - 6, spark.y + 8, 3, "#f8d77a", 60);
+      createSparks(spark.x - 6, spark.y + 8, 4, "#f8d77a", 70);
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -356,6 +370,7 @@ export default function SparkCanvasGame({
       gameEnded = true;
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleResize);
       onFinishRef.current(result);
     };
 
@@ -368,8 +383,7 @@ export default function SparkCanvasGame({
 
       // 60fps normalize katsayısı (dt = 1 @ 60fps)
       const simDt = rawDt * 60;
-
-      const { speed, gap } = sparkDifficulty(score, mastery);
+      const { speed } = sparkDifficulty(score, mastery);
 
       // Sarsıntı ve parlama sönümleme
       shake = Math.max(0, shake - rawDt * 3.6);
@@ -384,23 +398,26 @@ export default function SparkCanvasGame({
       }
       particles = particles.filter(p => p.life > 0);
 
-      // Kıvılcım iz parçacığı (arka kuyruk)
-      if (!reducedMotion && Math.random() > 0.45) {
+      // Akıcı Plazma Kuyruğu İz Noktası (Trail History)
+      trail.unshift({ x: spark.x, y: spark.y, vy: spark.vy, time: now });
+      if (trail.length > 12) trail.pop();
+
+      // Kıvılcım serbest mikro parçacık dökülmesi
+      if (!reducedMotion && Math.random() > 0.4) {
         particles.push({
           x: spark.x - 10 + (Math.random() - 0.5) * 4,
           y: spark.y + (Math.random() - 0.5) * 4,
-          vx: -speed * 25 + (Math.random() - 0.5) * 20,
-          vy: (Math.random() - 0.5) * 30 - 10,
-          life: 0.22 + Math.random() * 0.18,
-          maxLife: 0.4,
-          color: Math.random() > 0.4 ? "#f8d77a" : "#e9563f",
+          vx: -speed * 28 + (Math.random() - 0.5) * 20,
+          vy: (Math.random() - 0.5) * 35 - 12,
+          life: 0.25 + Math.random() * 0.18,
+          maxLife: 0.42,
+          color: Math.random() > 0.35 ? "#f8d77a" : "#e9563f",
           size: 1.5 + Math.random() * 2,
         });
       }
 
       // Demo Autopilot Kontrolü
       if (demo === "success") {
-        // En yakın önümüzdeki pylon'u bul
         const targetPylon = pylons.find(p => p.x + p.width > spark.x - 10) ?? pylons[0];
         if (targetPylon) {
           const targetCenterY = targetPylon.topHeight + targetPylon.gap * 0.5;
@@ -408,8 +425,6 @@ export default function SparkCanvasGame({
             doFlap();
           }
         }
-      } else if (demo === "fail") {
-        // demo fail: dokunma ve direğe çarp
       }
 
       // Fizik Güncellemesi
@@ -431,7 +446,7 @@ export default function SparkCanvasGame({
           pylon.passed = true;
           score += 1;
           playSparkScore(soundOnRef.current);
-          createSparks(spark.x + 8, spark.y, 6, "#e5b341", 80);
+          createSparks(spark.x + 8, spark.y, 8, "#fcd34d", 90);
 
           setHud({
             score,
@@ -464,11 +479,10 @@ export default function SparkCanvasGame({
       // Çarpışma Denetimi
       for (const pylon of pylons) {
         if (sparkFlightCollision(spark.x, spark.y, SPARK_DEFAULTS.hitRadius, pylon, GROUND_Y)) {
-          // Çarpışma!
           shake = reducedMotion ? 0.2 : 1.0;
           flash = 0.45;
           playSparkCrash(soundOnRef.current);
-          createSparks(spark.x, spark.y, 22, "#e9563f", 200);
+          createSparks(spark.x, spark.y, 24, "#e9563f", 210);
 
           const finalScore = Math.max(0, score * 110 + Math.floor(spark.x * 0.5));
           finishGame({
@@ -486,7 +500,7 @@ export default function SparkCanvasGame({
       }
 
       // -------------------------------------------------------------
-      // ÇİZİM (RENDERING)
+      // ÇİZİM (HIGH-END 2D CANVAS RENDERING)
       // -------------------------------------------------------------
       ctx.save();
 
@@ -496,18 +510,64 @@ export default function SparkCanvasGame({
         ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
       }
 
-      // 1. Gökyüzü Degradesi (Sely Risograph Gece Mavisi)
+      // 1. Gökyüzü Degradesi (Derin Gece Şebekesi & Nükleer Lacivert)
       const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-      bgGrad.addColorStop(0, "#0e1422");
-      bgGrad.addColorStop(0.65, "#18223a");
-      bgGrad.addColorStop(1, "#223363");
+      bgGrad.addColorStop(0, "#080c18");
+      bgGrad.addColorStop(0.4, "#0e172a");
+      bgGrad.addColorStop(0.75, "#14223d");
+      bgGrad.addColorStop(1, "#1c3057");
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // 2. Arka Plan: Yumuşak Paralaks Endüstriyel Şehir & Trafo Silüeti (Kesintisiz Çift Döngü)
+      // 2. Arka Planda Parıldayan Şebeke Yıldızları & Radyal Enerji Pusu
+      ctx.save();
+      for (const star of stars) {
+        const twinkle = Math.sin(now * 0.003 + star.phase);
+        const starAlpha = 0.25 + (twinkle + 1) * 0.25;
+        ctx.fillStyle = `rgba(186, 218, 255, ${starAlpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // 3. Asılı Katener Yüksek Gerilim Telleri (Overhead Catenary Wires & Traveling Pulses)
+      ctx.save();
+      const drawCatenaryWire = (baseY: number, sag: number, alpha: number, pulseOffset: number) => {
+        ctx.strokeStyle = `rgba(100, 140, 200, ${alpha})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, baseY);
+        ctx.quadraticCurveTo(CANVAS_WIDTH * 0.5, baseY + sag, CANVAS_WIDTH, baseY);
+        ctx.stroke();
+
+        // Tel üzerinde seyahat eden parlak enerji kıvılcımı
+        const pulseProgress = ((now * 0.00045 + pulseOffset) % 1);
+        const px = pulseProgress * CANVAS_WIDTH;
+        // Kuadratik Bezier y formülü: (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+        const t = pulseProgress;
+        const py = (1 - t) * (1 - t) * baseY + 2 * (1 - t) * t * (baseY + sag) + t * t * baseY;
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.beginPath();
+        ctx.arc(px, py, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(248, 215, 122, 0.6)";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+        ctx.stroke();
+      };
+
+      drawCatenaryWire(22, 14, 0.35, 0.15);
+      drawCatenaryWire(44, 20, 0.25, 0.65);
+      ctx.restore();
+
+      // 4. Uzak Silüet: Endüstriyel Şehir & Trafo İstasyonu (Kesintisiz Çift Döngü)
       ctx.save();
       const drawCitySilhouette = (offsetX: number) => {
-        ctx.fillStyle = "rgba(14, 20, 34, 0.55)";
+        ctx.fillStyle = "rgba(10, 15, 26, 0.62)";
         ctx.beginPath();
         ctx.moveTo(offsetX, GROUND_Y);
         ctx.lineTo(offsetX, GROUND_Y - 35);
@@ -520,8 +580,8 @@ export default function SparkCanvasGame({
         ctx.lineTo(offsetX + 170, GROUND_Y - 60);
         ctx.lineTo(offsetX + 180, GROUND_Y - 35);
         ctx.lineTo(offsetX + 245, GROUND_Y - 35);
-        ctx.lineTo(offsetX + 265, GROUND_Y - 90);
-        ctx.lineTo(offsetX + 295, GROUND_Y - 90);
+        ctx.lineTo(offsetX + 265, GROUND_Y - 95);
+        ctx.lineTo(offsetX + 295, GROUND_Y - 95);
         ctx.lineTo(offsetX + 305, GROUND_Y - 40);
         ctx.lineTo(offsetX + 360, GROUND_Y - 40);
         ctx.lineTo(offsetX + 380, GROUND_Y - 55);
@@ -531,7 +591,7 @@ export default function SparkCanvasGame({
         ctx.fill();
 
         // Kule anten uçlarında yanıp sönen kırmızı ikaz LED'leri
-        const beaconY = GROUND_Y - 92;
+        const beaconY = GROUND_Y - 97;
         const beaconX = offsetX + 280;
         if (beaconX >= -10 && beaconX <= CANVAS_WIDTH + 10) {
           const blink = Math.sin(now * 0.006) > 0.1;
@@ -546,81 +606,122 @@ export default function SparkCanvasGame({
       drawCitySilhouette(-bgScrollX + CANVAS_WIDTH);
       ctx.restore();
 
-      // 3. Yüksek Gerilim Pylonları (Lattice Truss Kuleleri & Seramik İzolatörler)
+      // 5. Yüksek Gerilim Pylonları (Lattice Truss Kuleleri, İzolatörler, Tehlike Şeritleri)
       for (const p of pylons) {
         ctx.save();
 
-        // Üst Kule Gövdesi
+        // Metalik Çelik Gövde Degradesi
         const pylonGrad = ctx.createLinearGradient(p.x, 0, p.x + p.width, 0);
-        pylonGrad.addColorStop(0, "#131f33");
-        pylonGrad.addColorStop(0.2, "#1e314f");
-        pylonGrad.addColorStop(0.5, "#2a436c");
-        pylonGrad.addColorStop(0.85, "#1c2e4b");
-        pylonGrad.addColorStop(1, "#111b2d");
+        pylonGrad.addColorStop(0, "#10192a");
+        pylonGrad.addColorStop(0.2, "#1c2b45");
+        pylonGrad.addColorStop(0.5, "#2c446c");
+        pylonGrad.addColorStop(0.8, "#1e2e49");
+        pylonGrad.addColorStop(1, "#0d1522");
 
-        // Üst Direk Gövdesi
+        // --- A) ÜST PYLON DİREĞİ ---
         ctx.fillStyle = pylonGrad;
         ctx.fillRect(p.x, 0, p.width, p.topHeight);
-        ctx.strokeStyle = "#38527d";
+        ctx.strokeStyle = "#436599";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(p.x, 0, p.width, p.topHeight);
 
-        // Üst Direk İçi Kafes Kiriş Deseni (Truss Bracing)
-        ctx.strokeStyle = "rgba(100, 140, 200, 0.28)";
+        // Çift Çapraz Kiriş Deseni (X-Truss Bracing)
+        ctx.strokeStyle = "rgba(125, 175, 245, 0.26)";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let y = 16; y < p.topHeight - 20; y += 22) {
+        for (let y = 14; y < p.topHeight - 24; y += 22) {
           ctx.moveTo(p.x + 2, y);
-          ctx.lineTo(p.x + p.width - 2, y + 18);
+          ctx.lineTo(p.x + p.width - 2, y + 20);
           ctx.moveTo(p.x + p.width - 2, y);
-          ctx.lineTo(p.x + 2, y + 18);
+          ctx.lineTo(p.x + 2, y + 20);
         }
         ctx.stroke();
 
+        // Üst Kulede Sarı-Siyah Endüstriyel Tehlike Şeridi (Hazard Band)
+        if (p.topHeight > 80) {
+          const hBandY = p.topHeight - 48;
+          ctx.fillStyle = "#1b1a1b";
+          ctx.fillRect(p.x + 2, hBandY, p.width - 4, 12);
+          ctx.strokeStyle = "#f59e0b";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          for (let hx = p.x + 4; hx < p.x + p.width + 6; hx += 8) {
+            ctx.moveTo(hx, hBandY + 12);
+            ctx.lineTo(hx + 6, hBandY);
+          }
+          ctx.stroke();
+        }
+
         // Üst Seramik İzolatör Boğumları (3 Kademeli Disk)
-        const topIsoY = p.topHeight - 18;
+        const topIsoY = p.topHeight - 20;
         for (let d = 0; d < 3; d++) {
           const dy = topIsoY + d * 5;
           const dw = p.width + (2 - d) * 4;
           const dx = p.x + (p.width - dw) / 2;
-          ctx.fillStyle = d === 2 ? "#e9563f" : "#d9442e";
+          ctx.fillStyle = d === 2 ? "#e9563f" : "#c23924";
           ctx.fillRect(dx, dy, dw, 4);
           ctx.strokeStyle = "#ffffff";
           ctx.lineWidth = 0.8;
           ctx.strokeRect(dx, dy, dw, 4);
         }
 
-        // Üst Pirinç Kondansatör Terminali (Arkın Çıktığı Nokta)
-        ctx.fillStyle = "#e5b341";
+        // Üst Pirinç Kondansatör Terminali (Arkın Çıktığı Küre)
+        const topTerminalGrad = ctx.createRadialGradient(
+          p.x + p.width * 0.5 - 1,
+          p.topHeight - 1,
+          1,
+          p.x + p.width * 0.5,
+          p.topHeight,
+          6
+        );
+        topTerminalGrad.addColorStop(0, "#fff5c0");
+        topTerminalGrad.addColorStop(0.6, "#e5b341");
+        topTerminalGrad.addColorStop(1, "#926815");
+        ctx.fillStyle = topTerminalGrad;
         ctx.beginPath();
-        ctx.arc(p.x + p.width * 0.5, p.topHeight, 5, 0, Math.PI * 2);
+        ctx.arc(p.x + p.width * 0.5, p.topHeight, 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // Alt Kule Gövdesi
+        // --- B) ALT PYLON DİREĞİ ---
         ctx.fillStyle = pylonGrad;
         ctx.fillRect(p.x, p.bottomY, p.width, p.bottomHeight);
-        ctx.strokeStyle = "#38527d";
+        ctx.strokeStyle = "#436599";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(p.x, p.bottomY, p.width, p.bottomHeight);
 
         // Alt Direk İçi Kafes Kiriş Deseni
-        ctx.strokeStyle = "rgba(100, 140, 200, 0.28)";
+        ctx.strokeStyle = "rgba(125, 175, 245, 0.26)";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let y = p.bottomY + 18; y < GROUND_Y - 16; y += 22) {
+        for (let y = p.bottomY + 24; y < GROUND_Y - 20; y += 22) {
           ctx.moveTo(p.x + 2, y);
-          ctx.lineTo(p.x + p.width - 2, y + 18);
+          ctx.lineTo(p.x + p.width - 2, y + 20);
           ctx.moveTo(p.x + p.width - 2, y);
-          ctx.lineTo(p.x + 2, y + 18);
+          ctx.lineTo(p.x + 2, y + 20);
         }
         ctx.stroke();
 
+        // Alt Kulede Sarı-Siyah Endüstriyel Tehlike Şeridi
+        if (p.bottomHeight > 80) {
+          const hBandY = p.bottomY + 32;
+          ctx.fillStyle = "#1b1a1b";
+          ctx.fillRect(p.x + 2, hBandY, p.width - 4, 12);
+          ctx.strokeStyle = "#f59e0b";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          for (let hx = p.x + 4; hx < p.x + p.width + 6; hx += 8) {
+            ctx.moveTo(hx, hBandY + 12);
+            ctx.lineTo(hx + 6, hBandY);
+          }
+          ctx.stroke();
+        }
+
         // Alt Seramik İzolatör Boğumları
         for (let d = 0; d < 3; d++) {
-          const dy = p.bottomY + 3 + d * 5;
+          const dy = p.bottomY + 4 + d * 5;
           const dw = p.width + d * 4;
           const dx = p.x + (p.width - dw) / 2;
-          ctx.fillStyle = d === 0 ? "#e9563f" : "#d9442e";
+          ctx.fillStyle = d === 0 ? "#e9563f" : "#c23924";
           ctx.fillRect(dx, dy, dw, 4);
           ctx.strokeStyle = "#ffffff";
           ctx.lineWidth = 0.8;
@@ -628,14 +729,24 @@ export default function SparkCanvasGame({
         }
 
         // Alt Pirinç Kondansatör Terminali
-        ctx.fillStyle = "#e5b341";
+        const bottomTerminalGrad = ctx.createRadialGradient(
+          p.x + p.width * 0.5 - 1,
+          p.bottomY - 1,
+          1,
+          p.x + p.width * 0.5,
+          p.bottomY,
+          6
+        );
+        bottomTerminalGrad.addColorStop(0, "#fff5c0");
+        bottomTerminalGrad.addColorStop(0.6, "#e5b341");
+        bottomTerminalGrad.addColorStop(1, "#926815");
+        ctx.fillStyle = bottomTerminalGrad;
         ctx.beginPath();
-        ctx.arc(p.x + p.width * 0.5, p.bottomY, 5, 0, Math.PI * 2);
+        ctx.arc(p.x + p.width * 0.5, p.bottomY, 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // ALT PYLON TABAN PABUCU (Zemine Perçinli Ağır Çelik Kaide)
-        // Pylonun havada yüzmesini engeller, zemine sağlamca kenetler
-        ctx.fillStyle = "#0f1624";
+        // Alt Pylon Zemin Flanş Pabucu (Ağır Çelik Kaide)
+        ctx.fillStyle = "#0c121d";
         ctx.fillRect(p.x - 7, GROUND_Y - 7, p.width + 14, 9);
         ctx.strokeStyle = "#e5b341";
         ctx.lineWidth = 1.2;
@@ -646,26 +757,25 @@ export default function SparkCanvasGame({
         ctx.fillRect(p.x - 4, GROUND_Y - 5, 3, 3);
         ctx.fillRect(p.x + p.width + 1, GROUND_Y - 5, 3, 3);
 
-        // 4. Sütunlar Arasındaki Fraktal Tesla Elektrik Arkı (Realist Lightning Crackle)
-        if (Math.sin(arcPhase + p.id * 2.1) > 0.15) {
+        // --- C) SÜTUNLAR ARASINDA ÇITIRDAYAN TESLA ELEKTRİK ARKI ---
+        if (Math.sin(arcPhase + p.id * 2.1) > 0.12) {
           const startArcY = p.topHeight;
           const endArcY = p.bottomY;
           const midX = p.x + p.width * 0.5;
-          const steps = 8;
+          const steps = 9;
           const arcPoints: Array<{ x: number; y: number }> = [{ x: midX, y: startArcY }];
 
           for (let s = 1; s < steps; s++) {
             const progress = s / steps;
             const sy = startArcY + (endArcY - startArcY) * progress;
-            // Çift harmonik kırılma + mikro rastgele sapma
-            const jitter = (Math.sin(arcPhase * 3.5 + s * 2.8 + p.id) * 8) + ((Math.random() - 0.5) * 4);
+            const jitter = (Math.sin(arcPhase * 3.8 + s * 2.7 + p.id) * 8.5) + ((Math.random() - 0.5) * 4);
             arcPoints.push({ x: midX + jitter, y: sy });
           }
           arcPoints.push({ x: midX, y: endArcY });
 
           // Dış Plazma Halesi (Neon Glow)
-          ctx.strokeStyle = "rgba(248, 215, 122, 0.55)";
-          ctx.lineWidth = 3.5;
+          ctx.strokeStyle = "rgba(248, 215, 122, 0.45)";
+          ctx.lineWidth = 4;
           ctx.beginPath();
           ctx.moveTo(arcPoints[0].x, arcPoints[0].y);
           for (let i = 1; i < arcPoints.length; i++) {
@@ -673,9 +783,19 @@ export default function SparkCanvasGame({
           }
           ctx.stroke();
 
-          // İç Beyaz-Sıcak Yıldırım Çekirdeği
+          // Orta Siyan Plazma Çizgisi
+          ctx.strokeStyle = "rgba(165, 243, 252, 0.85)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(arcPoints[0].x, arcPoints[0].y);
+          for (let i = 1; i < arcPoints.length; i++) {
+            ctx.lineTo(arcPoints[i].x, arcPoints[i].y);
+          }
+          ctx.stroke();
+
+          // İç Saf Beyaz Şimşek Çekirdeği
           ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 1.4;
+          ctx.lineWidth = 1.1;
           ctx.beginPath();
           ctx.moveTo(arcPoints[0].x, arcPoints[0].y);
           for (let i = 1; i < arcPoints.length; i++) {
@@ -683,15 +803,15 @@ export default function SparkCanvasGame({
           }
           ctx.stroke();
 
-          // Çatallanan Yan Kıvılcım (Branching spark)
-          if (Math.random() > 0.45) {
-            const branchIdx = 3 + Math.floor(Math.random() * 3);
+          // Çatallanan Yan Ark
+          if (Math.random() > 0.42) {
+            const branchIdx = 3 + Math.floor(Math.random() * 4);
             const bp = arcPoints[branchIdx];
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(bp.x, bp.y);
-            ctx.lineTo(bp.x + (Math.random() > 0.5 ? 12 : -12), bp.y + (Math.random() - 0.5) * 10);
+            ctx.lineTo(bp.x + (Math.random() > 0.5 ? 14 : -14), bp.y + (Math.random() - 0.5) * 12);
             ctx.stroke();
           }
         }
@@ -699,11 +819,11 @@ export default function SparkCanvasGame({
         ctx.restore();
       }
 
-      // 5. Zemin Hattı: Yüksek Gerilim Reaktör Yolu (Pylonlarla BİREBİR AYNI HIZDA Dönen Raylar)
+      // 6. Zemin Hattı: Yüksek Gerilim Reaktör Yolu
       const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, CANVAS_HEIGHT);
-      groundGrad.addColorStop(0, "#13171e");
-      groundGrad.addColorStop(0.2, "#1d222b");
-      groundGrad.addColorStop(1, "#0d0f13");
+      groundGrad.addColorStop(0, "#10151f");
+      groundGrad.addColorStop(0.2, "#18202e");
+      groundGrad.addColorStop(1, "#0a0d14");
       ctx.fillStyle = groundGrad;
       ctx.fillRect(0, GROUND_Y, CANVAS_WIDTH, GROUND_HEIGHT);
 
@@ -715,7 +835,7 @@ export default function SparkCanvasGame({
       ctx.lineTo(CANVAS_WIDTH, GROUND_Y);
       ctx.stroke();
 
-      // Zemin İçi: Pylonlarla Birebir Aynı Hızda Akan Çelik Derz Panelleri
+      // Zemin İçi Çelik Derz Panelleri
       ctx.fillStyle = "rgba(246, 240, 227, 0.12)";
       for (let x = -groundScrollX; x < CANVAS_WIDTH + 40; x += 40) {
         ctx.fillRect(x, GROUND_Y, 2, GROUND_HEIGHT);
@@ -732,7 +852,7 @@ export default function SparkCanvasGame({
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // 6. Parçacıklar
+      // 7. Parçacıklar (Kıvılcım Pırıltıları)
       for (const p of particles) {
         const alpha = clamp(p.life / p.maxLife, 0, 1);
         ctx.save();
@@ -744,39 +864,66 @@ export default function SparkCanvasGame({
         ctx.restore();
       }
 
-      // 7. Kıvılcım (Oyuncu Enerji Küresi & Çok Katmanlı Plazma Çekirdeği)
+      // 8. Kıvılcım İyonize Plazma Kuyruğu (Ionized Ribbon Trail)
+      if (trail.length > 2) {
+        ctx.save();
+        for (let i = 1; i < trail.length; i++) {
+          const pt = trail[i];
+          const progress = 1 - i / trail.length;
+          const radius = SPARK_DEFAULTS.radius * (0.2 + progress * 0.75);
+          ctx.beginPath();
+          ctx.arc(pt.x - i * 1.5, pt.y, radius, 0, Math.PI * 2);
+
+          if (i < 3) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${progress * 0.7})`;
+          } else if (i < 7) {
+            ctx.fillStyle = `rgba(248, 215, 122, ${progress * 0.5})`;
+          } else {
+            ctx.fillStyle = `rgba(233, 86, 63, ${progress * 0.3})`;
+          }
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // 9. Kıvılcım (Oyuncu Enerji Küresi & Çok Katmanlı Plazma Çekirdeği)
       ctx.save();
       ctx.translate(spark.x, spark.y);
       ctx.rotate((spark.rotation * Math.PI) / 180);
 
+      // İvmelenmeye Duyarlı Squash & Stretch (Hafif Aerodinamik Deformasyon)
+      const stretch = clamp(1 - spark.vy * 0.016, 0.86, 1.22);
+      ctx.scale(1 / Math.sqrt(stretch), stretch);
+
       // A) Dış Plazma Halesi (Glow Pulse)
-      const pulse = Math.sin(now * 0.014) * 2.5;
-      const glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, SPARK_DEFAULTS.radius * 2.0 + pulse);
+      const pulse = Math.sin(now * 0.015) * 2.8;
+      const glowGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, SPARK_DEFAULTS.radius * 2.2 + pulse);
       glowGrad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
       glowGrad.addColorStop(0.25, "rgba(248, 215, 122, 0.85)");
       glowGrad.addColorStop(0.65, "rgba(233, 86, 63, 0.45)");
       glowGrad.addColorStop(1, "rgba(233, 86, 63, 0)");
       ctx.fillStyle = glowGrad;
       ctx.beginPath();
-      ctx.arc(0, 0, SPARK_DEFAULTS.radius * 2.0 + pulse, 0, Math.PI * 2);
+      ctx.arc(0, 0, SPARK_DEFAULTS.radius * 2.2 + pulse, 0, Math.PI * 2);
       ctx.fill();
 
-      // B) Çevrede Dönen 3 Adet Mikro Plazma Kıvılcımı (Orbiting Tendrils)
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
-      ctx.lineWidth = 1.2;
+      // B) Çevrede Dönen 3 Adet Kuantum Mikro Plazma İyonu
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.lineWidth = 1.3;
       for (let t = 0; t < 3; t++) {
-        const angle = (now * 0.008) + (t * (Math.PI * 2 / 3));
-        const dist = SPARK_DEFAULTS.radius + 3 + (Math.sin(now * 0.02 + t) * 2);
+        const angle = (now * 0.009) + (t * (Math.PI * 2 / 3));
+        const dist = SPARK_DEFAULTS.radius + 3 + (Math.sin(now * 0.022 + t) * 2);
         ctx.beginPath();
-        ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, 1.4, 0, Math.PI * 2);
+        ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, 1.5, 0, Math.PI * 2);
         ctx.stroke();
       }
 
-      // C) Canlı Enerji Küresi
+      // C) Canlı Füzyon Enerji Çekirdeği
       const coreGrad = ctx.createRadialGradient(-2, -2, 1, 0, 0, SPARK_DEFAULTS.radius);
       coreGrad.addColorStop(0, "#ffffff");
       coreGrad.addColorStop(0.4, "#f8d77a");
-      coreGrad.addColorStop(1, "#e9563f");
+      coreGrad.addColorStop(0.78, "#e9563f");
+      coreGrad.addColorStop(1, "#b91c1c");
       ctx.fillStyle = coreGrad;
       ctx.beginPath();
       ctx.arc(0, 0, SPARK_DEFAULTS.radius, 0, Math.PI * 2);
@@ -785,15 +932,15 @@ export default function SparkCanvasGame({
       // D) Parlak Çekirdek & Göz Işıltısı (Uçuş Yönüne Bakan Odak Noktası)
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(3, -1, SPARK_DEFAULTS.radius * 0.4, 0, Math.PI * 2);
+      ctx.arc(3, -1, SPARK_DEFAULTS.radius * 0.42, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.restore();
 
-      // 8. Canlı Skor Metni (Orta Üst)
-      ctx.font = '700 32px "DM Mono", monospace';
+      // 10. Canlı Skor Metni (Orta Üst - Retrotex Monospace)
+      ctx.font = '700 34px "DM Mono", monospace';
       ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
       ctx.fillText(String(score), CANVAS_WIDTH / 2 + 2, 54);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(String(score), CANVAS_WIDTH / 2, 52);
@@ -817,7 +964,7 @@ export default function SparkCanvasGame({
     return () => {
       gameEnded = true;
       window.cancelAnimationFrame(frameId);
-      resizeObserver.disconnect();
+      window.removeEventListener("resize", handleResize);
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [demo, locale, mastery, seed]);
@@ -839,50 +986,57 @@ export default function SparkCanvasGame({
 
   return (
     <div className="spark-canvas-game" ref={containerRef}>
-      {/* 390px Mobil Uyumlu HUD */}
-      <div className="spark-canvas-hud" aria-live="polite">
-        <span>
-          {worldWord(locale, "SKOR", "SCORE")} <b>{hud.score}</b>
-        </span>
-        <span>
-          {worldWord(locale, "VOLTAJ", "VOLTAGE")} <b>%{hud.voltage}</b>
-        </span>
-        <span>
-          {worldWord(locale, "HIZ", "SPEED")} <b>{hud.speed}x</b>
-        </span>
-        <span>
-          {worldWord(locale, "MOD", "MODE")} <b>{worldWord(locale, "ARK", "ARC")}</b>
-        </span>
-      </div>
+      {/* Kompakt Neo-Brutalist HUD */}
+      <header className="spark-canvas-hud" aria-live="polite">
+        <div className="spark-hud-cell">
+          <span className="spark-hud-label">{worldWord(locale, "SKOR", "SCORE")}</span>
+          <b className="spark-hud-val spark-val-score">{hud.score}</b>
+        </div>
+        <div className="spark-hud-cell">
+          <span className="spark-hud-label">{worldWord(locale, "VOLTAJ", "VOLTAGE")}</span>
+          <b className="spark-hud-val spark-val-voltage">%{hud.voltage}</b>
+        </div>
+        <div className="spark-hud-cell">
+          <span className="spark-hud-label">{worldWord(locale, "HIZ", "SPEED")}</span>
+          <b className="spark-hud-val">{hud.speed}x</b>
+        </div>
+        <div className="spark-hud-cell">
+          <span className="spark-hud-label">{worldWord(locale, "ŞEBEKE", "GRID")}</span>
+          <b className="spark-hud-val">{worldWord(locale, "ARK", "ARC")}</b>
+        </div>
+      </header>
 
-      {/* Ana Tuval */}
-      <canvas
-        ref={canvasRef}
-        className="spark-canvas"
-        tabIndex={0}
-        onPointerDown={handlePointerDown}
-        style={{ touchAction: "none" }}
-        aria-label={worldWord(
-          locale,
-          "Kıvılcım uçuş oyunu. Boşluk tuşu, tıkla veya dokunarak kıvılcımı havada tut.",
-          "Spark flight game. Press space, click or tap to keep the spark airborne."
-        )}
-      />
-
-      <p className="spark-canvas-tip">{hud.notice}</p>
-
-      {/* Mobil Dostu Büyük Dokunmatik Kontrol Butonu */}
-      <div className="spark-canvas-controls" aria-label={worldWord(locale, "Kıvılcım kontrolleri", "Spark controls")}>
-        <button
-          type="button"
+      {/* Tuval Kabini (Responsive Viewport-Fit Konteyneri) */}
+      <div className="spark-stage-cabinet">
+        <canvas
+          ref={canvasRef}
+          className="spark-canvas"
+          tabIndex={0}
           onPointerDown={handlePointerDown}
-          className="spark-flap-button"
-          aria-label={worldWord(locale, "Kıvılcımı uçur", "Flap spark")}
-        >
-          <b>✦</b>
-          <span>{worldWord(locale, "DOKUN / SÜZÜL (BOŞLUK)", "TAP / GLIDE (SPACE)")}</span>
-        </button>
+          style={{ touchAction: "none" }}
+          aria-label={worldWord(
+            locale,
+            "Kıvılcım uçuş oyunu. Boşluk tuşu, tıkla veya dokunarak kıvılcımı havada tut.",
+            "Spark flight game. Press space, click or tap to keep the spark airborne."
+          )}
+        />
       </div>
+
+      {/* Alt Kontrol & İpucu Paneli */}
+      <footer className="spark-canvas-footer-panel">
+        <p className="spark-canvas-tip">{hud.notice}</p>
+        <div className="spark-canvas-controls" aria-label={worldWord(locale, "Kıvılcım kontrolleri", "Spark controls")}>
+          <button
+            type="button"
+            onPointerDown={handlePointerDown}
+            className="spark-flap-button"
+            aria-label={worldWord(locale, "Kıvılcımı uçur", "Flap spark")}
+          >
+            <span className="spark-btn-icon">⚡</span>
+            <span className="spark-btn-text">{worldWord(locale, "DOKUN / SÜZÜL (BOŞLUK)", "TAP / GLIDE (SPACE)")}</span>
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }

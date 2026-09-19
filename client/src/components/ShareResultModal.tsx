@@ -58,6 +58,47 @@ export default function ShareResultModal({ data, isOpen, onClose }: Props) {
       : `${data.gameTitle}: ${data.score.toLocaleString("tr-TR")} puan yaptım!`;
   }
 
+  const [imageCopied, setImageCopied] = useState(false);
+
+  const handleCopyImage = async () => {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = ogImageUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 1200;
+      canvas.height = 630;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context failed");
+      ctx.drawImage(img, 0, 0, 1200, 630);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          toast.error(isEn ? "Failed to convert image" : "Görsel dönüştürülemedi");
+          return;
+        }
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ "image/png": blob }),
+          ]);
+          setImageCopied(true);
+          toast.success(isEn ? "Image copied to clipboard! Ready to paste." : "Görsel panoya kopyalandı! İstediğin yere yapıştırabilirsin.");
+          setTimeout(() => setImageCopied(false), 2500);
+          trackEvent("share_image_copied", { game: data.gameId });
+        } catch {
+          handleCopyLink();
+        }
+      }, "image/png");
+    } catch {
+      handleCopyLink();
+    }
+  };
+
   const handleCopyLink = async () => {
     try {
       if (navigator.clipboard) {
@@ -76,7 +117,7 @@ export default function ShareResultModal({ data, isOpen, onClose }: Props) {
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({
-          title: `SELY.TR · ${data.gameTitle}`,
+          title: `SELY · ${data.gameTitle}`,
           text: shareText,
           url: shareUrl,
         });
@@ -115,9 +156,14 @@ export default function ShareResultModal({ data, isOpen, onClose }: Props) {
 
         {/* Action Buttons */}
         <div className="share-modal-actions">
-          <button className="share-action-btn share-primary" onClick={handleNativeShare}>
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            <span>{copied ? (isEn ? "Copied!" : "Kopyalandı!") : (isEn ? "Copy Share Link" : "Bağlantıyı Kopyala")}</span>
+          <button className="share-action-btn share-primary" onClick={handleCopyImage}>
+            {imageCopied ? <Check size={16} /> : <Copy size={16} />}
+            <span>{imageCopied ? (isEn ? "Image Copied!" : "Görsel Kopyalandı!") : (isEn ? "Copy Image (PNG)" : "Görseli Kopyala")}</span>
+          </button>
+
+          <button className="share-action-btn" onClick={handleCopyLink}>
+            {copied ? <Check size={16} /> : <Share2 size={16} />}
+            <span>{copied ? (isEn ? "Link Copied!" : "Link Kopyalandı!") : (isEn ? "Copy Link" : "Linki Kopyala")}</span>
           </button>
 
           <a
@@ -141,11 +187,11 @@ export default function ShareResultModal({ data, isOpen, onClose }: Props) {
           </a>
 
           <a
-            href={ogImageUrl}
+            href={shareUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="share-action-btn share-raw"
-            title={isEn ? "Open Image Card" : "Kart Görselini Aç"}
+            title={isEn ? "Open Showcase Page" : "Paylaşım Sayfasını Aç"}
           >
             <ExternalLink size={16} />
           </a>
