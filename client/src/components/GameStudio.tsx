@@ -39,7 +39,7 @@ type GameStudioProps = {
 };
 
 export type ResultOutcome = "success" | "failure";
-type GameResult = { score: number; label: string; detail: string; outcome: ResultOutcome };
+type GameResult = { score: number; label: string; detail: string; outcome: ResultOutcome; answer?: string };
 type Position = { r: number; c: number };
 const local = (locale: SiteLocale, tr: string, en: string) => locale === "en" ? en : tr;
 export const runMasteryFor = (highScore: number, dailyDifficulty: number) => Math.min(4, Math.max(masteryBand(highScore), dailyDifficulty));
@@ -47,6 +47,10 @@ export function resultActionsFor(outcome: ResultOutcome, failureCount: number, g
   if (gameId === "spark") {
     // Kıvılcım sonsuz arcade uçuş oyunudur; seviye atlama/geçiş olmaz, her zaman tekrar denenebilir
     return { canRetry: true, canAdvance: false };
+  }
+  if (gameId === "hane") {
+    // Hane her tekrar denendiğinde yeni bir kelime/sayı tohumuyla açılır; hem başarıda hem başarısızlıkta tekrar oynanabilir
+    return { canRetry: true, canAdvance: outcome === "success" || failureCount >= 3 };
   }
   return { canRetry: outcome === "failure", canAdvance: outcome === "success" || failureCount >= 3 };
 }
@@ -130,16 +134,22 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
           </div>
         ) : (
           <div className={`game-stage ${sparkActive ? "game-stage-spark" : ""}`}>
-            <GameRenderer key={runKey} game={game} locale={locale} dailySeed={game.id === "spark" ? ((dailySeed ^ ((runKey + 1) * 0x1f351f) ^ Math.imul(runKey + 7, 0x9e3779b9)) >>> 0) : dailySeed} mastery={runMastery} demo={demo} soundOn={soundOn} onFinish={finish} />
+            <GameRenderer key={runKey} game={game} locale={locale} dailySeed={game.id === "spark" ? ((dailySeed ^ ((runKey + 1) * 0x1f351f) ^ Math.imul(runKey + 7, 0x9e3779b9)) >>> 0) : game.id === "hane" ? (runKey === 0 ? dailySeed : ((dailySeed ^ ((runKey + 1) * 0x27d4eb2d) ^ Math.imul(runKey + 13, 0x1000193)) >>> 0)) : dailySeed} mastery={runMastery} demo={demo} soundOn={soundOn} onFinish={finish} />
             {result && (
               <div className="result-panel" role="dialog" aria-modal="true" aria-label={locale === "en" ? "Run result" : "Tur sonucu"}>
                 <button className="result-close" onClick={() => setResult(null)} aria-label={locale === "en" ? "Close result" : "Sonucu kapat"}><X size={18} /></button>
                 <span className="studio-kicker">{locale === "en" ? "RUN COMPLETE" : "TUR TAMAMLANDI"}</span>
                 <h2>{result.label}</h2>
+                {result.answer && (
+                  <div className="result-target-reveal" role="status">
+                    <span className="result-target-label">{locale === "en" ? "SECRET ANSWER" : "GİZLİ YANIT"}</span>
+                    <strong className="result-target-value">{result.answer}</strong>
+                  </div>
+                )}
                 <p>{result.detail}</p>
                 <div className="result-score"><span>{locale === "en" ? "SCORE" : "PUAN"}</span><strong>{result.score.toLocaleString(locale === "en" ? "en-US" : "tr-TR")}</strong></div>
                 <div className="result-actions">
-                  {resultActionsFor(result.outcome, failureCount, game.id).canRetry && <button className="ink-button" onClick={restart}>{locale === "en" ? "Try again" : "Tekrar dene"} <RotateCcw size={16} /></button>}
+                  {resultActionsFor(result.outcome, failureCount, game.id).canRetry && <button className="ink-button" onClick={restart}>{game.id === "hane" ? (locale === "en" ? "New word" : "Yeni kelimeyle oyna") : (locale === "en" ? "Try again" : "Tekrar dene")} <RotateCcw size={16} /></button>}
                   {resultActionsFor(result.outcome, failureCount, game.id).canAdvance && <button className="ink-button" onClick={continueToNext}>{result.outcome === "success" ? (locale === "en" ? "Continue" : "Devam et") : (locale === "en" ? "Next level" : "Sonraki seviyeye geç")} <ArrowRight size={16} /></button>}
                   <button className="quiet-button" onClick={onBack}>{locale === "en" ? "Choose a route" : "Rota seç"}</button>
                 </div>
@@ -935,8 +945,12 @@ function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
       const feedback = compareHaneNumberGuess(numberLevel.target, guess);
       const nextRows = [...numberRows, { guess, marks: feedback.marks }];
       setNumberRows(nextRows); setGuess(""); setNotice("");
-      if (feedback.exact === numberLevel.digits) { finish({ outcome: "success", score: 1_100 - nextRows.length * 105 + mastery * 65, label: local(locale, "Kayıt hizalandı", "Record aligned"), detail: local(locale, `${nextRows.length}. fişte kayıt numarasını çözdün.`, `You resolved the record number on receipt ${nextRows.length}.`) }); return; }
-      if (nextRows.length >= numberLevel.maxGuesses) finish({ outcome: "failure", score: Math.max(60, 180 + nextRows.reduce((total, row) => total + row.marks.filter(mark => mark !== "absent").length * 26, 0)), label: local(locale, "Kayıt kapanmadı", "Record remained open"), detail: local(locale, "Önce yerinde olan haneleri, sonra izde kalanları birlikte oku; aynı rakam hedefte yalnız bulunduğu kadar sayılır.", "Read exact digits first, then traced ones together; a repeated digit is counted only as often as it exists in the target.") });
+      if (feedback.exact === numberLevel.digits) { finish({ outcome: "success", score: 1_100 - nextRows.length * 105 + mastery * 65, label: local(locale, "Kayıt hizalandı", "Record aligned"), answer: numberLevel.target, detail: local(locale, `${nextRows.length}. fişte kayıt numarasını çözdün.`, `You resolved the record number on receipt ${nextRows.length}.`) }); return; }
+      if (nextRows.length >= numberLevel.maxGuesses) {
+        setNotice(local(locale, `Aranan gizli kayıt: ${numberLevel.target}`, `The secret record was: ${numberLevel.target}`));
+        finish({ outcome: "failure", score: Math.max(60, 180 + nextRows.reduce((total, row) => total + row.marks.filter(mark => mark !== "absent").length * 26, 0)), label: local(locale, "Kayıt kapanmadı", "Record remained open"), answer: numberLevel.target, detail: local(locale, `Aranan gizli kayıt "${numberLevel.target}" idi. ${numberLevel.lesson}`, `The secret record was "${numberLevel.target}". ${numberLevel.lesson}`) });
+        return;
+      }
       return;
     }
     setCheckingWord(true);
@@ -949,8 +963,11 @@ function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
       const feedback = compareHaneWordGuess(wordLevel.target, normalizedGuess, locale);
       const nextRows = [...wordRows, { guess: normalizedGuess, marks: feedback.marks }];
       setWordRows(nextRows); setGuess(""); setNotice("");
-      if (feedback.exact === wordLevel.length) { finish({ outcome: "success", score: 1_160 - nextRows.length * 105 + mastery * 65, label: local(locale, "Sözcük kayda geçti", "Word entered the record"), detail: local(locale, `${nextRows.length}. fişte gizli sözcüğü çözdün.`, `You resolved the hidden word on receipt ${nextRows.length}.`) }); return; }
-      if (nextRows.length >= wordLevel.maxGuesses) finish({ outcome: "failure", score: Math.max(60, 180 + nextRows.reduce((total, row) => total + row.marks.filter(mark => mark !== "absent").length * 26, 0)), label: local(locale, "Sözcük açık kaldı", "Word record stayed open"), detail: local(locale, "Önce yerinde olanları, sonra izde kalanları birlikte ele. Tekrarlanan harf yalnız hedefte olduğu kadar işaretlenir.", "Eliminate exact marks first, then letters elsewhere. A repeated letter is marked only as often as it exists in the target.") });
+      if (feedback.exact === wordLevel.length) { finish({ outcome: "success", score: 1_160 - nextRows.length * 105 + mastery * 65, label: local(locale, "Sözcük kayda geçti", "Word entered the record"), answer: wordLevel.target, detail: local(locale, `${nextRows.length}. fişte gizli sözcüğü çözdün.`, `You resolved the hidden word on receipt ${nextRows.length}.`) }); return; }
+      if (nextRows.length >= wordLevel.maxGuesses) {
+        setNotice(local(locale, `Aranan sözcük: "${wordLevel.target}"`, `The hidden word was: "${wordLevel.target}"`));
+        finish({ outcome: "failure", score: Math.max(60, 180 + nextRows.reduce((total, row) => total + row.marks.filter(mark => mark !== "absent").length * 26, 0)), label: local(locale, "Sözcük açık kaldı", "Word record stayed open"), answer: wordLevel.target, detail: local(locale, `Aranan gizli sözcük "${wordLevel.target}" idi. ${wordLevel.lesson}`, `The secret word was "${wordLevel.target}". ${wordLevel.lesson}`) });
+      }
     });
   }, [finish, guess, isWord, locale, mastery, numberLevel, numberRows, wordLevel, wordRows]);
   useEffect(() => {

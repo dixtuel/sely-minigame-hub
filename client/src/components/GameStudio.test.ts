@@ -33,4 +33,11 @@ describe("resultActionsFor", () => {
     expect(resultActionsFor("failure", 0, "spark")).toEqual({ canRetry: true, canAdvance: false });
     expect(resultActionsFor("failure", 3, "spark")).toEqual({ canRetry: true, canAdvance: false });
   });
+
+  it("allows both retry (with a new word) and advance for Hane", () => {
+    expect(resultActionsFor("success", 0, "hane")).toEqual({ canRetry: true, canAdvance: true });
+    expect(resultActionsFor("failure", 1, "hane")).toEqual({ canRetry: true, canAdvance: false });
+    expect(resultActionsFor("failure", 3, "hane")).toEqual({ canRetry: true, canAdvance: true });
+  });
 });
+
