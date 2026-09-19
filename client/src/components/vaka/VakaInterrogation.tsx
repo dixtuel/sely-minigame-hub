@@ -3,6 +3,7 @@ import type { VakaDetailedCase, VakaSuspect, VakaInterrogationMessage } from "@s
 import type { SiteLocale } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import { playAccuse, playContradiction, playHit } from "@/lib/sfx";
+import { secureStorage } from "@/lib/secureStorage";
 
 type Props = {
   vakaCase: VakaDetailedCase;
@@ -43,8 +44,7 @@ export default function VakaInterrogation({
   const [unlockedMap, setUnlockedMap] = useState<Record<string, boolean>>(() => {
     try {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`sely_vaka_unlocked_${vakaCase.id}`);
-        if (saved) return JSON.parse(saved);
+        return secureStorage.getJSON(`sely_vaka_unlocked_${vakaCase.id}`, {});
       }
     } catch {}
     return {};
@@ -54,8 +54,7 @@ export default function VakaInterrogation({
   const [unlockedCluesMap, setUnlockedCluesMap] = useState<Record<string, boolean>>(() => {
     try {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`sely_vaka_unlocked_clues_${vakaCase.id}`);
-        if (saved) return JSON.parse(saved);
+        return secureStorage.getJSON(`sely_vaka_unlocked_clues_${vakaCase.id}`, {});
       }
     } catch {}
     return {};
@@ -71,7 +70,7 @@ export default function VakaInterrogation({
       const updated = { ...prev, [clueId]: true };
       try {
         if (typeof window !== "undefined") {
-          localStorage.setItem(`sely_vaka_unlocked_clues_${vakaCase.id}`, JSON.stringify(updated));
+          secureStorage.setJSON(`sely_vaka_unlocked_clues_${vakaCase.id}`, updated);
         }
       } catch {}
       return updated;
@@ -102,7 +101,7 @@ export default function VakaInterrogation({
       const updated = { ...prev, [suspectId]: true };
       try {
         if (typeof window !== "undefined") {
-          localStorage.setItem(`sely_vaka_unlocked_${vakaCase.id}`, JSON.stringify(updated));
+          secureStorage.setJSON(`sely_vaka_unlocked_${vakaCase.id}`, updated);
         }
       } catch {}
       return updated;
@@ -136,12 +135,9 @@ export default function VakaInterrogation({
   const [suspectMessagesMap, setSuspectMessagesMap] = useState<Record<string, VakaInterrogationMessage[]>>(() => {
     try {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`sely_vaka_session_${vakaCase.id}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.messagesMap && typeof parsed.messagesMap === "object") {
-            return parsed.messagesMap;
-          }
+        const parsed = secureStorage.getJSON<any>(`sely_vaka_session_${vakaCase.id}`, null);
+        if (parsed && parsed.messagesMap && typeof parsed.messagesMap === "object") {
+          return parsed.messagesMap;
         }
       }
     } catch {}
@@ -152,12 +148,9 @@ export default function VakaInterrogation({
   const [stressMap, setStressMap] = useState<Record<string, number>>(() => {
     try {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`sely_vaka_session_${vakaCase.id}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.stressMap && typeof parsed.stressMap === "object") {
-            return parsed.stressMap;
-          }
+        const parsed = secureStorage.getJSON<any>(`sely_vaka_session_${vakaCase.id}`, null);
+        if (parsed && parsed.stressMap && typeof parsed.stressMap === "object") {
+          return parsed.stressMap;
         }
       }
     } catch {}
@@ -190,15 +183,12 @@ export default function VakaInterrogation({
   ) => {
     try {
       if (typeof window !== "undefined") {
-        localStorage.setItem(
-          `sely_vaka_session_${vakaCase.id}`,
-          JSON.stringify({
-            messagesMap: updatedMessages,
-            stressMap: updatedStress,
-            solved: isSolved !== undefined ? isSolved : solved,
-            verdictText: vText !== undefined ? vText : verdictText,
-          })
-        );
+        secureStorage.setJSON(`sely_vaka_session_${vakaCase.id}`, {
+          messagesMap: updatedMessages,
+          stressMap: updatedStress,
+          solved: isSolved !== undefined ? isSolved : solved,
+          verdictText: vText !== undefined ? vText : verdictText,
+        });
       }
     } catch {}
   };
@@ -223,20 +213,14 @@ function cleanInterrogationText(text: string): string {
     // Çelişki Avı tespiti kontrolü
     try {
       if (typeof window !== "undefined") {
-        const expStr = localStorage.getItem(`sely_vaka_exposed_${vakaCase.id}`);
-        if (expStr) {
-          setExposedMap(JSON.parse(expStr));
-        } else {
-          setExposedMap({});
-        }
+        setExposedMap(secureStorage.getJSON(`sely_vaka_exposed_${vakaCase.id}`, {}));
       }
     } catch {}
 
     try {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`sely_vaka_session_${vakaCase.id}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
+        const parsed = secureStorage.getJSON<any>(`sely_vaka_session_${vakaCase.id}`, null);
+        if (parsed) {
           if (parsed.messagesMap && typeof parsed.messagesMap === "object") {
             // Eski oturumlardaki yapay [TAKTİKSEL BLÖF] vb. etiketleri temizleyip rozete dönüştür
             const cleanedMap: Record<string, VakaInterrogationMessage[]> = {};

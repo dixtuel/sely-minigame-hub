@@ -4,6 +4,7 @@ import type { VakaGameMode, VakaDetailedCase } from "@shared/vakaTypes";
 import { VAKA_SAMPLE_CASES } from "@shared/vakaCases";
 import { trpc } from "@/lib/trpc";
 import { getSavedVakaMode, saveVakaMode } from "@/lib/vakaEngine";
+import { secureStorage } from "@/lib/secureStorage";
 import VakaDossier from "./vaka/VakaDossier";
 import VakaInterrogation from "./vaka/VakaInterrogation";
 import VakaContradiction from "./vaka/VakaContradiction";
@@ -33,7 +34,7 @@ export default function VakaHub({ locale, soundOn, onSolved, isGameFinished }: P
 
   const [selectedCaseId, setSelectedCaseId] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("sely_vaka_active_case");
+      const saved = secureStorage.getItem("sely_vaka_active_case");
       if (saved && VAKA_SAMPLE_CASES.some((c) => c.id === saved)) return saved;
     }
     return VAKA_SAMPLE_CASES[0].id;
@@ -42,8 +43,7 @@ export default function VakaHub({ locale, soundOn, onSolved, isGameFinished }: P
   const [completedCases, setCompletedCases] = useState<Record<string, number>>(() => {
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem("sely_vaka_completed_cases");
-        if (saved) return JSON.parse(saved);
+        return secureStorage.getJSON("sely_vaka_completed_cases", {});
       } catch {}
     }
     return {};
@@ -67,7 +67,7 @@ export default function VakaHub({ locale, soundOn, onSolved, isGameFinished }: P
     setIndictSuspectId(undefined);
     setShowVerdictModal(false);
     if (typeof window !== "undefined") {
-      localStorage.setItem("sely_vaka_active_case", caseId);
+      secureStorage.setItem("sely_vaka_active_case", caseId);
     }
   };
 
@@ -76,7 +76,7 @@ export default function VakaHub({ locale, soundOn, onSolved, isGameFinished }: P
       const next = { ...prev, [caseId]: Math.max(prev[caseId] || 0, score) };
       if (typeof window !== "undefined") {
         try {
-          localStorage.setItem("sely_vaka_completed_cases", JSON.stringify(next));
+          secureStorage.setJSON("sely_vaka_completed_cases", next);
         } catch {}
       }
       return next;

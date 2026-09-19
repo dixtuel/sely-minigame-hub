@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { VakaDetailedCase } from "@shared/vakaTypes";
 import type { SiteLocale } from "@/lib/i18n";
+import { secureStorage } from "@/lib/secureStorage";
 
 type Props = {
   vakaCase: VakaDetailedCase;
@@ -13,8 +14,7 @@ export default function VakaDossier({ vakaCase, locale }: Props) {
   const [unlockedMap] = useState<Record<string, boolean>>(() => {
     try {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`sely_vaka_unlocked_${vakaCase.id}`);
-        if (saved) return JSON.parse(saved);
+        return secureStorage.getJSON(`sely_vaka_unlocked_${vakaCase.id}`, {});
       }
     } catch {}
     return {};

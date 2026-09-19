@@ -1,5 +1,6 @@
 import type { SiteLocale } from "./i18n";
 import type { VakaGameMode, VakaDetailedCase } from "@shared/vakaTypes";
+import { secureStorage } from "./secureStorage";
 
 export type DetectiveGrade = "S" | "A" | "B" | "C";
 
@@ -49,7 +50,7 @@ export function calculateVakaScore(
 
 export function getSavedVakaMode(allowedModes: VakaGameMode[], defaultMode: VakaGameMode): VakaGameMode {
   try {
-    const saved = localStorage.getItem("sely_vaka_preferred_mode") as VakaGameMode;
+    const saved = secureStorage.getItem("sely_vaka_preferred_mode") as VakaGameMode;
     if (saved && allowedModes.includes(saved)) {
       return saved;
     }
@@ -61,7 +62,7 @@ export function getSavedVakaMode(allowedModes: VakaGameMode[], defaultMode: Vaka
 
 export function saveVakaMode(mode: VakaGameMode): void {
   try {
-    localStorage.setItem("sely_vaka_preferred_mode", mode);
+    secureStorage.setItem("sely_vaka_preferred_mode", mode);
   } catch {
     // localStorage erişilemezse devam et
   }

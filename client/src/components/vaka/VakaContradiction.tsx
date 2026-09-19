@@ -3,6 +3,7 @@ import type { VakaDetailedCase, VakaSuspect } from "@shared/vakaTypes";
 import type { SiteLocale } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import { playAccuse, playContradiction, playHit } from "@/lib/sfx";
+import { secureStorage } from "@/lib/secureStorage";
 
 type Props = {
   vakaCase: VakaDetailedCase;
@@ -26,8 +27,7 @@ export default function VakaContradiction({
   const [unlockedMap] = useState<Record<string, boolean>>(() => {
     try {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`sely_vaka_unlocked_${vakaCase.id}`);
-        if (saved) return JSON.parse(saved);
+        return secureStorage.getJSON(`sely_vaka_unlocked_${vakaCase.id}`, {});
       }
     } catch {}
     return {};
@@ -85,14 +85,14 @@ export default function VakaContradiction({
         if (typeof window !== "undefined") {
           try {
             const expKey = `sely_vaka_exposed_${vakaCase.id}`;
-            const existing = JSON.parse(localStorage.getItem(expKey) || "{}");
+            const existing = secureStorage.getJSON<Record<string, any>>(expKey, {});
             existing[selectedSuspectId] = {
               sentenceId: selectedSentenceId,
               clueId: selectedClueId,
               explanation: res.message,
               timestamp: Date.now(),
             };
-            localStorage.setItem(expKey, JSON.stringify(existing));
+            secureStorage.setJSON(expKey, existing);
           } catch {}
         }
       } else {

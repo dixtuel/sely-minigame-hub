@@ -5,6 +5,7 @@ import type { SiteLocale } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import { playAccuse, playContradiction, playHit } from "@/lib/sfx";
 import { getPlayerNick } from "@/lib/playerNick";
+import { secureStorage } from "@/lib/secureStorage";
 import ShareResultModal from "@/components/ShareResultModal";
 
 type Props = {
@@ -39,8 +40,7 @@ export default function VakaVerdictModal({
   const [unlockedMap] = useState<Record<string, boolean>>(() => {
     try {
       if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`sely_vaka_unlocked_${vakaCase.id}`);
-        if (saved) return JSON.parse(saved);
+        return secureStorage.getJSON(`sely_vaka_unlocked_${vakaCase.id}`, {});
       }
     } catch {}
     return {};

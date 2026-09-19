@@ -1,4 +1,5 @@
 import type { SiteLocale } from "./i18n";
+import { secureStorage } from "./secureStorage";
 
 const ANON_ID_KEY = "sely_anon_player_id_v2";
 
@@ -81,7 +82,7 @@ export const EN_NOUNS = [
 export function getOrCreateAnonymousId(): string {
   if (typeof window === "undefined") return "anon_server_guest";
   try {
-    let id = localStorage.getItem(ANON_ID_KEY);
+    let id = secureStorage.getItem(ANON_ID_KEY);
     if (!id) {
       // Generate 16 random cryptographically secure hex bytes
       if (typeof crypto !== "undefined" && crypto.getRandomValues) {
@@ -91,7 +92,7 @@ export function getOrCreateAnonymousId(): string {
       } else {
         id = "ply_" + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
       }
-      localStorage.setItem(ANON_ID_KEY, id);
+      secureStorage.setItem(ANON_ID_KEY, id);
     }
     return id;
   } catch {

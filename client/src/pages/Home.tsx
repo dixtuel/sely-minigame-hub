@@ -8,6 +8,7 @@ import { copy, localePath, rememberLocale, type SiteLocale } from "@/lib/i18n";
 import { masteryBand, personalSeed, runInstanceKey } from "@/lib/levelGenerators";
 import { trackEvent } from "@/lib/analytics";
 import { getPlayerNick, getPlayerSignature, getTodayDateStr } from "@/lib/playerNick";
+import { secureStorage } from "@/lib/secureStorage";
 import LeaderboardModal from "@/components/LeaderboardModal";
 import GlobalAnnouncementBanner from "@/components/GlobalAnnouncementBanner";
 
@@ -31,7 +32,10 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
   const daily = trpc.daily.today.useQuery(undefined, { staleTime: 60 * 60 * 1000, retry: 1 });
 
   useEffect(() => {
-    try { const stored = localStorage.getItem(SCORE_KEY); if (stored) setScores({ ...blankScores, ...JSON.parse(stored) }); } catch { /* Local scores are optional. */ }
+    try {
+      const stored = secureStorage.getJSON(SCORE_KEY, blankScores);
+      if (stored) setScores({ ...blankScores, ...stored });
+    } catch { /* Local scores are optional. */ }
   }, []);
   useEffect(() => {
     if (!daily.data || selected) return;
@@ -49,7 +53,7 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
   const saveScore = useCallback((gameId: GameId, score: number) => {
     setScores(previous => {
       const next = { ...previous, [gameId]: Math.max(previous[gameId], score) };
-      try { localStorage.setItem(SCORE_KEY, JSON.stringify(next)); } catch { /* Local storage may be disabled. */ }
+      try { secureStorage.setJSON(SCORE_KEY, next); } catch { /* Local storage may be disabled. */ }
       return next;
     });
 
