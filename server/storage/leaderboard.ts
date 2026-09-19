@@ -98,43 +98,67 @@ function getUpstashClient(): UpstashRedis | null {
   return null;
 }
 
+// In-process micro-cache for top scores (5s TTL) protecting Redis & Upstash command quotas
+interface L1LeaderboardEntry {
+  timestamp: number;
+  data: LeaderboardResponse;
+}
+const l1Cache = new Map<string, L1LeaderboardEntry>();
+const L1_TTL_MS = 5_000;
+
 /**
  * Retrieves the top leaderboard entries for a given game and date.
  */
 export async function getTopScores(gameId: GameId, dateStr: string = getTodayIsoDate()): Promise<LeaderboardResponse> {
+  const l1Key = `${gameId}:${dateStr}`;
+  const l1Cached = l1Cache.get(l1Key);
+  if (l1Cached && Date.now() - l1Cached.timestamp < L1_TTL_MS) {
+    return l1Cached.data;
+  }
+
   const key = `lb:${gameId}:${dateStr}`;
 
   // Strategy A: VDS / Self-Hosted Native TCP Redis (Preferred on VPS environments)
   const tcpRedis = getTcpRedisClient();
   if (tcpRedis) {
     try {
-      const result = await tcpRedis.zrevrange(key, 0, 9, "WITHSCORES");
-      const count = await tcpRedis.zcard(key);
+      // Pipelined retrieval: 1 network roundtrip for both top range and card
+      const pipe = tcpRedis.pipeline();
+      pipe.zrevrange(key, 0, 9, "WITHSCORES");
+      pipe.zcard(key);
+      const pipeResults = await pipe.exec();
 
-      const entries: LeaderboardEntry[] = [];
-      for (let i = 0; i < result.length; i += 2) {
-        const rawMember = result[i];
-        const score = Number(result[i + 1]);
-        const parts = rawMember.split("::");
-        const signature = parts[0] || "anon";
-        const nick = parts.slice(1).join("::") || "Anonim Gezgin";
+      if (pipeResults && pipeResults[0] && !pipeResults[0][0]) {
+        const result = (pipeResults[0][1] as string[]) || [];
+        const count = Number(pipeResults[1]?.[1] ?? 0);
 
-        entries.push({
-          rank: entries.length + 1,
-          nick,
-          score,
-          signature,
-          timestamp: Date.now(),
-        });
+        const entries: LeaderboardEntry[] = [];
+        for (let i = 0; i < result.length; i += 2) {
+          const rawMember = result[i];
+          const score = Number(result[i + 1]);
+          const parts = rawMember.split("::");
+          const signature = parts[0] || "anon";
+          const nick = parts.slice(1).join("::") || "Anonim Gezgin";
+
+          entries.push({
+            rank: entries.length + 1,
+            nick,
+            score,
+            signature,
+            timestamp: Date.now(),
+          });
+        }
+
+        const response: LeaderboardResponse = {
+          gameId,
+          date: dateStr,
+          top: entries,
+          totalPlayers: count || entries.length,
+          source: "vds-redis",
+        };
+        l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
+        return response;
       }
-
-      return {
-        gameId,
-        date: dateStr,
-        top: entries,
-        totalPlayers: count || entries.length,
-        source: "vds-redis",
-      };
     } catch {
       // Fallback to next strategy if TCP query fails
     }
@@ -144,45 +168,51 @@ export async function getTopScores(gameId: GameId, dateStr: string = getTodayIso
   const upstash = getUpstashClient();
   if (upstash) {
     try {
-      // @upstash/redis zrange with rev and withScores options
-      const rawResults = await upstash.zrange<{ member: string; score: number }[]>(key, 0, 9, {
+      // Single HTTP pipeline request for both zrange and zcard (50% HTTP roundtrip reduction)
+      const p = upstash.pipeline();
+      p.zrange<{ member: string; score: number }[]>(key, 0, 9, {
         rev: true,
         withScores: true,
       });
+      p.zcard(key);
+      const [rawResults, countResult] = await p.exec<[any[], number]>();
 
-      const totalPlayers = (await upstash.zcard(key)) ?? rawResults.length;
+      const totalPlayers = countResult ?? (Array.isArray(rawResults) ? rawResults.length : 0);
       const entries: LeaderboardEntry[] = [];
 
-      for (let i = 0; i < rawResults.length; i++) {
-        const item = rawResults[i];
-        // In @upstash/redis withScores returns array of { member, score } or alternating elements
-        const rawMember = typeof item === "object" && item !== null && "member" in item
-          ? String((item as { member: string }).member)
-          : String(item);
-        const score = typeof item === "object" && item !== null && "score" in item
-          ? Number((item as { score: number }).score)
-          : 0;
+      if (Array.isArray(rawResults)) {
+        for (let i = 0; i < rawResults.length; i++) {
+          const item = rawResults[i];
+          const rawMember = typeof item === "object" && item !== null && "member" in item
+            ? String((item as { member: string }).member)
+            : String(item);
+          const score = typeof item === "object" && item !== null && "score" in item
+            ? Number((item as { score: number }).score)
+            : 0;
 
-        const parts = rawMember.split("::");
-        const signature = parts[0] || "anon";
-        const nick = parts.slice(1).join("::") || "Anonim Gezgin";
+          const parts = rawMember.split("::");
+          const signature = parts[0] || "anon";
+          const nick = parts.slice(1).join("::") || "Anonim Gezgin";
 
-        entries.push({
-          rank: i + 1,
-          nick,
-          score,
-          signature,
-          timestamp: Date.now(),
-        });
+          entries.push({
+            rank: i + 1,
+            nick,
+            score,
+            signature,
+            timestamp: Date.now(),
+          });
+        }
       }
 
-      return {
+      const response: LeaderboardResponse = {
         gameId,
         date: dateStr,
         top: entries,
         totalPlayers,
         source: "upstash",
       };
+      l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
+      return response;
     } catch {
       // Fallback to next strategy on network/Upstash error
     }
@@ -263,26 +293,24 @@ export async function submitScore(
   const key = `lb:${gameId}:${dateStr}`;
   const member = `${cleanSig}::${cleanNick}`;
 
+  // Invalidate in-process L1 cache for this board so immediate reads reflect updates
+  l1Cache.delete(`${gameId}:${dateStr}`);
+
   // If Turso is configured, asynchronously persist to durable SQL store
   if (isTursoConfigured()) {
     saveTursoScore(gameId, score, cleanNick, cleanSig, dateStr).catch(() => {});
   }
 
-  // Strategy A: VDS / Self-Hosted Native TCP Redis
+  // Strategy A: VDS / Self-Hosted Native TCP Redis (Pipelined: 1 roundtrip for zadd GT, expire, zrevrank)
   const tcpRedis = getTcpRedisClient();
   if (tcpRedis) {
     try {
-      try {
-        await tcpRedis.zadd(key, "GT", score, member);
-      } catch {
-        const currentScore = await tcpRedis.zscore(key, member);
-        if (currentScore === null || score > Number(currentScore)) {
-          await tcpRedis.zadd(key, score, member);
-        }
-      }
-
-      await tcpRedis.expire(key, 172800); // 48 hours TTL
-      const rank0 = await tcpRedis.zrevrank(key, member);
+      const pipe = tcpRedis.pipeline();
+      pipe.zadd(key, "GT", score, member);
+      pipe.expire(key, 172800); // 48 hours TTL
+      pipe.zrevrank(key, member);
+      const pipeResults = await pipe.exec();
+      const rank0 = pipeResults?.[2]?.[1];
       const rank = typeof rank0 === "number" ? rank0 + 1 : undefined;
 
       return { success: true, rank };
@@ -291,18 +319,15 @@ export async function submitScore(
     }
   }
 
-  // Strategy B: Vercel Marketplace Upstash Redis
+  // Strategy B: Vercel Marketplace Upstash Redis (Single HTTP pipeline request for zadd, expire, zrevrank)
   const upstash = getUpstashClient();
   if (upstash) {
     try {
-      // Check existing score to preserve personal best
-      const currentScore = await upstash.zscore(key, member);
-      if (currentScore === null || score > Number(currentScore)) {
-        await upstash.zadd(key, { score, member });
-      }
-
-      await upstash.expire(key, 172800); // 48h TTL
-      const rank0 = await upstash.zrevrank(key, member);
+      const p = upstash.pipeline();
+      p.zadd(key, { gt: true }, { score, member });
+      p.expire(key, 172800); // 48h TTL
+      p.zrevrank(key, member);
+      const [_, __, rank0] = await p.exec<[number, number, number | null]>();
       const rank = typeof rank0 === "number" ? rank0 + 1 : undefined;
 
       return { success: true, rank };

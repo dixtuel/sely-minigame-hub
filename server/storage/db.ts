@@ -37,10 +37,18 @@ function getPgPool(): pg.Pool | null {
         url.includes("vercel-storage.com") ||
         url.includes("aws.connect");
 
+      const isServerless =
+        process.env.VERCEL === "1" ||
+        Boolean(process.env.VERCEL_ENV) ||
+        Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+
       _pgPool = new Pool({
         connectionString: url,
-        max: 10,
-        idleTimeoutMillis: 30000,
+        // On Vercel serverless functions, limit to 2 connections per lambda to prevent exhausting Neon connection limits.
+        // On long-running environments, allow up to 10 connections.
+        max: isServerless ? 2 : 10,
+        // 10s idle timeout allows idle connections to close, enabling Neon compute to cleanly scale to zero after 5 minutes.
+        idleTimeoutMillis: isCloud ? 10000 : 30000,
         connectionTimeoutMillis: 5000,
         ssl: isCloud ? { rejectUnauthorized: false } : undefined,
       });

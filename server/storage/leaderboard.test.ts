@@ -49,4 +49,18 @@ describe("Leaderboard Service (Zero PII & Sanity Safeguards)", () => {
     const entry2 = board.top.find(e => e.signature === playerSig);
     expect(entry2?.score).toBe(850);
   });
+
+  it("should serve top scores and invalidate L1 cache when a new score is submitted", async () => {
+    const today = "2026-09-19";
+    const game = "cut";
+    await submitScore(game, 500, "Usta Kesici #1", "sig_cut_1", today);
+
+    const firstRead = await getTopScores(game, today);
+    expect(firstRead.top[0].score).toBe(500);
+
+    // Score improvement invalidates L1 cache
+    await submitScore(game, 900, "Usta Kesici #1", "sig_cut_1", today);
+    const secondRead = await getTopScores(game, today);
+    expect(secondRead.top[0].score).toBe(900);
+  });
 });

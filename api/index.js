@@ -128,6 +128,10 @@ async function ensureTursoSchema() {
       ON daily_scores(game_id, date_str, score DESC);
     `);
     await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_daily_scores_all_time
+      ON daily_scores(game_id, signature, score DESC);
+    `);
+    await client.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         open_id TEXT NOT NULL UNIQUE,
@@ -205,26 +209,29 @@ async function getTursoTopScores(gameId, dateStr, limit = 10) {
     return cached.data;
   }
   try {
-    const [scoresRs, totalRs] = await Promise.all([
-      client.execute({
-        sql: `
-          SELECT nick, signature, score, created_at
-          FROM daily_scores
-          WHERE game_id = ? AND date_str = ?
-          ORDER BY score DESC
-          LIMIT ?;
-        `,
-        args: [gameId, dateStr, limit]
-      }),
-      client.execute({
-        sql: `
-          SELECT COUNT(*) as total
-          FROM daily_scores
-          WHERE game_id = ? AND date_str = ?;
-        `,
-        args: [gameId, dateStr]
-      })
-    ]);
+    const [scoresRs, totalRs] = await client.batch(
+      [
+        {
+          sql: `
+            SELECT nick, signature, score, created_at
+            FROM daily_scores
+            WHERE game_id = ? AND date_str = ?
+            ORDER BY score DESC
+            LIMIT ?;
+          `,
+          args: [gameId, dateStr, limit]
+        },
+        {
+          sql: `
+            SELECT COUNT(*) as total
+            FROM daily_scores
+            WHERE game_id = ? AND date_str = ?;
+          `,
+          args: [gameId, dateStr]
+        }
+      ],
+      "read"
+    );
     const totalPlayers = Number(totalRs.rows[0]?.total ?? scoresRs.rows.length);
     const top = scoresRs.rows.map((row, index) => ({
       rank: index + 1,
@@ -323,10 +330,14 @@ function getPgPool() {
   if (!_pgPool) {
     try {
       const isCloud = url.includes("sslmode=require") || url.includes("neon.tech") || url.includes("vercel-storage.com") || url.includes("aws.connect");
+      const isServerless = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
       _pgPool = new Pool({
         connectionString: url,
-        max: 10,
-        idleTimeoutMillis: 3e4,
+        // On Vercel serverless functions, limit to 2 connections per lambda to prevent exhausting Neon connection limits.
+        // On long-running environments, allow up to 10 connections.
+        max: isServerless ? 2 : 10,
+        // 10s idle timeout allows idle connections to close, enabling Neon compute to cleanly scale to zero after 5 minutes.
+        idleTimeoutMillis: isCloud ? 1e4 : 3e4,
         connectionTimeoutMillis: 5e3,
         ssl: isCloud ? { rejectUnauthorized: false } : void 0
       });
@@ -1044,9 +1055,12 @@ var PostgresStore = class {
   constructor(pool) {
     this.pool = pool;
   }
+  schemaChecked = false;
   async schema() {
+    if (this.schemaChecked) return;
     const result = await this.pool.query("SELECT to_regclass('public.sely_daily_content') AS relation_name");
     if (!result.rows[0]?.relation_name) throw new Error("Daily content migration is missing");
+    this.schemaChecked = true;
   }
   async ensure(manifest) {
     await this.schema();
@@ -1070,27 +1084,31 @@ var TursoStore = class {
   constructor(client) {
     this.client = client;
   }
+  schemaInitialized = false;
   async schema() {
+    if (this.schemaInitialized) return;
     await this.client.execute(`CREATE TABLE IF NOT EXISTS sely_daily_content (
       content_date TEXT NOT NULL, game_id TEXT NOT NULL, seed INTEGER NOT NULL, difficulty INTEGER NOT NULL,
       ruleset_version TEXT NOT NULL, payload_codec TEXT NOT NULL, payload TEXT NOT NULL, checksum TEXT NOT NULL,
       created_at TEXT NOT NULL, PRIMARY KEY (content_date, game_id)
     )`);
     await this.client.execute("CREATE INDEX IF NOT EXISTS sely_daily_content_date_idx ON sely_daily_content (content_date DESC)");
+    this.schemaInitialized = true;
   }
   async ensure(manifest) {
     await this.schema();
     const existing = await this.client.execute({ sql: "SELECT * FROM sely_daily_content WHERE content_date = ? ORDER BY game_id", args: [manifest.date] });
     if (existing.rows.length === DAILY_GAMES.length) return fromRows(manifest.date, existing.rows);
     const createdAt = (/* @__PURE__ */ new Date()).toISOString();
-    for (const game of manifest.games) {
+    const insertStatements = manifest.games.map((game) => {
       const packed = encodePayload(game.params);
-      await this.client.execute({
+      return {
         sql: `INSERT OR IGNORE INTO sely_daily_content
-        (content_date, game_id, seed, difficulty, ruleset_version, payload_codec, payload, checksum, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+          (content_date, game_id, seed, difficulty, ruleset_version, payload_codec, payload, checksum, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
         args: [manifest.date, game.gameId, game.seed, game.difficulty, game.rulesetVersion, packed.codec, packed.payload, game.checksum, createdAt]
-      });
-    }
+      };
+    });
+    await this.client.batch(insertStatements, "write");
     const stored = await this.client.execute({ sql: "SELECT * FROM sely_daily_content WHERE content_date = ? ORDER BY game_id", args: [manifest.date] });
     return fromRows(manifest.date, stored.rows);
   }
@@ -5174,69 +5192,91 @@ function getUpstashClient() {
   }
   return null;
 }
+var l1Cache = /* @__PURE__ */ new Map();
+var L1_TTL_MS = 5e3;
 async function getTopScores(gameId, dateStr = getTodayIsoDate()) {
+  const l1Key = `${gameId}:${dateStr}`;
+  const l1Cached = l1Cache.get(l1Key);
+  if (l1Cached && Date.now() - l1Cached.timestamp < L1_TTL_MS) {
+    return l1Cached.data;
+  }
   const key = `lb:${gameId}:${dateStr}`;
   const tcpRedis = getTcpRedisClient();
   if (tcpRedis) {
     try {
-      const result = await tcpRedis.zrevrange(key, 0, 9, "WITHSCORES");
-      const count = await tcpRedis.zcard(key);
-      const entries = [];
-      for (let i = 0; i < result.length; i += 2) {
-        const rawMember = result[i];
-        const score = Number(result[i + 1]);
-        const parts = rawMember.split("::");
-        const signature = parts[0] || "anon";
-        const nick = parts.slice(1).join("::") || "Anonim Gezgin";
-        entries.push({
-          rank: entries.length + 1,
-          nick,
-          score,
-          signature,
-          timestamp: Date.now()
-        });
+      const pipe = tcpRedis.pipeline();
+      pipe.zrevrange(key, 0, 9, "WITHSCORES");
+      pipe.zcard(key);
+      const pipeResults = await pipe.exec();
+      if (pipeResults && pipeResults[0] && !pipeResults[0][0]) {
+        const result = pipeResults[0][1] || [];
+        const count = Number(pipeResults[1]?.[1] ?? 0);
+        const entries = [];
+        for (let i = 0; i < result.length; i += 2) {
+          const rawMember = result[i];
+          const score = Number(result[i + 1]);
+          const parts = rawMember.split("::");
+          const signature = parts[0] || "anon";
+          const nick = parts.slice(1).join("::") || "Anonim Gezgin";
+          entries.push({
+            rank: entries.length + 1,
+            nick,
+            score,
+            signature,
+            timestamp: Date.now()
+          });
+        }
+        const response = {
+          gameId,
+          date: dateStr,
+          top: entries,
+          totalPlayers: count || entries.length,
+          source: "vds-redis"
+        };
+        l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
+        return response;
       }
-      return {
-        gameId,
-        date: dateStr,
-        top: entries,
-        totalPlayers: count || entries.length,
-        source: "vds-redis"
-      };
     } catch {
     }
   }
   const upstash = getUpstashClient();
   if (upstash) {
     try {
-      const rawResults = await upstash.zrange(key, 0, 9, {
+      const p = upstash.pipeline();
+      p.zrange(key, 0, 9, {
         rev: true,
         withScores: true
       });
-      const totalPlayers = await upstash.zcard(key) ?? rawResults.length;
+      p.zcard(key);
+      const [rawResults, countResult] = await p.exec();
+      const totalPlayers = countResult ?? (Array.isArray(rawResults) ? rawResults.length : 0);
       const entries = [];
-      for (let i = 0; i < rawResults.length; i++) {
-        const item = rawResults[i];
-        const rawMember = typeof item === "object" && item !== null && "member" in item ? String(item.member) : String(item);
-        const score = typeof item === "object" && item !== null && "score" in item ? Number(item.score) : 0;
-        const parts = rawMember.split("::");
-        const signature = parts[0] || "anon";
-        const nick = parts.slice(1).join("::") || "Anonim Gezgin";
-        entries.push({
-          rank: i + 1,
-          nick,
-          score,
-          signature,
-          timestamp: Date.now()
-        });
+      if (Array.isArray(rawResults)) {
+        for (let i = 0; i < rawResults.length; i++) {
+          const item = rawResults[i];
+          const rawMember = typeof item === "object" && item !== null && "member" in item ? String(item.member) : String(item);
+          const score = typeof item === "object" && item !== null && "score" in item ? Number(item.score) : 0;
+          const parts = rawMember.split("::");
+          const signature = parts[0] || "anon";
+          const nick = parts.slice(1).join("::") || "Anonim Gezgin";
+          entries.push({
+            rank: i + 1,
+            nick,
+            score,
+            signature,
+            timestamp: Date.now()
+          });
+        }
       }
-      return {
+      const response = {
         gameId,
         date: dateStr,
         top: entries,
         totalPlayers,
         source: "upstash"
       };
+      l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
+      return response;
     } catch {
     }
   }
@@ -5289,6 +5329,7 @@ async function submitScore(gameId, score, nick, signature, dateStr = getTodayIso
   }
   const key = `lb:${gameId}:${dateStr}`;
   const member = `${cleanSig}::${cleanNick}`;
+  l1Cache.delete(`${gameId}:${dateStr}`);
   if (isTursoConfigured()) {
     saveTursoScore(gameId, score, cleanNick, cleanSig, dateStr).catch(() => {
     });
@@ -5296,16 +5337,12 @@ async function submitScore(gameId, score, nick, signature, dateStr = getTodayIso
   const tcpRedis = getTcpRedisClient();
   if (tcpRedis) {
     try {
-      try {
-        await tcpRedis.zadd(key, "GT", score, member);
-      } catch {
-        const currentScore = await tcpRedis.zscore(key, member);
-        if (currentScore === null || score > Number(currentScore)) {
-          await tcpRedis.zadd(key, score, member);
-        }
-      }
-      await tcpRedis.expire(key, 172800);
-      const rank0 = await tcpRedis.zrevrank(key, member);
+      const pipe = tcpRedis.pipeline();
+      pipe.zadd(key, "GT", score, member);
+      pipe.expire(key, 172800);
+      pipe.zrevrank(key, member);
+      const pipeResults = await pipe.exec();
+      const rank0 = pipeResults?.[2]?.[1];
       const rank2 = typeof rank0 === "number" ? rank0 + 1 : void 0;
       return { success: true, rank: rank2 };
     } catch {
@@ -5314,12 +5351,11 @@ async function submitScore(gameId, score, nick, signature, dateStr = getTodayIso
   const upstash = getUpstashClient();
   if (upstash) {
     try {
-      const currentScore = await upstash.zscore(key, member);
-      if (currentScore === null || score > Number(currentScore)) {
-        await upstash.zadd(key, { score, member });
-      }
-      await upstash.expire(key, 172800);
-      const rank0 = await upstash.zrevrank(key, member);
+      const p = upstash.pipeline();
+      p.zadd(key, { gt: true }, { score, member });
+      p.expire(key, 172800);
+      p.zrevrank(key, member);
+      const [_, __, rank0] = await p.exec();
       const rank2 = typeof rank0 === "number" ? rank0 + 1 : void 0;
       return { success: true, rank: rank2 };
     } catch {

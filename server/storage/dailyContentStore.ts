@@ -63,10 +63,13 @@ class MemoryStore implements DailyStore {
 }
 
 class PostgresStore implements DailyStore {
+  private schemaChecked = false;
   constructor(private pool: Pool) {}
   private async schema() {
+    if (this.schemaChecked) return;
     const result = await this.pool.query("SELECT to_regclass('public.sely_daily_content') AS relation_name");
     if (!result.rows[0]?.relation_name) throw new Error("Daily content migration is missing");
+    this.schemaChecked = true;
   }
   async ensure(manifest: DailyManifest) {
     await this.schema();
@@ -84,26 +87,35 @@ class PostgresStore implements DailyStore {
 }
 
 class TursoStore implements DailyStore {
+  private schemaInitialized = false;
   constructor(private client: Client) {}
   private async schema() {
+    if (this.schemaInitialized) return;
     await this.client.execute(`CREATE TABLE IF NOT EXISTS sely_daily_content (
       content_date TEXT NOT NULL, game_id TEXT NOT NULL, seed INTEGER NOT NULL, difficulty INTEGER NOT NULL,
       ruleset_version TEXT NOT NULL, payload_codec TEXT NOT NULL, payload TEXT NOT NULL, checksum TEXT NOT NULL,
       created_at TEXT NOT NULL, PRIMARY KEY (content_date, game_id)
     )`);
     await this.client.execute("CREATE INDEX IF NOT EXISTS sely_daily_content_date_idx ON sely_daily_content (content_date DESC)");
+    this.schemaInitialized = true;
   }
   async ensure(manifest: DailyManifest) {
     await this.schema();
     const existing = await this.client.execute({ sql: "SELECT * FROM sely_daily_content WHERE content_date = ? ORDER BY game_id", args: [manifest.date] });
     if (existing.rows.length === DAILY_GAMES.length) return fromRows(manifest.date, existing.rows as Array<Record<string, unknown>>);
     const createdAt = new Date().toISOString();
-    for (const game of manifest.games) {
+    
+    // Batch all 7 game inserts in a single HTTP pipeline request
+    const insertStatements = manifest.games.map(game => {
       const packed = encodePayload(game.params);
-      await this.client.execute({ sql: `INSERT OR IGNORE INTO sely_daily_content
-        (content_date, game_id, seed, difficulty, ruleset_version, payload_codec, payload, checksum, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-        args: [manifest.date, game.gameId, game.seed, game.difficulty, game.rulesetVersion, packed.codec, packed.payload, game.checksum, createdAt] });
-    }
+      return {
+        sql: `INSERT OR IGNORE INTO sely_daily_content
+          (content_date, game_id, seed, difficulty, ruleset_version, payload_codec, payload, checksum, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+        args: [manifest.date, game.gameId, game.seed, game.difficulty, game.rulesetVersion, packed.codec, packed.payload, game.checksum, createdAt],
+      };
+    });
+    await this.client.batch(insertStatements, "write");
+
     const stored = await this.client.execute({ sql: "SELECT * FROM sely_daily_content WHERE content_date = ? ORDER BY game_id", args: [manifest.date] });
     return fromRows(manifest.date, stored.rows as Array<Record<string, unknown>>);
   }

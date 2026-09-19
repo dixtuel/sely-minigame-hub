@@ -112,6 +112,11 @@ export async function ensureTursoSchema(): Promise<boolean> {
       ON daily_scores(game_id, date_str, score DESC);
     `);
 
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_daily_scores_all_time
+      ON daily_scores(game_id, signature, score DESC);
+    `);
+
     // 2. User auth table (for auth fallback when PostgreSQL/MySQL is absent)
     await client.execute(`
       CREATE TABLE IF NOT EXISTS users (
@@ -230,26 +235,30 @@ export async function getTursoTopScores(
   }
 
   try {
-    const [scoresRs, totalRs] = await Promise.all([
-      client.execute({
-        sql: `
-          SELECT nick, signature, score, created_at
-          FROM daily_scores
-          WHERE game_id = ? AND date_str = ?
-          ORDER BY score DESC
-          LIMIT ?;
-        `,
-        args: [gameId, dateStr, limit],
-      }),
-      client.execute({
-        sql: `
-          SELECT COUNT(*) as total
-          FROM daily_scores
-          WHERE game_id = ? AND date_str = ?;
-        `,
-        args: [gameId, dateStr],
-      }),
-    ]);
+    // Single HTTP pipeline roundtrip via client.batch
+    const [scoresRs, totalRs] = await client.batch(
+      [
+        {
+          sql: `
+            SELECT nick, signature, score, created_at
+            FROM daily_scores
+            WHERE game_id = ? AND date_str = ?
+            ORDER BY score DESC
+            LIMIT ?;
+          `,
+          args: [gameId, dateStr, limit],
+        },
+        {
+          sql: `
+            SELECT COUNT(*) as total
+            FROM daily_scores
+            WHERE game_id = ? AND date_str = ?;
+          `,
+          args: [gameId, dateStr],
+        },
+      ],
+      "read"
+    );
 
     const totalPlayers = Number(totalRs.rows[0]?.total ?? scoresRs.rows.length);
 
