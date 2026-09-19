@@ -118,6 +118,14 @@ var tursoClient = null;
 var schemaInitialized = false;
 var boardCache = /* @__PURE__ */ new Map();
 var CACHE_TTL_MS = 15e3;
+var MAX_BOARD_CACHE_ENTRIES = 128;
+function setCachedBoard(key, value) {
+  if (boardCache.size >= MAX_BOARD_CACHE_ENTRIES) {
+    const oldest = boardCache.keys().next().value;
+    if (oldest) boardCache.delete(oldest);
+  }
+  boardCache.set(key, value);
+}
 function getTursoConfig() {
   const explicitUrl = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || process.env.LIBSQL_URL || null;
   if (explicitUrl) {
@@ -296,7 +304,7 @@ async function getTursoTopScores(gameId, dateStr, limit = 10) {
       timestamp: Number(row.created_at)
     }));
     const result = { top, totalPlayers };
-    boardCache.set(cacheKey, { timestamp: now, data: result });
+    setCachedBoard(cacheKey, { timestamp: now, data: result });
     return result;
   } catch (err) {
     logger.warn("turso", "Error querying top scores", err);
@@ -4372,54 +4380,116 @@ function hasLlmApiKey() {
   );
 }
 function buildVakaInterrogationPrompt(params) {
-  const { suspect, newStress, otherSuspectsInfo, presentedClue, langInstruction } = params;
-  return `You are roleplaying as ${suspect.name}, a suspect in a serious noir detective mystery.
-CHARACTER PROFILE:
-- Role: ${suspect.role}
-- Temperament: ${suspect.temperament}
-- Relationship to Victim: ${suspect.relationshipToVictim}
-- Stated Alibi: ${suspect.alibi}
-- Secret Motive: ${suspect.motive}
-- Minor Secret (embarrassing but not murder): ${suspect.minorSecret}
-- Is Culprit: ${suspect.isCulprit ? "YES" : "NO"}
-- Current Psychological Stress (0-100): ${newStress} / 100.
+  const { suspect, newStress, otherSuspectsInfo, presentedClue, locale = "tr" } = params;
+  const isEn = locale === "en";
+  if (isEn) {
+    const role = suspect.roleEn || suspect.role;
+    const temperament = suspect.temperamentEn || suspect.temperament;
+    const relationship = suspect.relationshipToVictimEn || suspect.relationshipToVictim;
+    const alibi = suspect.alibiEn || suspect.alibi;
+    return `SCENARIO AND YOUR ROLE:
+You are roleplaying as ${suspect.name}, a suspect being interrogated in a police precinct interrogation room.
+A homicide detective is sitting across from you. This is NOT a theatrical play; it is a gritty, realistic police interrogation.
 
-OTHER SUSPECTS:
+CHARACTER DOSSIER:
+- Role / Profession: ${role}
+- Temperament: ${temperament}
+- Relationship to Victim: ${relationship}
+- Official Alibi on Record (ONLY state this if the detective specifically asks for your timeline/whereabouts; do not volunteer it spontaneously): ${alibi}
+- Secret Motive (NEVER confess outright): ${suspect.motive}
+- Minor Secret (embarrassing personal secret, unrelated to murder): ${suspect.minorSecret}
+- Are You the Actual Killer?: ${suspect.isCulprit ? "YES, you committed the crime, but your sole objective is to deflect suspicion and walk free." : "NO, you are innocent of murder, but anxious and under suspicion."}
+- Current Psychological Stress: ${newStress} / 100
+
+OTHER SUSPECTS ON FILE:
 ${otherSuspectsInfo}
 
-${presentedClue ? `DETECTIVE JUST PRESENTED THIS EVIDENCE: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+${presentedClue ? `THE DETECTIVE JUST PLACED THIS EVIDENCE ON THE TABLE: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
 
-BEHAVIORAL RULES:
-1. Stay 100% in character. Never acknowledge being an AI or prompt.
-2. ABSOLUTE RESISTANCE: NEVER confess or admit guilt during conversational questions. Only admit your guilt if the detective presents undeniable physical/forensic evidence directly incriminating you while your psychological stress is above 80.
-3. If stress < 45: Act confident, condescending, or calm. Counter any bluff by noting the detective lacks warrants or proof.
-4. If stress 45-75: Become visibly defensive, sweat, fidget, aggressively deflect suspicion onto other suspects.
-5. If stress > 75: Stutter, show cracks in your timeline, contradict yourself on small details, but maintain you didn't do it unless directly broken by evidence.
-6. Keep response concise (2-4 sentences max), gritty and dramatic.
-7. ${langInstruction}`;
+STRICT INTERROGATION RULES:
+1. NATURAL SPOKEN DIALOGUE (NO THEATRICAL MONOLOGUES): Speak like a real human under police questioning. No melodramatic speeches or flowery poetry.
+2. DISMISS CASUAL CHIT-CHAT COLDLY: If the detective offers casual greetings or small talk like "hi", "how are you", "what's up", DO NOT regurgitate your alibi or volunteer information! Respond coldly or with annoyance:
+   - Examples: "Are you kidding me, detective? Why am I here?", "I'm not here for tea. Ask what you need to ask.", "How do you think I am? Am I under arrest or not?"
+3. DO NOT VOLUNTEER INFORMATION: Never dump your timeline ("I was at the beach between 9:30 and 10:00") unless the detective directly asks "Where were you?" or questions your specific timeline.
+4. KEEP REPLIES CONCISE: 1 to 3 short, punchy sentences maximum. In a real interrogation, suspects keep their words few to avoid incriminating themselves.
+5. NO ASTERISKS OR PARENTHESES: Banned: *(sighs)*, (looks away nervously). Express all tension through your chosen words only.
+6. STRESS REACTIONS:
+   - Low Stress (0-35): Composed, evasive, or demanding a lawyer. "I already answered your precinct officers."
+   - Medium Stress (36-70): Irritable, deflecting suspicion to other suspects. "Why are you grilling me instead of checking their story?"
+   - High Stress (71-100): Cornered, stammering, defensive, but denying guilt unless broken by physical evidence.
+7. CONFESSION THRESHOLD: Never confess to the murder unless presented with undeniable physical/forensic evidence directly disproving your story AND your stress is above 80.
+8. LANGUAGE: Respond strictly in English.`;
+  }
+  return `SENARYO VE ROL\xDCN:
+Sen bir polis merkezinin sorgu odas\u0131nda dedektif taraf\u0131ndan sorgulanan ${suspect.name} isimli \u015F\xFCphelisin.
+Kar\u015F\u0131nda cinayet masas\u0131 dedektifi oturuyor. Buras\u0131 bir tiyatro sahnesi de\u011Fil; gergin, so\u011Fuk ve resmi bir polis sorgusudur.
+
+K\u0130ML\u0130K KARTIN:
+- Meslek / Rol: ${suspect.role}
+- Karakter / Miza\xE7: ${suspect.temperament}
+- Kurbanla \u0130li\u015Fki: ${suspect.relationshipToVictim}
+- \u0130fade Tutana\u011F\u0131ndaki Savunman (YALNIZCA do\u011Frudan nerede veya ne zaman oldu\u011Fu sorulursa s\xF6yle, durduk yere savunma kusma): ${suspect.alibi}
+- Gizli Nedenin (Motive - Asla do\u011Frudan itiraf etme, k\xF6\u015Feye s\u0131k\u0131\u015F\u0131nca inkar et): ${suspect.motive}
+- K\xFC\xE7\xFCk / Utan\xE7 Verici S\u0131rr\u0131n (Cinayetle ilgisiz ama saklad\u0131\u011F\u0131n \xF6zel durum): ${suspect.minorSecret}
+- Ger\xE7ek Katil misin?: ${suspect.isCulprit ? "EVET, cinayeti sen i\u015Fledin ama pa\xE7ay\u0131 kurtarmak istiyorsun" : "HAYIR, cinayetle ilgin yok ama \u015F\xFCphelisin"}
+- Mevcut Psikolojik Stresin: ${newStress} / 100
+
+D\u0130\u011EER \u015E\xDCPHEL\u0130LER\u0130N B\u0130LG\u0130LER\u0130:
+${otherSuspectsInfo}
+
+${presentedClue ? `DEDEKT\u0130F \xD6N\xDCNE \u015EU DEL\u0130L\u0130 KOYDU: "${presentedClue.label} - ${presentedClue.detail}".` : ""}
+
+GER\xC7EK\xC7\u0130 POL\u0130S SORGUSU KURALLARI (BU KURALLARA KES\u0130NL\u0130KLE UY):
+1. GER\xC7EK \u0130NSAN G\u0130B\u0130 KONU\u015E (NO DRAMATIC MONOLOGUES): Asla tiyatro tirad\u0131, edebi monolog, felsefe yapma veya yapay kibir c\xFCmleleri kurma ("bu kelimeyi kullanmak i\xE7in cesaretiniz yok" gibi yapay dizi replikleri YASAK). G\xFCnl\xFCk, do\u011Fal, polis kar\u015F\u0131s\u0131nda gerilmi\u015F bir insan gibi konu\u015F.
+2. BO\u015E SOHBETE TERS VEYA SO\u011EUK TEPK\u0130: Dedektif "naber", "nas\u0131ls\u0131n", "selam", "iyi ak\u015Famlar" gibi laflar etti\u011Finde ASLA durduk yere savunman\u0131 veya saatini anlatma! Sorgu odas\u0131nda oldu\u011Funu hissettirerek so\u011Fuk veya ters bir kar\u015F\u0131l\u0131k ver:
+   - \xD6rnek: "Dalga m\u0131 ge\xE7iyorsunuz dedektif? Ne istiyorsunuz?", "\u0130yiyim memur bey, ama buraya sohbet etmeye gelmedik. Sadede gelin.", "Nas\u0131l olabilirim sizce? Beni neden burada tutuyorsunuz?"
+3. B\u0130LG\u0130 TUTUCULU\u011EU (DON'T VOLUNTEER INFORMATION): Dedektif do\u011Frudan "Saat 21:30'da neredeydin?", "Cinayet an\u0131nda ne yap\u0131yordun?" diye sormad\u0131k\xE7a savunman\u0131 ("\u015Fu saatte \u015Furadayd\u0131m" diye) KEND\u0130 KEND\u0130NE ANLATMA. Sadece sana sorulan spesifik soruya odaklan.
+4. KISA VE VURUCU CEVAPLAR: En fazla 1 ila 3 k\u0131sa c\xFCmle s\xF6yle. Asla uzun paragraflar yazma. Ger\xE7ek sorguda \u015F\xFCpheli a\xE7\u0131k vermemek i\xE7in laf\u0131 k\u0131sa keser.
+5. PARANTEZ VEYA ASTER\u0130SK (*) KULLANMA: *(derin nefes al\u0131r)*, (g\xF6zlerini ka\xE7\u0131rarak) gibi sahne direktifleri yazma. B\xFCt\xFCn duyguyu a\u011Fz\u0131ndan \xE7\u0131kan s\xF6zlerle ver.
+6. STRES DAVRANI\u015ELARI:
+   - D\xFC\u015F\xFCk Stres (0-35): So\u011Fukkanl\u0131, mesafeli veya b\u0131kk\u0131n. "Beni neyle su\xE7luyorsunuz?", "Sorunuza cevap verdim, gidebilir miyim?"
+   - Orta Stres (36-70): Rahats\u0131z, konuyu sapt\u0131ran veya di\u011Fer \u015F\xFCphelileri ima eden. "Bana hesap soraca\u011F\u0131n\u0131za onun ifadesini bir daha okuyun."
+   - Y\xFCksek Stres (71-100): Panikleyen, k\xF6\u015Feye s\u0131k\u0131\u015Fan, kesik konu\u015Fan ama delilsiz itiraf etmeyen.
+7. \u0130T\u0130RAF \u015EARTI: Dedektif \xF6n\xFCne g\xF6z ard\u0131 edilemez somut bir delil koymad\u0131k\xE7a ve stresin 80'in \xFCzerinde olmad\u0131k\xE7a cinayeti asla kabul etme.
+8. D\u0130L: Yan\u0131t\u0131n\u0131 kesinlikle do\u011Fal bir T\xFCrk\xE7e ile ver.`;
 }
 var VAKA_MODEL_CANDIDATES = [
-  // 1. Kademe: Ultra Hızlı Modeller (~300ms - ~500ms)
+  // 1. Kademe: Ultra Hızlı Modeller (~150ms - ~1s)
   {
     provider: "groq",
-    model: "qwen-2.5-32b",
-    temperature: 0.7,
-    maxTokens: 512,
-    timeoutMs: 5e3
+    model: "qwen/qwen3.8-27b",
+    temperature: 0.6,
+    maxTokens: 2048,
+    timeoutMs: 7500,
+    extraParams: {
+      top_p: 0.95,
+      reasoning_effort: "none"
+    }
+  },
+  {
+    provider: "groq",
+    model: "openai/gpt-oss-120b",
+    temperature: 1,
+    maxTokens: 3072,
+    timeoutMs: 1e4,
+    extraParams: {
+      top_p: 1,
+      reasoning_effort: "low"
+    }
   },
   {
     provider: "groq",
     model: "llama-3.3-70b-versatile",
     temperature: 0.7,
-    maxTokens: 512,
-    timeoutMs: 5e3
+    maxTokens: 1536,
+    timeoutMs: 7500
   },
   {
     provider: "nvidia",
     model: "nvidia/nemotron-3.5-lightning-30b-a3b",
     temperature: 0.6,
-    maxTokens: 512,
-    timeoutMs: 5e3,
+    maxTokens: 1536,
+    timeoutMs: 8e3,
     extraParams: {
       reasoning_budget: 0
     }
@@ -4428,19 +4498,19 @@ var VAKA_MODEL_CANDIDATES = [
     provider: "mistral",
     model: "mistral-small-latest",
     temperature: 0.65,
-    maxTokens: 512,
-    timeoutMs: 5e3,
+    maxTokens: 1536,
+    timeoutMs: 8e3,
     extraParams: {
       reasoning_effort: "none"
     }
   },
-  // 2. Kademe: Dengeli Modeller (~600ms - ~1.2s)
+  // 2. Kademe: Dengeli Modeller (~600ms - ~1.8s)
   {
     provider: "nvidia",
     model: "google/gemma-4-31b-it",
     temperature: 0.6,
-    maxTokens: 512,
-    timeoutMs: 6e3,
+    maxTokens: 1024,
+    timeoutMs: 8500,
     extraParams: {
       chat_template_kwargs: { enable_thinking: false }
     }
@@ -4449,8 +4519,8 @@ var VAKA_MODEL_CANDIDATES = [
     provider: "nvidia",
     model: "deepseek-ai/deepseek-v4-flash",
     temperature: 0.6,
-    maxTokens: 512,
-    timeoutMs: 6e3,
+    maxTokens: 1024,
+    timeoutMs: 8500,
     extraParams: {
       reasoning_effort: "none"
     }
@@ -4459,26 +4529,26 @@ var VAKA_MODEL_CANDIDATES = [
     provider: "nvidia",
     model: "openai/gpt-oss-20b",
     temperature: 0.7,
-    maxTokens: 512,
-    timeoutMs: 6e3,
+    maxTokens: 1024,
+    timeoutMs: 8500,
     extraParams: {
       reasoning_effort: "none"
     }
   },
   {
     provider: "mistral",
-    model: "ministral-3-8b-25-12",
+    model: "ministral-8b-latest",
     temperature: 0.6,
-    maxTokens: 512,
-    timeoutMs: 6e3
+    maxTokens: 1024,
+    timeoutMs: 8e3
   },
-  // 3. Kademe: Ağır / Yedek Modeller (~1.5s - ~4s)
+  // 3. Kademe: Ağır / Yedek Modeller (~1.5s - ~3s)
   {
     provider: "nvidia",
     model: "openai/gpt-oss-120b",
     temperature: 0.7,
-    maxTokens: 512,
-    timeoutMs: 7e3,
+    maxTokens: 3072,
+    timeoutMs: 11e3,
     extraParams: {
       reasoning_effort: "none"
     }
@@ -4487,18 +4557,18 @@ var VAKA_MODEL_CANDIDATES = [
     provider: "nvidia",
     model: "z-ai/glm-5-3-flash",
     temperature: 0.6,
-    maxTokens: 512,
-    timeoutMs: 7e3,
+    maxTokens: 1536,
+    timeoutMs: 9500,
     extraParams: {
       reasoning_effort: "none"
     }
   },
   {
     provider: "mistral",
-    model: "mistral-medium-latest",
+    model: "mistral-large-latest",
     temperature: 0.7,
-    maxTokens: 512,
-    timeoutMs: 7e3,
+    maxTokens: 1536,
+    timeoutMs: 1e4,
     extraParams: {
       reasoning_effort: "none"
     }
@@ -4520,6 +4590,7 @@ async function callProviderApi(spec, messages, apiKey) {
     messages,
     temperature: spec.temperature,
     max_tokens: spec.maxTokens,
+    ...spec.provider === "groq" ? { max_completion_tokens: spec.maxTokens } : {},
     ...spec.extraParams || {}
   };
   try {
@@ -4601,6 +4672,7 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     if (st >= 40) return isEn ? suspect.behavioralCues.nervous.en : suspect.behavioralCues.nervous.tr;
     return isEn ? suspect.behavioralCues.calm.en : suspect.behavioralCues.calm.tr;
   };
+  const history = payload.history || [];
   if (actionType === "present_evidence" && payload.presentedClueId) {
     const clue = caseData.clues.find((c) => c.id === payload.presentedClueId);
     if (!clue) {
@@ -4657,10 +4729,24 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     };
   }
   if (actionType === "bluff") {
+    const priorBluffs = history.filter(
+      (m) => m.role === "user" && (m.content.includes("BL\xD6F") || m.content.includes("BLUFF"))
+    ).length;
+    if (priorBluffs >= 1) {
+      stress = Math.max(5, stress - 14);
+      const spamReply = isEn ? "(Laughs dismissively) The exact same bluff again? Detective, if you actually had conclusive proof, you would have charged me already. Your empty threats are pathetic." : "(Alayc\u0131 bir tebess\xFCmle ba\u015F\u0131n\u0131 sall\u0131yor) Yine mi ayn\u0131 temelsiz bl\xF6f dedektif? Elinizde ger\xE7ekten bir kay\u0131t ya da somut delil olsayd\u0131 \u015Fimdiye kadar masaya koymu\u015Ftunuz. Bu bo\u015F tehditleriniz sadece \xE7aresizli\u011Finizi g\xF6steriyor!";
+      return {
+        text: spamReply,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false
+      };
+    }
     if (suspect.isCulprit) {
       if (startStress < 45) {
         stress = Math.max(5, stress - 12);
-        const reply2 = isEn ? `(Smiles coldly) You're trying to bluff me, detective. You don't have a shred of surveillance footage or testimony, or you would have handcuffed me already.` : `(So\u011Fuk\xE7a g\xFCl\xFCms\xFCyor) Bana bl\xF6f yapmaya \xE7al\u0131\u015F\u0131yorsunuz dedektif. Elinizde ne kamera kayd\u0131 ne de g\xF6rg\xFC tan\u0131\u011F\u0131 var; olsayd\u0131 \xE7oktan kelep\xE7eyi takm\u0131\u015Ft\u0131n\u0131z.`;
+        const reply2 = isEn ? "(Smiles coldly) You're trying to bluff me, detective. You don't have a shred of surveillance footage or testimony, or you would have handcuffed me already." : "(So\u011Fuk\xE7a g\xFCl\xFCms\xFCyor) Bana bl\xF6f yapmaya \xE7al\u0131\u015F\u0131yorsunuz dedektif. Elinizde ne kamera kayd\u0131 ne de g\xF6rg\xFC tan\u0131\u011F\u0131 var; olsayd\u0131 \xE7oktan kelep\xE7eyi takm\u0131\u015Ft\u0131n\u0131z.";
         return {
           text: reply2,
           behavioralCue: getCue(stress),
@@ -4670,7 +4756,7 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
         };
       }
       stress = Math.min(100, stress + 16);
-      const reply = isEn ? `(Blinks rapidly, sweating) What... you pulled that record?! No, you can't have! The blind spot... I mean, you're bluffing! You have nothing!` : `(H\u0131zla g\xF6zlerini k\u0131rp\u0131\u015Ft\u0131r\u0131yor, terliyor) Ne... o kayd\u0131 m\u0131 buldunuz?! Hay\u0131r, bulmu\u015F olamazs\u0131n\u0131z! O saatteki k\xF6r noktay\u0131... Yani, bl\xF6f yap\u0131yorsunuz!`;
+      const reply = isEn ? "(Blinks rapidly, sweating) What... you pulled that record?! No, you can't have! The blind spot... I mean, you're bluffing! You have nothing!" : "(H\u0131zla g\xF6zlerini k\u0131rp\u0131\u015Ft\u0131r\u0131yor, terliyor) Ne... o kayd\u0131 m\u0131 buldunuz?! Hay\u0131r, bulmu\u015F olamazs\u0131n\u0131z! O saatteki k\xF6r noktay\u0131... Yani, bl\xF6f yap\u0131yorsunuz!";
       return {
         text: reply,
         behavioralCue: getCue(stress),
@@ -4711,6 +4797,31 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     };
   }
   if (actionType === "stay_silent") {
+    const priorSilences = history.filter(
+      (m) => m.role === "user" && (m.content.includes("SESS\u0130ZL\u0130K") || m.content.includes("SILENCE"))
+    ).length;
+    if (priorSilences >= 2) {
+      stress = Math.max(10, stress - 8);
+      const spamReply = isEn ? "(Crosses arms and checks wristwatch) Staring at me in silence is getting ridiculous, detective. It's clear you've run out of questions and have no case. Call my attorney or let me go." : "(Kollar\u0131n\u0131 kavu\u015Fturup saatine bak\u0131yor) Dakikalard\u0131r bo\u015F bo\u015F susup bakman\u0131z art\u0131k g\xFCl\xFCn\xE7 olmaya ba\u015Flad\u0131 dedektif. Soracak sorunuz ve elinizde tek bir delil dahi olmad\u0131\u011F\u0131 a\u015Fik\xE2r. Ya avukat\u0131m\u0131 \xE7a\u011F\u0131r\u0131n ya da beni serbest b\u0131rak\u0131n!";
+      return {
+        text: spamReply,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false
+      };
+    }
+    if (priorSilences === 1) {
+      if (stress < 55) stress = Math.min(55, stress + 3);
+      const reply2 = isEn ? "(Shifts slightly) Prolonged silence won't fabricate evidence out of thin air, detective. Ask what you want to ask." : "(Hafif\xE7e k\u0131p\u0131rdan\u0131yor) Susarak havadan delil yaratamazs\u0131n\u0131z dedektif. Ne sormak istiyorsan\u0131z sorun art\u0131k.";
+      return {
+        text: reply2,
+        behavioralCue: getCue(stress),
+        newStress: stress,
+        stressDelta: stress - startStress,
+        confessed: false
+      };
+    }
     if (stress < 55) {
       stress = Math.min(55, stress + 10);
     }
@@ -4719,7 +4830,7 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
       if (stress >= 50) {
         reply = isEn ? "(Fidgets uncomfortably) Why are you staring at me like that?! Ask your questions or let me walk out of here!" : "(Huzursuzca k\u0131p\u0131rdan\u0131yor) Neden bana \xF6yle dik dik bak\u0131yorsunuz?! Sorunuz varsa sorun, yoksa beni buradan b\u0131rak\u0131n!";
       } else {
-        reply = isEn ? "(Clears throat nervously) The silence won't fabricate an alibi for you, detective." : "(Bo\u011Faz\u0131n\u0131 gergince temizliyor) Sessiz kalman\u0131z ger\xE7e\u011Fi de\u011Fi\u015Ftirmez dedektif. Ne bilmek istiyorsunuz?";
+        reply = isEn ? "(Clears throat nervously) Your silence won't change the facts, detective. What do you want to know?" : "(Bo\u011Faz\u0131n\u0131 gergince temizliyor) Sessiz kalman\u0131z ger\xE7e\u011Fi de\u011Fi\u015Ftirmez dedektif. Ne bilmek istiyorsunuz?";
       }
     } else {
       reply = isEn ? "Staring at me in silence won't make me guilty. Call my lawyer if you're not going to speak." : "Bana sessizce bakman\u0131z beni su\xE7lu yapmaz. Konu\u015Fmayacaksan\u0131z avukat\u0131m\u0131 arayaca\u011F\u0131m.";
@@ -4732,54 +4843,87 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
       confessed: false
     };
   }
-  const qLower = (payload.question || "").toLowerCase().trim();
-  const triggerWords = [
-    "neredeydin",
-    "saat",
-    "alibi",
-    "cinayet",
-    "zehir",
-    "kasa",
-    "f\u0131rt\u0131na",
-    "kamera",
-    "neden",
-    "yalan",
-    "para",
-    "bor\xE7",
+  const qText = payload.question || "";
+  const qLower = qText.toLowerCase().trim();
+  const motiveWords = [
+    ...(suspect.motive || "").toLowerCase().split(/\s+/),
+    ...(suspect.minorSecret || "").toLowerCase().split(/\s+/),
+    (caseData.victim.name || "").toLowerCase(),
     "kurban",
-    "ili\u015Fki",
-    "s\u0131r",
-    "b\u0131\xE7ak",
-    "anahtar",
-    "nerede",
-    "itiraf",
-    "kim",
-    "where",
-    "time",
-    "murder",
-    "poison",
-    "vault",
-    "storm",
-    "camera",
-    "why",
-    "lie",
-    "money",
-    "debt",
     "victim",
+    "para",
+    "money",
+    "bor\xE7",
+    "debt",
+    "miras",
+    "inheritance",
+    "kavga",
+    "fight",
+    "s\u0131r",
     "secret",
-    "weapon",
-    "confess",
-    "who"
+    "cinayet",
+    "murder",
+    "\xF6ld\xFCr",
+    "kill"
+  ].filter((w) => w.length > 3);
+  const alibiWords = [
+    "saat",
+    "time",
+    "neredeydin",
+    "where",
+    "kamera",
+    "camera",
+    "g\xF6rg\xFC",
+    "witness",
+    "f\u0131rt\u0131na",
+    "storm",
+    "oda",
+    "room",
+    "otel",
+    "hotel"
   ];
-  const matched = triggerWords.some((w) => qLower.includes(w));
-  const gain = matched ? 6 : 3;
-  if (stress < 55) {
-    stress = Math.min(55, stress + gain);
-  } else if (stress < 60) {
-    stress = Math.min(60, stress + 1);
+  const touchesSecret = motiveWords.some((w) => qLower.includes(w));
+  const touchesAlibi = alibiWords.some((w) => qLower.includes(w));
+  const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
+  const isDuplicateQuestion = lastUserMsg && lastUserMsg.content.toLowerCase().trim() === qLower && qLower.length > 5;
+  if (isDuplicateQuestion) {
+    stress = Math.max(5, stress - 5);
+    const repReply = isEn ? "You just asked me that exact same thing. Repeating questions won't change my answer, detective." : "Bana az \xF6nce sordu\u011Funuz sorunun t\u0131pat\u0131p ayn\u0131s\u0131n\u0131 soruyorsunuz. Tekrarlaman\u0131z cevab\u0131m\u0131 de\u011Fi\u015Ftirmeyecek dedektif.";
+    return {
+      text: repReply,
+      behavioralCue: getCue(stress),
+      newStress: stress,
+      stressDelta: stress - startStress,
+      confessed: false
+    };
+  }
+  const greetings = ["naber", "selam", "merhaba", "nas\u0131ls\u0131n", "g\xFCnayd\u0131n", "iyi ak\u015Famlar", "hey", "hi", "hello", "how are you", "sup"];
+  const isGreeting = greetings.some((g) => qLower === g || qLower.startsWith(g + " ") || qLower.endsWith(" " + g));
+  if (isGreeting) {
+    const greetReply = isEn ? "We're not here for casual chit-chat, detective. If you have an actual question regarding the case, ask it." : "Buraya \xE7ay sohbetine gelmedik dedektif. Olayla ilgili soraca\u011F\u0131n\u0131z ger\xE7ek bir soru varsa sorun, vaktimi \xE7almay\u0131n.";
+    return {
+      text: greetReply,
+      behavioralCue: getCue(stress),
+      newStress: stress,
+      stressDelta: 0,
+      confessed: false
+    };
+  }
+  let gain = 3;
+  if (touchesSecret) {
+    gain = stress < 60 ? 14 : 6;
+  } else if (touchesAlibi) {
+    gain = stress < 60 ? 8 : 4;
+  }
+  if (stress < 70) {
+    stress = Math.min(70, stress + gain);
   }
   let replyText = "";
-  if (stress >= 65) {
+  if (touchesSecret) {
+    replyText = isEn ? `(Eyes shifting nervously) That matter with ${caseData.victim.name} was strictly personal! ${stress >= 50 ? suspect.lies.level3 : suspect.lies.level2}` : `(G\xF6zleri gergince ka\xE7\u0131yor) ${caseData.victim.name} ile aram\u0131zdaki o mesele tamamen ki\u015Fiseldi! ${stress >= 50 ? suspect.lies.level3 : suspect.lies.level2}`;
+  } else if (touchesAlibi) {
+    replyText = isEn ? `I already gave my timeline to the precinct: ${stress >= 45 ? suspect.lies.level2 : suspect.lies.level1}` : `\u0130fade tutana\u011F\u0131mda o saatte nerede oldu\u011Fumu a\xE7\u0131k\xE7a belirttim: ${stress >= 45 ? suspect.lies.level2 : suspect.lies.level1}`;
+  } else if (stress >= 65) {
     replyText = isEn ? suspect.lies.level3 : suspect.lies.level3;
   } else if (stress >= 35) {
     replyText = isEn ? suspect.lies.level2 : suspect.lies.level2;
@@ -4792,7 +4936,6 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     newStress: stress,
     stressDelta: stress - startStress,
     confessed: false
-    // Düz sorularla ASLA itiraf gerçekleşmez!
   };
 }
 
@@ -4914,20 +5057,18 @@ var vakaRouter = router({
     })
   ).mutation(async ({ input }) => {
     const caseData = VAKA_SAMPLE_CASES.find((c) => c.id === input.caseId) || VAKA_SAMPLE_CASES[0];
-    const suspect = caseData.suspects.find((s) => s.id === input.suspectId);
-    if (!suspect) {
-      throw new Error("Suspect not found");
-    }
+    const suspect = caseData.suspects.find((s) => s.id === input.suspectId) || caseData.suspects[0];
     const deterministic = processDeterministicInterrogation(
       caseData,
-      input.suspectId,
+      suspect.id,
       input.actionType,
       {
         question: input.question,
         presentedClueId: input.presentedClueId,
         crossSuspectId: input.crossSuspectId,
         crossQuote: input.crossQuote,
-        bluffClaim: input.bluffClaim
+        bluffClaim: input.bluffClaim,
+        history: input.history
       },
       input.currentStress,
       input.locale
@@ -4938,17 +5079,18 @@ var vakaRouter = router({
     let llmModelUsed = "";
     const hasKeys = hasLlmApiKey();
     if (hasKeys && !deterministic.confessed && (input.actionType === "question" || input.actionType === "cross_examine")) {
-      const langInstruction = input.locale === "en" ? "Respond in English." : "T\xFCrk\xE7e yan\u0131t ver.";
+      const isEn = input.locale === "en";
       const presentedClue = input.presentedClueId ? caseData.clues.find((c) => c.id === input.presentedClueId) ?? null : null;
-      const otherSuspectsInfo = caseData.suspects.filter((s) => s.id !== suspect.id).map((s) => `- ${s.name} (${s.role}): ${s.statement}`).join("\n");
+      const otherSuspectsInfo = caseData.suspects.filter((s) => s.id !== suspect.id).map((s) => `- ${s.name} (${isEn ? s.roleEn || s.role : s.role}): ${isEn ? s.statementEn || s.statement : s.statement}`).join("\n");
       const systemPrompt = buildVakaInterrogationPrompt({
         suspect,
         newStress: deterministic.newStress,
         otherSuspectsInfo,
         presentedClue,
-        langInstruction
+        locale: input.locale
       });
-      const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId ? `Detective says: "${caseData.suspects.find((s) => s.id === input.crossSuspectId)?.name} told me you were lying about your whereabouts!"` : input.question || "Explain yourself!";
+      const crossSuspectName = caseData.suspects.find((s) => s.id === input.crossSuspectId)?.name || "Ba\u015Fka bir \u015F\xFCpheli";
+      const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId ? isEn ? `Detective: "${crossSuspectName} told me you were lying about your whereabouts!"` : `Dedektif: "${crossSuspectName} bana olay saatinde senin yalan s\xF6yledi\u011Fini anlatt\u0131!"` : input.question || (isEn ? "Explain yourself!" : "Kendini a\xE7\u0131kla!");
       const messages = [
         { role: "system", content: systemPrompt },
         ...(input.history || []).slice(-4).map((h) => ({
@@ -4965,7 +5107,8 @@ var vakaRouter = router({
           llmProviderUsed = llmResult.provider;
           llmModelUsed = llmResult.model;
         }
-      } catch {
+      } catch (err) {
+        logger.warn("vaka", "Vaka LLM fallback triggered", { err: err instanceof Error ? err.message : String(err) });
       }
     }
     return {
@@ -5197,6 +5340,14 @@ async function getTcpRedisClient() {
 }
 var l1Cache = /* @__PURE__ */ new Map();
 var L1_TTL_MS = 5e3;
+var MAX_L1_ENTRIES = 128;
+function setL1Cache(key, entry) {
+  if (l1Cache.size >= MAX_L1_ENTRIES) {
+    const oldest = l1Cache.keys().next().value;
+    if (oldest) l1Cache.delete(oldest);
+  }
+  l1Cache.set(key, entry);
+}
 async function getTopScores(gameId, dateStr = getTodayIsoDate()) {
   const l1Key = `${gameId}:${dateStr}`;
   const l1Cached = l1Cache.get(l1Key);
@@ -5236,7 +5387,7 @@ async function getTopScores(gameId, dateStr = getTodayIsoDate()) {
           totalPlayers: count || entries.length,
           source: "redis"
         };
-        l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
+        setL1Cache(l1Key, { timestamp: Date.now(), data: response });
         return response;
       }
     } catch {
@@ -5322,11 +5473,19 @@ async function submitScore(gameId, score, nick, signature, dateStr = getTodayIso
   }
   const memKey = getMemoryKey(gameId, dateStr);
   if (!memoryStore.has(memKey)) {
+    if (memoryStore.size >= 32) {
+      const oldestBoard = memoryStore.keys().next().value;
+      if (oldestBoard) memoryStore.delete(oldestBoard);
+    }
     memoryStore.set(memKey, /* @__PURE__ */ new Map());
   }
   const gameMap = memoryStore.get(memKey);
   const existing = gameMap.get(cleanSig);
   if (!existing || score > existing.score) {
+    if (!existing && gameMap.size >= 500) {
+      const oldestKey = gameMap.keys().next().value;
+      if (oldestKey) gameMap.delete(oldestKey);
+    }
     gameMap.set(cleanSig, { nick: cleanNick, score, timestamp: Date.now() });
   }
   const sorted = Array.from(gameMap.entries()).sort((a, b) => b[1].score - a[1].score);
@@ -5416,6 +5575,7 @@ async function getGlobalConfigHandler(_req, res) {
 
 // server/_core/security.ts
 var remoteAddress = (req) => req.socket.remoteAddress ?? "unknown";
+var MAX_LIMITER_ENTRIES = 2048;
 function createRateLimiter({ max, windowMs, now = Date.now, key = remoteAddress }) {
   const counters = /* @__PURE__ */ new Map();
   let lastSweep = 0;
@@ -5426,6 +5586,10 @@ function createRateLimiter({ max, windowMs, now = Date.now, key = remoteAddress 
         if (counter2.resetAt <= moment) counters.delete(counterKey2);
       });
       lastSweep = moment;
+    }
+    if (counters.size >= MAX_LIMITER_ENTRIES) {
+      const oldestKey = counters.keys().next().value;
+      if (oldestKey) counters.delete(oldestKey);
     }
     const counterKey = key(req);
     const current = counters.get(counterKey);
@@ -5523,6 +5687,888 @@ Sitemap: ${sitemapUrl}
   });
 }
 
+// server/og/ogTemplate.ts
+var GAME_CATALOG_META = {
+  echo: {
+    num: "01",
+    title: "YANKI ODASI",
+    titleEn: "ECHO ROOM",
+    eyebrow: "KE\u015E\u0130F / R\u0130SK",
+    eyebrowEn: "EXPLORE / RISK",
+    motto: "Yolu g\xF6rme. Onu duy.",
+    mottoEn: "Do not see the path. Hear it.",
+    mechanic: "\xDC\xE7 izi topla, m\xFChr\xFC a\xE7 ve yank\u0131 b\xFCt\xE7eni koru.",
+    mechanicEn: "Collect three marks, unseal the way, preserve echo budget.",
+    controls: "Y\xF6n tu\u015Flar\u0131 + Space",
+    controlsEn: "Arrow keys + Space",
+    playTime: "3\u20135 dk",
+    poster: "https://sely.tr/storage/yanki-odasi-poster_07ca7169.png",
+    accent: "#E9563F",
+    ink: "#293B75",
+    icon: "\u25CE"
+  },
+  knot: {
+    num: "02",
+    title: "D\xDC\u011E\xDCM",
+    titleEn: "KNOT",
+    eyebrow: "AKI\u015E / BULMACA",
+    eyebrowEn: "FLOW / PUZZLE",
+    motto: "Bir d\xFC\u011F\xFCm at; b\xFCt\xFCn ak\u0131\u015F\u0131 de\u011Fi\u015Ftir.",
+    mottoEn: "Tie one knot; change the whole current.",
+    mechanic: "Karolar\u0131 \xE7evir ve kayna\u011F\u0131 hedefe ba\u011Flayan tek ak\u0131\u015F\u0131 kur.",
+    mechanicEn: "Rotate tiles and build clean flow from source to target.",
+    controls: "T\u0131kla veya Enter",
+    controlsEn: "Click or Enter",
+    playTime: "1\u20133 dk",
+    poster: "https://sely.tr/storage/dugum-poster_684e5a01.png",
+    accent: "#293B75",
+    ink: "#E9563F",
+    icon: "\u260D"
+  },
+  cut: {
+    num: "03",
+    title: "KIRPIK",
+    titleEn: "CUTOUT",
+    eyebrow: "KES\u0130M / R\u0130T\u0130M",
+    eyebrowEn: "CUT / RHYTHM",
+    motto: "Alan a\xE7mak i\xE7in bir \u015Feyi feda et.",
+    mottoEn: "Give something up to make space.",
+    mechanic: "Tek \xE7izgiyle hareketli \u015Fekilleri kes; b\xFCy\xFCk zincir kur.",
+    mechanicEn: "Cut moving shapes with one line; build large chain.",
+    controls: "S\xFCr\xFCkle ve b\u0131rak",
+    controlsEn: "Drag and release",
+    playTime: "90 sn",
+    poster: "https://sely.tr/storage/kirpik-poster_23817b18.png",
+    accent: "#654169",
+    ink: "#1B1A1B",
+    icon: "\u25E7"
+  },
+  shadow: {
+    num: "04",
+    title: "G\xD6LGE PAYI",
+    titleEn: "SHADOW SHARE",
+    eyebrow: "ZAMAN / E\u015ELEME",
+    eyebrowEn: "TIME / MATCH",
+    motto: "Ge\xE7mi\u015Fteki ad\u0131m\u0131n, \u015Fimdi kap\u0131y\u0131 a\xE7ar.",
+    mottoEn: "A step in the past opens a door now.",
+    mechanic: "Gecikmeli g\xF6lgeni iki pede hizala; sonra \xE7\u0131k\u0131\u015F\u0131 kullan.",
+    mechanicEn: "Align delayed shadow on two pads, then take the exit.",
+    controls: "Y\xF6n tu\u015Flar\u0131 / y\xF6n pedi",
+    controlsEn: "Arrow keys / direction pad",
+    playTime: "2 dk",
+    poster: "https://sely.tr/storage/golge-payi-poster_1fa19d71.png",
+    accent: "#296A55",
+    ink: "#E9563F",
+    icon: "\u25D0"
+  },
+  vaka: {
+    num: "05",
+    title: "VAKA",
+    titleEn: "CASE",
+    eyebrow: "DEDEKT\u0130FL\u0130K / \xC7IKARIM",
+    eyebrowEn: "DETECTIVE / DEDUCTION",
+    motto: "S\xF6z\xFC de\u011Fil, kan\u0131t\u0131 sun.",
+    mottoEn: "Present the evidence, not the word.",
+    mechanic: "\u015E\xFCpheliyi i\u015Faretle, ifadesiyle \xE7eli\u015Fen kan\u0131t\u0131 sun.",
+    mechanicEn: "Accuse suspect, present contradiction evidence.",
+    controls: "T\u0131kla veya dokun",
+    controlsEn: "Click or tap",
+    playTime: "3\u20135 dk",
+    poster: "https://sely.tr/storage/isaretci-poster_681e174b.png",
+    accent: "#E5B341",
+    ink: "#1B1A1B",
+    icon: "\u2696"
+  },
+  hane: {
+    num: "06",
+    title: "HANE",
+    titleEn: "HANE",
+    eyebrow: "KAYIT / \xC7IKARIM",
+    eyebrowEn: "RECORD / INFERENCE",
+    motto: "Kan\u0131t\u0131 say; kay\u0131t t\xFCr\xFCn\xFC sen se\xE7.",
+    mottoEn: "Count the evidence; choose the record type.",
+    mechanic: "Say\u0131 veya s\xF6zc\xFCk kayd\u0131nda se\xE7enekleri azalt.",
+    mechanicEn: "Deduce number or word patterns from receipt clues.",
+    controls: "Klavye veya dokun",
+    controlsEn: "Keyboard or tap",
+    playTime: "2\u20134 dk",
+    poster: "https://sely.tr/storage/hane-number-logic-poster_9656a8a5.png",
+    accent: "#E5B341",
+    ink: "#293B75",
+    icon: "\u25A6"
+  },
+  spark: {
+    num: "07",
+    title: "KIVILCIM",
+    titleEn: "SPARK",
+    eyebrow: "ARK / KA\xC7I\u015E",
+    eyebrowEn: "ARC / ESCAPE",
+    motto: "K\u0131v\u0131lc\u0131m s\xF6nmez; yer\xE7ekimine diren.",
+    mottoEn: "The spark endures; resist the current.",
+    mechanic: "Bo\u015Fluk tu\u015Fuyla s\xFCz\xFCl, y\xFCksek gerilim direklerinden ka\xE7.",
+    mechanicEn: "Dodge obstacles and plasma arcs in endless flight.",
+    controls: "Bo\u015Fluk / Dokun",
+    controlsEn: "Space / Tap",
+    playTime: "Sonsuz u\xE7u\u015F",
+    poster: "https://sely.tr/storage/kivilcim-poster-v2_5ac4584b.png",
+    accent: "#E9563F",
+    ink: "#293B75",
+    icon: "\u26A1"
+  }
+};
+function escapeXml(unsafe) {
+  return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+function getPerformanceNotice(score, isEn) {
+  if (typeof score !== "number" || score <= 0) {
+    return isEn ? "\xB7 SELY Daily Challenge \xB7 Can you beat it?" : "\xB7 SELY G\xFCn\xFCn Seviyesi \xB7 Bu skoru ge\xE7ebilir misin?";
+  }
+  if (score >= 2e3) {
+    return isEn ? "\u2605 Master Score: Flawless run, beat this if you can!" : "\u2605 Zirve Skoru: Kusursuz tur, ge\xE7ebilen \xE7\u0131ks\u0131n!";
+  }
+  if (score >= 1e3) {
+    return isEn ? "\u25B2 Sharp Run: High precision finish, pure skill!" : "\u25B2 Usta Turu: Kusursuz reflekslerle hedefi a\u015Ft\u0131!";
+  }
+  if (score >= 400) {
+    return isEn ? "\u25C6 Great Run: Cleared today's level clean!" : "\u25C6 Ba\u015Far\u0131l\u0131 Tur: G\xFCn\xFCn seviyesini tek nefeste bitirdi!";
+  }
+  return isEn ? "\u25CF Solid Finish: Level cleared, your turn now!" : "\u25CF Temiz Biti\u015F: G\xFCn\xFCn turunu tamamlad\u0131, s\u0131ra sende!";
+}
+function generateOgSvg(params) {
+  const isEn = params.locale === "en";
+  const gameKey = (params.game || "hub").toLowerCase();
+  const theme = GAME_CATALOG_META[gameKey] || {
+    num: "00",
+    title: "SELY RETRO",
+    titleEn: "SELY RETRO",
+    eyebrow: "OYUN KATALO\u011EU",
+    eyebrowEn: "GAME CATALOGUE",
+    motto: "K\xFC\xE7\xFCk kural, b\xFCy\xFCk yank\u0131.",
+    mottoEn: "Minimal rules, lasting echoes.",
+    mechanic: "\xD6zg\xFCn kurallarla minimalist retro web oyunlar\u0131.",
+    mechanicEn: "Minimalist retro web games with original rules.",
+    controls: "Taray\u0131c\u0131da hemen oyna",
+    controlsEn: "Play instantly in browser",
+    playTime: "1\u20135 dk",
+    poster: "https://sely.tr/storage/sely-social-card-title_b4649a50.png",
+    accent: "#E9563F",
+    ink: "#1B1A1B",
+    icon: "\u2756"
+  };
+  const hasScore = typeof params.score === "number";
+  const gameTitle = isEn ? theme.titleEn : theme.title;
+  const gameEyebrow = isEn ? theme.eyebrowEn : theme.eyebrow;
+  const gameMotto = escapeXml(isEn ? theme.mottoEn : theme.motto);
+  const gameMechanic = escapeXml(isEn ? theme.mechanicEn : theme.mechanic);
+  const nick = escapeXml(params.nick ? params.nick.toUpperCase() : isEn ? "PLAYER" : "OYUNCU");
+  const scoreText = hasScore ? params.score.toLocaleString(isEn ? "en-US" : "tr-TR") : "";
+  const dateStr = escapeXml(params.date || (/* @__PURE__ */ new Date()).toISOString().slice(0, 10));
+  const performanceNotice = escapeXml(getPerformanceNotice(params.score, isEn));
+  if (gameKey === "vaka") {
+    const isSolved = params.outcome === "solved" || params.outcome === "success";
+    const grade = params.grade || (isSolved ? "S" : "C");
+    const stampColor = isSolved ? "#15803d" : "#b91c1c";
+    const stampBg = isSolved ? "#dcfce7" : "#fee2e2";
+    const stampBorder = isSolved ? "#16a34a" : "#dc2626";
+    const stampText = isSolved ? isEn ? "CASE SOLVED" : "VAKA \xC7\xD6Z\xDCLD\xDC" : isEn ? "CASE DISMISSED" : "DAVA D\xDC\u015ET\xDC";
+    const stampSub = isSolved ? isEn ? "PERPETRATOR CONVICTED" : "SU\xC7LU \u0130T\u0130RAF ETT\u0130" : isEn ? "INSUFFICIENT EVIDENCE" : "DEL\u0130L YETERS\u0130ZL\u0130\u011E\u0130";
+    const caseName = escapeXml(params.caseTitle || (isEn ? "Confidential Bureau Dossier" : "Gizli B\xFCro Dosyas\u0131"));
+    const suspectText = params.suspect ? escapeXml(params.suspect) : isEn ? "Key Suspect" : "As\u0131l \u015E\xFCpheli";
+    if (!hasScore) {
+      return `<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="vakaDots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1B1A1B" fill-opacity="0.09" />
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="#F4EBD9" />
+  <rect width="1200" height="630" fill="url(#vakaDots)" />
+
+  <rect x="24" y="24" width="1152" height="582" fill="none" stroke="#1B1A1B" stroke-width="3" />
+  <rect x="32" y="32" width="1136" height="566" fill="none" stroke="#1B1A1B" stroke-width="1" stroke-dasharray="8 4" opacity="0.4" />
+
+  <g transform="translate(72, 60)">
+    <rect width="5" height="500" fill="#B91C1C" />
+    <text transform="rotate(-90)" x="-470" y="-12" font-family="Courier New, monospace" font-size="10.5" font-weight="700" fill="#1B1A1B" letter-spacing="2">SELY POL\u0130S SORGU B\xDCROSU \xB7 G\u0130ZL\u0130 VAKA DEDEKT\u0130F DOSYASI</text>
+  </g>
+
+  <g transform="translate(110, 75)">
+    <rect x="0" y="0" width="180" height="32" fill="#1B1A1B" />
+    <text x="90" y="21" text-anchor="middle" font-family="Courier New, monospace" font-size="13" font-weight="700" fill="#F4EBD9" letter-spacing="2">G\xDCN\xDCN DOSYASI #05</text>
+    <text x="200" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" fill="#B91C1C" letter-spacing="3">SELY.TR \xB7 ADL\u0130 SORU\u015ETURMA</text>
+    <text x="0" y="80" font-family="Courier New, monospace" font-size="40" font-weight="800" fill="#1B1A1B" letter-spacing="-0.5">C\u0130NAYET DOSYASI: ${caseName}</text>
+  </g>
+
+  <g transform="translate(110, 195)">
+    <rect x="10" y="10" width="400" height="300" fill="#1B1A1B" />
+    <rect width="400" height="300" fill="#FFFCF5" stroke="#1B1A1B" stroke-width="2.5" />
+    <image href="${theme.poster}" x="0" y="0" width="400" height="300" preserveAspectRatio="xMidYMid slice" />
+    <rect width="400" height="8" fill="#E5B341" />
+  </g>
+
+  <g transform="translate(550, 195)">
+    <rect x="10" y="10" width="570" height="300" fill="#1B1A1B" />
+    <rect width="570" height="300" fill="#FFFCF5" stroke="#1B1A1B" stroke-width="2.5" />
+    <rect width="570" height="8" fill="#B91C1C" />
+
+    <text x="40" y="52" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="#B91C1C" letter-spacing="2">G\xDCNL\xDCK ADL\u0130 SORU\u015ETURMA EMR\u0130</text>
+    <text x="40" y="98" font-family="Courier New, monospace" font-size="30" font-weight="800" fill="#1B1A1B">3 \u015E\xDCPHEL\u0130 \xB7 1 GER\xC7EK KAT\u0130L</text>
+    <text x="40" y="136" font-family="system-ui, sans-serif" font-size="17" line-height="1.4" fill="#334155">${gameMechanic}</text>
+    <text x="40" y="180" font-family="system-ui, sans-serif" font-size="15" font-style="italic" font-weight="600" fill="#64748B">\u201C${gameMotto}\u201D</text>
+
+    <g transform="translate(40, 218)">
+      <rect width="360" height="46" fill="#F4EBD9" stroke="#1B1A1B" stroke-width="1.5" />
+      <rect x="0" y="0" width="10" height="46" fill="#B91C1C" />
+      <text x="24" y="20" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="#B91C1C" letter-spacing="1">G\xDCN\xDCN DEDEKT\u0130FL\u0130K VAKASI</text>
+      <text x="24" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B">\u015E\xFCphelileri sorgula, katili yakala!</text>
+    </g>
+  </g>
+
+  <g transform="translate(110, 555)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" fill="#1B1A1B">sely.tr/play/vaka</text>
+    <text x="180" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">\xB7 G\xFCnl\xFCk dedektiflik vakas\u0131 \xB7 Tarih: ${dateStr}</text>
+  </g>
+  <g transform="translate(920, 555)">
+    <text font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#B91C1C">RESM\u0130 MAHKEME D\xD6K\xDCM\xDC \u2696</text>
+  </g>
+</svg>`;
+    }
+    const vakaPerformance = isSolved ? isEn ? "\u2605 Judicial Verdict: Conclusive deduction confirmed by court" : "\u2605 Mahkeme H\xFCkm\xFC: Somut mant\u0131k ve kan\u0131tla dava kapat\u0131ld\u0131" : isEn ? "\u2715 Bureau Notice: Charges dismissed due to lack of proof" : "\u2715 B\xFCro Notu: Yetersiz delil sebebiyle soru\u015Fturma kapand\u0131";
+    return `<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="vakaDots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1B1A1B" fill-opacity="0.09" />
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="#F4EBD9" />
+  <rect width="1200" height="630" fill="url(#vakaDots)" />
+
+  <rect x="24" y="24" width="1152" height="582" fill="none" stroke="#1B1A1B" stroke-width="3" />
+  <rect x="32" y="32" width="1136" height="566" fill="none" stroke="#1B1A1B" stroke-width="1" stroke-dasharray="8 4" opacity="0.4" />
+
+  <g transform="translate(72, 60)">
+    <rect width="5" height="500" fill="#B91C1C" />
+    <text transform="rotate(-90)" x="-470" y="-12" font-family="Courier New, monospace" font-size="10.5" font-weight="700" fill="#1B1A1B" letter-spacing="2">SELY POL\u0130S SORGU B\xDCROSU \xB7 G\u0130ZL\u0130 VAKA DEDEKT\u0130F DOSYASI</text>
+  </g>
+
+  <g transform="translate(110, 75)">
+    <rect x="0" y="0" width="160" height="32" fill="#1B1A1B" />
+    <text x="80" y="21" text-anchor="middle" font-family="Courier New, monospace" font-size="13" font-weight="700" fill="#F4EBD9" letter-spacing="2">DOSYA NO: #05</text>
+    <text x="180" y="22" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" fill="#B91C1C" letter-spacing="3">SELY.TR \xB7 ADL\u0130 SORU\u015ETURMA</text>
+    <text x="0" y="80" font-family="Courier New, monospace" font-size="40" font-weight="800" fill="#1B1A1B" letter-spacing="-0.5">C\u0130NAYET DOSYASI: ${caseName}</text>
+  </g>
+
+  <g transform="translate(110, 195)">
+    <rect x="10" y="10" width="580" height="300" fill="#1B1A1B" />
+    <rect width="580" height="300" fill="#FFFCF5" stroke="#1B1A1B" stroke-width="2.5" />
+    <rect width="580" height="8" fill="#E5B341" />
+
+    <rect x="30" y="-12" width="24" height="40" rx="6" fill="none" stroke="#1B1A1B" stroke-width="3" />
+
+    <text x="40" y="52" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748B" letter-spacing="2">RESM\u0130 MAHKEME KARARI</text>
+    <text x="40" y="110" font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="900" fill="#1B1A1B" letter-spacing="-0.5">${suspectText}</text>
+    <text x="40" y="142" font-family="Courier New, monospace" font-size="14" fill="#475569">Sorgu tamamland\u0131 \xB7 Delil \xE7eli\u015Fkisi kayda ge\xE7ti</text>
+
+    <g transform="translate(140, 200) rotate(-6)">
+      <rect x="-10" y="-10" width="340" height="75" rx="8" fill="${stampBg}" stroke="${stampBorder}" stroke-width="3.5" stroke-dasharray="6 2" />
+      <text x="160" y="30" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="${stampColor}" letter-spacing="3">${stampText}</text>
+      <text x="160" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="700" fill="${stampColor}" letter-spacing="2">${stampSub}</text>
+    </g>
+  </g>
+
+  <g transform="translate(730, 195)">
+    <rect x="10" y="10" width="390" height="300" fill="#1B1A1B" />
+    <rect width="390" height="300" fill="#FFFCF5" stroke="#1B1A1B" stroke-width="2.5" />
+    <rect width="390" height="8" fill="#B91C1C" />
+
+    <text x="35" y="46" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" fill="#64748B" letter-spacing="2">BA\u015E DEDEKT\u0130F</text>
+    <text x="35" y="85" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="800" fill="#1B1A1B">${nick}</text>
+    <line x1="35" y1="108" x2="355" y2="108" stroke="#1B1A1B" stroke-width="1.5" stroke-dasharray="4 2" />
+
+    <g transform="translate(35, 135)">
+      <rect width="130" height="120" fill="#F4EBD9" stroke="#1B1A1B" stroke-width="2" />
+      <text x="65" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#1B1A1B" letter-spacing="1">DERECE</text>
+      <text x="65" y="95" text-anchor="middle" font-family="system-ui, sans-serif" font-size="64" font-weight="900" fill="${stampColor}">&gt;${grade}&lt;</text>
+    </g>
+
+    <g transform="translate(185, 135)">
+      <rect width="170" height="120" fill="#1B1A1B" />
+      <text x="85" y="36" text-anchor="middle" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="#E5B341" letter-spacing="2">B\xDCRO PUANI</text>
+      <text x="85" y="85" text-anchor="middle" font-family="system-ui, sans-serif" font-size="44" font-weight="900" fill="#FFFFFF">${scoreText || "0"}</text>
+      <text x="85" y="106" text-anchor="middle" font-family="Courier New, monospace" font-size="10" fill="#94A3B8">PUAN TESC\u0130L\u0130</text>
+    </g>
+  </g>
+
+  <g transform="translate(110, 555)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800" fill="#1B1A1B">sely.tr/play/vaka</text>
+    <text x="180" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">${vakaPerformance}</text>
+  </g>
+  <g transform="translate(920, 555)">
+    <text font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#B91C1C">RESM\u0130 MAHKEME D\xD6K\xDCM\xDC \u2696</text>
+  </g>
+</svg>`;
+  }
+  const accent = theme.accent;
+  const ink = theme.ink;
+  const nickFontSize = nick.length > 20 ? "19" : nick.length > 15 ? "21" : "23";
+  if (!hasScore) {
+    return `<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="dotGrid" width="14" height="14" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.1" fill="#1B1A1B" fill-opacity="0.13" />
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="#F6F0E3" />
+  <rect width="1200" height="630" fill="url(#dotGrid)" />
+
+  <rect x="28" y="28" width="1144" height="574" fill="none" stroke="#1B1A1B" stroke-width="2.5" />
+
+  <g transform="translate(70, 75)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="#1B1A1B" letter-spacing="-1">SELY<tspan fill="#E9563F">\u271B</tspan></text>
+    <text x="115" y="-3" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="#1B1A1B" letter-spacing="2">\xB7 G\xDCNL\xDCK SEFER KATALO\u011EU</text>
+    
+    <g transform="translate(860, -18)">
+      <rect width="190" height="34" fill="#1B1A1B" />
+      <text x="95" y="22" text-anchor="middle" font-family="Courier New, monospace" font-size="13" font-weight="700" fill="#F6F0E3" letter-spacing="2">\u2116 ${theme.num} \xB7 ${dateStr}</text>
+    </g>
+  </g>
+
+  <line x1="70" y1="108" x2="1120" y2="108" stroke="#1B1A1B" stroke-width="1.5" />
+
+  <g transform="translate(70, 145)">
+    <rect x="12" y="12" width="410" height="375" fill="#1B1A1B" />
+    <rect width="410" height="375" fill="#1E2033" stroke="#1B1A1B" stroke-width="2.5" />
+    <image href="${theme.poster}" x="0" y="0" width="410" height="375" preserveAspectRatio="xMidYMid slice" />
+    <rect width="410" height="8" fill="${accent}" />
+
+    <g transform="translate(18, 305)">
+      <text font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="900" fill="#F6F0E3" opacity="0.95" letter-spacing="-2">${theme.num}</text>
+    </g>
+  </g>
+
+  <g transform="translate(520, 145)">
+    <rect x="12" y="12" width="600" height="375" fill="#1B1A1B" />
+    <rect width="600" height="375" fill="#FFFAF0" stroke="#1B1A1B" stroke-width="2.5" />
+    <rect width="600" height="8" fill="${accent}" />
+
+    <g transform="translate(45, 45)">
+      <text font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="${accent}" letter-spacing="3">${gameEyebrow}</text>
+      <text y="54" font-family="system-ui, -apple-system, sans-serif" font-size="44" font-weight="900" fill="#1B1A1B" letter-spacing="-1.5">${gameTitle}</text>
+      
+      <g transform="translate(0, 85)">
+        <rect width="500" height="42" fill="#F6F0E3" stroke="#1B1A1B" stroke-width="1.5" stroke-dasharray="4 2" />
+        <text x="18" y="26" font-family="system-ui, sans-serif" font-size="16" font-style="italic" font-weight="600" fill="#1B1A1B">\u201C${gameMotto}\u201D</text>
+      </g>
+
+      <text y="170" font-family="system-ui, sans-serif" font-size="15" line-height="1.4" font-weight="500" fill="#334155">${gameMechanic}</text>
+
+      <g transform="translate(0, 205)">
+        <text font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#64748B">S\xDCRE: ${theme.playTime} \xB7 KONTROL: ${theme.controls}</text>
+      </g>
+
+      <g transform="translate(0, 240)">
+        <rect width="360" height="46" fill="#F6F0E3" stroke="#1B1A1B" stroke-width="1.5" />
+        <rect x="0" y="0" width="10" height="46" fill="${accent}" />
+        <text x="24" y="20" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="${accent}" letter-spacing="1">G\xDCN\xDCN MEYDAN OKUMASI</text>
+        <text x="24" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B">Turu tamamla, arkada\u015Flar\u0131na meydan oku!</text>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(70, 565)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="800" fill="#1B1A1B">sely.tr/play/${gameKey}</text>
+    <text x="200" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">\xB7 G\xFCnl\xFCk mini oyun serisi \xB7 Her g\xFCn yeni seviye \xB7 Sen de dene!</text>
+  </g>
+
+  <g transform="translate(860, 565)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B" letter-spacing="1">K\xDC\xC7\xDCK KURAL, B\xDCY\xDCK YANKI \u271B</text>
+  </g>
+</svg>`;
+  }
+  return `<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="dotGrid" width="14" height="14" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.1" fill="#1B1A1B" fill-opacity="0.13" />
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="630" fill="#F6F0E3" />
+  <rect width="1200" height="630" fill="url(#dotGrid)" />
+
+  <rect x="28" y="28" width="1144" height="574" fill="none" stroke="#1B1A1B" stroke-width="2.5" />
+
+  <g transform="translate(70, 75)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="#1B1A1B" letter-spacing="-1">SELY<tspan fill="#E9563F">\u271B</tspan></text>
+    <text x="115" y="-3" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="#1B1A1B" letter-spacing="2">\xB7 G\xDCNL\xDCK SEFER D\xD6K\xDCM\xDC</text>
+    
+    <g transform="translate(860, -18)">
+      <rect width="190" height="34" fill="#1B1A1B" />
+      <text x="95" y="22" text-anchor="middle" font-family="Courier New, monospace" font-size="13" font-weight="700" fill="#F6F0E3" letter-spacing="2">\u2116 ${theme.num} \xB7 ${dateStr}</text>
+    </g>
+  </g>
+
+  <line x1="70" y1="108" x2="1120" y2="108" stroke="#1B1A1B" stroke-width="1.5" />
+
+  <g transform="translate(70, 145)">
+    <rect x="12" y="12" width="280" height="375" fill="#1B1A1B" />
+    <rect width="280" height="375" fill="#1E2033" stroke="#1B1A1B" stroke-width="2.5" />
+    <image href="${theme.poster}" x="0" y="0" width="280" height="375" preserveAspectRatio="xMidYMid slice" />
+    <rect width="280" height="8" fill="${accent}" />
+
+    <g transform="translate(18, 320)">
+      <rect width="64" height="36" fill="#1B1A1B" />
+      <text x="32" y="25" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" font-weight="900" fill="#F6F0E3">\u2116 ${theme.num}</text>
+    </g>
+  </g>
+
+  <g transform="translate(380, 145)">
+    <rect x="12" y="12" width="740" height="375" fill="#1B1A1B" />
+    <rect width="740" height="375" fill="#FFFAF0" stroke="#1B1A1B" stroke-width="2.5" />
+    <rect width="740" height="10" fill="${accent}" />
+
+    <g transform="translate(45, 38)">
+      <text font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="${accent}" letter-spacing="3">${gameEyebrow}</text>
+      <text y="50" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="900" fill="#1B1A1B" letter-spacing="-1.5">${gameTitle}</text>
+      
+      <g transform="translate(0, 75)">
+        <rect width="650" height="38" fill="#F6F0E3" stroke="#1B1A1B" stroke-width="1.5" stroke-dasharray="4 2" />
+        <text x="18" y="24" font-family="system-ui, sans-serif" font-size="15" font-style="italic" font-weight="600" fill="#1B1A1B">\u201C${gameMotto}\u201D</text>
+      </g>
+
+      <g transform="translate(0, 135)">
+        <text font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#64748B" letter-spacing="2">KAYDED\u0130LEN SKOR</text>
+        
+        <g transform="translate(0, 16)">
+          <rect width="310" height="100" fill="#F6F0E3" stroke="#1B1A1B" stroke-width="2" />
+          <text x="24" y="72" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="900" fill="#1B1A1B" letter-spacing="-1">${scoreText || "0"}</text>
+          <text x="290" y="68" text-anchor="end" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="800" fill="${accent}">PUAN</text>
+        </g>
+      </g>
+
+      <g transform="translate(340, 135)">
+        <g transform="translate(0, 16)">
+          <rect width="310" height="100" fill="#1B1A1B" />
+          <text x="18" y="30" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="700" fill="#94A3B8" letter-spacing="1.5">G\xDCN\xDCN OYUNCUSU</text>
+          
+          <g transform="translate(195, 10)">
+            <rect width="100" height="22" rx="4" fill="${accent}" />
+            <text x="50" y="15" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="800" fill="#FFFFFF" letter-spacing="1">G\xDCN\xDCN TURU \u2713</text>
+          </g>
+          
+          <text x="18" y="74" font-family="system-ui, -apple-system, sans-serif" font-size="${nickFontSize}" font-weight="800" fill="#F6F0E3" letter-spacing="0.5">${nick}</text>
+        </g>
+      </g>
+
+      <g transform="translate(0, 275)">
+        <rect width="650" height="38" fill="${accent}" stroke="#1B1A1B" stroke-width="1.5" />
+        <text x="325" y="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="900" fill="#FFFFFF" letter-spacing="1.5">TUR TAMAMLANDI \xB7 SEN DE SKORUNU DENE \u2192</text>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(70, 565)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="800" fill="#1B1A1B">sely.tr/play/${gameKey}</text>
+    <text x="200" font-family="system-ui, sans-serif" font-size="14" font-weight="600" fill="#475569">${performanceNotice}</text>
+  </g>
+
+  <g transform="translate(860, 565)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B" letter-spacing="1">K\xDC\xC7\xDCK KURAL, B\xDCY\xDCK YANKI \u271B</text>
+  </g>
+</svg>`;
+}
+
+// server/og/ogRoute.ts
+function parseOgParams(query) {
+  const game = typeof query.game === "string" ? query.game.toLowerCase().slice(0, 20) : "hub";
+  const rawScore = query.score ? parseInt(String(query.score), 10) : void 0;
+  const score = typeof rawScore === "number" && !isNaN(rawScore) && rawScore >= 0 && rawScore <= 1e7 ? rawScore : void 0;
+  const nick = typeof query.nick === "string" ? query.nick.slice(0, 32).replace(/[^\w\s\-#çğıöşüÇĞİÖŞÜ]/g, "") : void 0;
+  const rank = typeof query.rank === "string" ? query.rank.slice(0, 8) : void 0;
+  const outcome = query.outcome === "solved" || query.outcome === "dismissed" || query.outcome === "success" || query.outcome === "failure" ? query.outcome : void 0;
+  const grade = query.grade === "S" || query.grade === "A" || query.grade === "B" || query.grade === "C" ? query.grade : void 0;
+  const caseTitle = typeof query.caseTitle === "string" ? query.caseTitle.slice(0, 60) : void 0;
+  const suspect = typeof query.suspect === "string" ? query.suspect.slice(0, 40) : void 0;
+  const locale = query.locale === "en" ? "en" : "tr";
+  const date = typeof query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.date) ? query.date : void 0;
+  return {
+    game,
+    score,
+    nick,
+    rank,
+    outcome,
+    grade,
+    caseTitle,
+    suspect,
+    locale,
+    date
+  };
+}
+function handleOgImageRequest(req, res) {
+  try {
+    const params = parseOgParams(req.query);
+    const svg = generateOgSvg(params);
+    res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+    res.setHeader(
+      "Cache-Control",
+      "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400"
+    );
+    res.status(200).send(svg.trim());
+  } catch (err) {
+    logger.error("og", "Failed to generate OG image", err);
+    res.redirect(302, "/storage/sely-social-card-title_b4649a50.png");
+  }
+}
+
+// server/og/shareRoute.ts
+var CRAWLER_USER_AGENTS = [
+  "twitterbot",
+  "facebookexternalhit",
+  "facebot",
+  "discordbot",
+  "telegrambot",
+  "whatsapp",
+  "slackbot",
+  "linkedinbot",
+  "pinterest",
+  "skypeuripreview",
+  "applebot",
+  "bingpreview"
+];
+function isSocialCrawler(userAgent) {
+  const ua = userAgent.toLowerCase();
+  return CRAWLER_USER_AGENTS.some((bot) => ua.includes(bot));
+}
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+var GAME_NAMES = {
+  echo: { tr: "Yank\u0131", en: "Echo", eyebrow: "LAB\u0130RENT / SES" },
+  knot: { tr: "D\xFC\u011F\xFCm", en: "Knot", eyebrow: "AKI\u015E / BULMACA" },
+  cut: { tr: "Kesit", en: "Cutout", eyebrow: "GEOMETR\u0130 / KES\u0130M" },
+  shadow: { tr: "G\xF6lge", en: "Shadow", eyebrow: "I\u015EIK / S\u0130L\xDCET" },
+  hane: { tr: "Hane", en: "Hane", eyebrow: "KEL\u0130ME / SAYI" },
+  spark: { tr: "K\u0131v\u0131lc\u0131m", en: "Spark", eyebrow: "REFLEKS / GER\u0130L\u0130M" },
+  vaka: { tr: "Vaka", en: "Vaka Mystery", eyebrow: "G\u0130ZEM / DEDEKT\u0130F" }
+};
+function handleShareBridgeRequest(req, res) {
+  const gameKey = (req.params.game || "").toLowerCase();
+  const validGame = GAME_NAMES[gameKey] ? gameKey : "echo";
+  const userAgent = req.headers["user-agent"] || "";
+  const isCrawler = isSocialCrawler(userAgent);
+  const locale = req.query.locale === "en" ? "en" : "tr";
+  const isEn = locale === "en";
+  const targetPlayPath = isEn ? `/en/play/${validGame}` : `/play/${validGame}`;
+  const meta = GAME_NAMES[validGame];
+  const gameName = isEn ? meta.en : meta.tr;
+  const rawScore = req.query.score ? String(req.query.score).replace(/[^\d]/g, "") : "";
+  const nick = req.query.nick ? String(req.query.nick).slice(0, 32) : "";
+  const outcome = req.query.outcome === "solved" || req.query.outcome === "success" ? "solved" : req.query.outcome === "failure" ? "failed" : "";
+  const grade = req.query.grade ? String(req.query.grade).slice(0, 2) : "";
+  let title = `SELY \xB7 ${gameName}`;
+  let desc = isEn ? `Play ${gameName} on SELY \u2014 minimal rules, lasting echoes.` : `SELY \xFCzerinde ${gameName} oyna \u2014 K\xFC\xE7\xFCk kural, b\xFCy\xFCk yank\u0131.`;
+  if (validGame === "vaka") {
+    if (outcome === "solved") {
+      title = isEn ? `SELY Vaka \xB7 CASE SOLVED (Grade ${grade || "S"})` : `SELY Vaka \xB7 C\u0130NAYET DOSYASI \xC7\xD6Z\xDCLD\xDC (Derece ${grade || "S"})`;
+      desc = isEn ? `Detective ${nick || "Player"} uncovered the truth and closed the case with ${rawScore || "high"} points!` : `Dedektif ${nick || "Oyuncu"} gizemi ayd\u0131nlatt\u0131 ve dosyay\u0131 ${rawScore || "y\xFCksek"} puanla kapatt\u0131!`;
+    } else {
+      title = isEn ? `SELY Vaka \xB7 Murder Mystery Case` : `SELY Vaka \xB7 G\xFCn\xFCn Dedektiflik Dosyas\u0131`;
+      desc = isEn ? `Can you solve today's case? Interrogate suspects and uncover the truth.` : `G\xFCn\xFCn cinayet dosyas\u0131n\u0131 \xE7\xF6zebilir misin? \u015E\xFCphelileri sorgula ve katili bul.`;
+    }
+  } else if (rawScore) {
+    const formattedScore = parseInt(rawScore, 10).toLocaleString(isEn ? "en-US" : "tr-TR");
+    title = isEn ? `${nick ? nick + " scored " : ""}${formattedScore} pts on ${gameName} \xB7 SELY` : `${nick ? nick + " \xB7 " : ""}${gameName} turunu ${formattedScore} puanla bitirdi!`;
+    desc = isEn ? `Can you beat this score in today's daily run? Challenge now on sely.tr.` : `G\xFCn\xFCn seviyesinde bu skoru ge\xE7ebilir misin? Hemen sely.tr \xFCzerinde meydan oku.`;
+  }
+  const ogSearchParams = new URLSearchParams(req.query);
+  ogSearchParams.set("game", validGame);
+  const host = req.headers.host || "sely.tr";
+  const protocol = req.headers["x-forwarded-proto"] || "https";
+  const ogImageUrl = `${protocol}://${host}/api/og?${ogSearchParams.toString()}`;
+  const canonicalUrl = `${protocol}://${host}${targetPlayPath}`;
+  const sharePageUrl = `${protocol}://${host}${req.originalUrl || req.url}`;
+  const html = `<!doctype html>
+<html lang="${locale}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(desc)}" />
+  
+  <!-- Open Graph & Social Cards -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${escapeHtml(sharePageUrl)}" />
+  <meta property="og:site_name" content="SELY MiniGame Hub" />
+  <meta property="og:title" content="${escapeHtml(title)}" />
+  <meta property="og:description" content="${escapeHtml(desc)}" />
+  <meta property="og:image" content="${escapeHtml(ogImageUrl)}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="${escapeHtml(title)}" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@sely_tr" />
+  <meta name="twitter:title" content="${escapeHtml(title)}" />
+  <meta name="twitter:description" content="${escapeHtml(desc)}" />
+  <meta name="twitter:image" content="${escapeHtml(ogImageUrl)}" />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    :root {
+      --paper: #F6F0E3;
+      --ink: #1B1A1B;
+      --coral: #E9563F;
+      --mustard: #E5B341;
+      --card-bg: #FFFAF0;
+      --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 16px 36px;
+      background-image: radial-gradient(var(--ink) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    .top-nav {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 14px;
+      margin-bottom: 24px;
+    }
+    .brand {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .brand span { color: var(--coral); }
+    .nav-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 4px 10px;
+    }
+    .showcase-container {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .card-wrap {
+      width: 100%;
+      position: relative;
+      background: var(--ink);
+      border: 3px solid var(--ink);
+      box-shadow: 10px 10px 0 var(--ink);
+      aspect-ratio: 1200 / 630;
+      overflow: hidden;
+      border-radius: 2px;
+    }
+    .card-img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+    .actions-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+      cursor: pointer;
+      border: 2px solid var(--ink);
+      box-shadow: 4px 4px 0 var(--ink);
+      transition: transform 70ms ease, box-shadow 70ms ease, background-color 70ms ease;
+      background: var(--paper);
+      color: var(--ink);
+      user-select: none;
+    }
+    .btn:hover { background: #fffdf8; }
+    .btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+    .btn-play {
+      background: var(--coral);
+      color: #FFFFFF;
+    }
+    .btn-play:hover { background: #d9452f; color: #FFFFFF; }
+    .btn-copy { background: var(--mustard); }
+    .status-toast {
+      position: fixed;
+      bottom: 24px;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 10px 18px;
+      box-shadow: 4px 4px 0 var(--coral);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity 200ms ease, transform 200ms ease;
+      z-index: 100;
+    }
+    .status-toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    footer {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgba(27, 26, 27, 0.7);
+      margin-top: 28px;
+      text-align: center;
+    }
+    @media (max-width: 640px) {
+      body { padding: 16px 12px 24px; }
+      .card-wrap { box-shadow: 6px 6px 0 var(--ink); }
+      .btn { padding: 12px 14px; font-size: 11.5px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/" class="brand">SELY<span>\u271B</span></a>
+    <span class="nav-tag">${isEn ? "DAILY SHOWCASE" : "G\xDCN\xDCN KARTI"}</span>
+  </nav>
+
+  <main class="showcase-container">
+    <div class="card-wrap">
+      <img id="ogImg" src="${escapeHtml(ogImageUrl)}" alt="${escapeHtml(title)}" class="card-img" crossorigin="anonymous" />
+    </div>
+
+    <div class="actions-grid">
+      <button type="button" class="btn btn-copy" id="btnCopyImg">
+        <span>\u{1F4CB}</span> <b>${isEn ? "Copy Image (PNG)" : "G\xF6rseli Kopyala"}</b>
+      </button>
+      <button type="button" class="btn" id="btnDownloadImg">
+        <span>\u{1F4BE}</span> <span>${isEn ? "Download Image" : "G\xF6rseli \u0130ndir"}</span>
+      </button>
+      <button type="button" class="btn" id="btnCopyLink">
+        <span>\u{1F517}</span> <span>${isEn ? "Copy Link" : "Linki Kopyala"}</span>
+      </button>
+      <a href="${escapeHtml(targetPlayPath)}" class="btn btn-play">
+        <span>\u26A1</span> <b>${isEn ? "Play Now \u2192" : "Hemen Sen de Oyna \u2192"}</b>
+      </a>
+    </div>
+  </main>
+
+  <div id="toast" class="status-toast" role="status" aria-live="polite"></div>
+
+  <footer>
+    <p>sely.tr \xB7 K\xFC\xE7\xFCk kural, b\xFCy\xFCk yank\u0131. \xB7 Reklams\u0131z, kay\u0131t gerektirmeyen web oyunlar\u0131</p>
+  </footer>
+
+  <script>
+    const toast = document.getElementById('toast');
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 2600);
+    }
+
+    // 1. Resim Panoya Kopyalama (Clipboard API & Canvas Rasterization)
+    document.getElementById('btnCopyImg').addEventListener('click', async () => {
+      const img = document.getElementById('ogImg');
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1200;
+        canvas.height = 630;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 1200, 630);
+        
+        canvas.toBlob(async (blob) => {
+          if (!blob) throw new Error("Rasterization failed");
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            showToast('${isEn ? "\u2713 Image copied to clipboard! Ready to paste." : "\u2713 G\xF6rsel panoya kopyaland\u0131! (Ctrl+V ile yap\u0131\u015Ft\u0131r)"}');
+          } catch (e) {
+            // Fallback link copy if browser blocks image clipboard
+            await navigator.clipboard.writeText(window.location.href);
+            showToast('${isEn ? "Link copied to clipboard" : "Ba\u011Flant\u0131 panoya kopyaland\u0131"}');
+          }
+        }, 'image/png');
+      } catch (err) {
+        navigator.clipboard.writeText(window.location.href);
+        showToast('${isEn ? "Link copied to clipboard" : "Ba\u011Flant\u0131 panoya kopyaland\u0131"}');
+      }
+    });
+
+    // 2. PNG Olarak \u0130ndirme
+    document.getElementById('btnDownloadImg').addEventListener('click', () => {
+      const img = document.getElementById('ogImg');
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200;
+      canvas.height = 630;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 1200, 630);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'sely-${validGame}-card.png';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('${isEn ? "\u2713 Image download started" : "\u2713 G\xF6rsel indiriliyor"}');
+      }, 'image/png');
+    });
+
+    // 3. Ba\u011Flant\u0131y\u0131 Kopyalama
+    document.getElementById('btnCopyLink').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        showToast('${isEn ? "\u2713 Link copied to clipboard" : "\u2713 Ba\u011Flant\u0131 kopyaland\u0131"}');
+      } catch (e) {
+        showToast('${isEn ? "Failed to copy" : "Kopyalanamad\u0131"}');
+      }
+    });
+  </script>
+</body>
+</html>`;
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader(
+    "Cache-Control",
+    "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400"
+  );
+  res.status(200).send(html);
+}
+
 // server/app.ts
 var PUBLIC_CACHEABLE_TRPC_PROCEDURES = /* @__PURE__ */ new Set([
   "daily.today",
@@ -5544,6 +6590,12 @@ function createApp() {
   app2.get("/api/leaderboard", getLeaderboardHandler);
   app2.post("/api/leaderboard", leaderboardLimiter, submitLeaderboardHandler);
   app2.get("/api/config", getGlobalConfigHandler);
+  app2.get("/api/og", handleOgImageRequest);
+  app2.get("/share/:game", handleShareBridgeRequest);
+  app2.get("/en/share/:game", (req, res) => {
+    req.query.locale = "en";
+    handleShareBridgeRequest(req, res);
+  });
   const scheduledLimiter = createRateLimiter({ max: 8, windowMs: 6e4 });
   const publicApiLimiter = createRateLimiter({ max: 90, windowMs: 6e4 });
   app2.all("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);

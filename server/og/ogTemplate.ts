@@ -299,7 +299,7 @@ export function generateOgSvg(params: OgParams): string {
       <rect width="360" height="46" fill="#F4EBD9" stroke="#1B1A1B" stroke-width="1.5" />
       <rect x="0" y="0" width="10" height="46" fill="#B91C1C" />
       <text x="24" y="20" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="#B91C1C" letter-spacing="1">GÜNÜN DEDEKTİFLİK VAKASI</text>
-      <text x="24" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B">sely.tr/play/vaka · Katili bulabilir misin?</text>
+      <text x="24" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B">Şüphelileri sorgula, katili yakala!</text>
     </g>
   </g>
 
@@ -463,7 +463,7 @@ export function generateOgSvg(params: OgParams): string {
         <rect width="360" height="46" fill="#F6F0E3" stroke="#1B1A1B" stroke-width="1.5" />
         <rect x="0" y="0" width="10" height="46" fill="${accent}" />
         <text x="24" y="20" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="${accent}" letter-spacing="1">GÜNÜN MEYDAN OKUMASI</text>
-        <text x="24" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B">sely.tr/play/${gameKey} · Skoru geçebilir misin?</text>
+        <text x="24" y="37" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="800" fill="#1B1A1B">Turu tamamla, arkadaşlarına meydan oku!</text>
       </g>
     </g>
   </g>
