@@ -1,3 +1,4 @@
+import { newCases } from "./vakaCasesExtra";
 import type { VakaDetailedCase } from "./vakaTypes";
 
 export const VAKA_SAMPLE_CASES: VakaDetailedCase[] = [
@@ -1531,4 +1532,5 @@ export const VAKA_SAMPLE_CASES: VakaDetailedCase[] = [
       },
     ],
   },
+  ...newCases
 ];
