@@ -1002,7 +1002,6 @@ var systemRouter = router({
 // server/storage/dailyContentStore.ts
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
-import { createClient as createClient2 } from "@libsql/client";
 import { Pool as Pool2 } from "pg";
 var DAILY_GAMES = ["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"];
 var RULESET_VERSION = "5";
@@ -1127,11 +1126,12 @@ function getDailyStore() {
   if (store) return store;
   const provider = process.env.CONTENT_DB_PROVIDER?.toLowerCase();
   const postgresUrl = process.env.CONTENT_DB_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
-  const tursoUrl = process.env.TURSO_URL || process.env.TURSO_DATABASE_URL;
-  const tursoAuthToken = process.env.TURSO_AUTH_TOKEN;
-  if ((provider === "turso" || !provider) && tursoUrl && (/^libsql:\/\//.test(tursoUrl) && tursoAuthToken || tursoUrl.startsWith("file:") || tursoUrl === ":memory:")) {
-    store = new TursoStore(createClient2({ url: tursoUrl, authToken: tursoAuthToken }));
-    return store;
+  if ((provider === "turso" || !provider) && isTursoConfigured()) {
+    const client = getTursoClient();
+    if (client) {
+      store = new TursoStore(client);
+      return store;
+    }
   }
   if ((provider === "postgres" || !provider) && postgresUrl && /^(postgres|postgresql):\/\//.test(postgresUrl)) {
     const isCloud = postgresUrl.includes("sslmode=require") || postgresUrl.includes("neon.tech") || postgresUrl.includes("vercel-storage.com") || postgresUrl.includes("aws.connect");

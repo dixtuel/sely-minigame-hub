@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
-import { createClient, type Client } from "@libsql/client";
+import type { Client } from "@libsql/client";
 import { Pool } from "pg";
+import { getTursoClient, isTursoConfigured } from "./turso";
 
 export const DAILY_GAMES = ["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"] as const;
 export type DailyGameId = (typeof DAILY_GAMES)[number];
@@ -137,20 +138,14 @@ export function getDailyStore(): DailyStore {
     process.env.POSTGRES_URL ||
     process.env.DATABASE_URL;
 
-  const tursoUrl =
-    process.env.TURSO_URL ||
-    process.env.TURSO_DATABASE_URL;
-
-  const tursoAuthToken = process.env.TURSO_AUTH_TOKEN;
-
-  // 1. Explicit or auto-detected Turso
-  if (
-    (provider === "turso" || !provider) &&
-    tursoUrl &&
-    ((/^libsql:\/\//.test(tursoUrl) && tursoAuthToken) || tursoUrl.startsWith("file:") || tursoUrl === ":memory:")
-  ) {
-    store = new TursoStore(createClient({ url: tursoUrl, authToken: tursoAuthToken }));
-    return store;
+  // 1. Explicit or auto-detected Turso — shares the connection singleton from ./turso
+  // (previously opened its own independent @libsql/client here; now reuses one connection).
+  if ((provider === "turso" || !provider) && isTursoConfigured()) {
+    const client = getTursoClient();
+    if (client) {
+      store = new TursoStore(client);
+      return store;
+    }
   }
 
   // 2. Explicit or auto-detected PostgreSQL / Neon
