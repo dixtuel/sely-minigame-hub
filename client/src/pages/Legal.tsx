@@ -1,4 +1,4 @@
-import { ArrowLeft, Cookie, ExternalLink, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Cookie, ExternalLink, ShieldCheck, HeartHandshake, Sparkles, BatteryCharging, Trophy, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
 import { ProtectedContact, ProtectedName } from "@/components/ProtectedIdentity";
 import { useCookieConsent } from "@/contexts/CookieConsentContext";
@@ -11,252 +11,618 @@ export default function Legal({ kind, locale = "tr" }: LegalPageProps) {
   const accessibility = kind === "accessibility";
   const english = locale === "en";
   const title = privacy
-    ? (english ? "Privacy & Personal Data Notice (KVKK)" : "Gizlilik ve Kişisel Verilerin Korunması (KVKK)")
+    ? (english ? "Privacy & Personal Data Notice (KVKK / GDPR)" : "Gizlilik ve Oyuncu Hakları Bildirimi (KVKK / GDPR)")
     : accessibility
       ? (english ? "Accessibility Statement" : "Erişilebilirlik Bildirimi")
-      : (english ? "Terms of Use" : "Kullanım Koşulları");
+      : (english ? "Terms of Fair Play & Use" : "Kullanım ve Adil Oyun Koşulları");
 
-  return <main className="legal-page">
-    <header className="legal-nav">
-      <Link href={english ? "/en" : "/"} className="back-button">
-        <ArrowLeft size={18} /> {english ? "Game catalogue" : "Oyun kataloğu"}
-      </Link>
-      <span>SELY.TR · {english ? "INFORMATION & RIGHTS" : "BİLGİLER VE HAKLAR"}</span>
-    </header>
-    <article className="legal-article">
-      <div className="legal-heading">
-        <span className="studio-kicker">
-          {accessibility
-            ? (english ? "ACCESSIBILITY · CONTINUOUS IMPROVEMENT" : "ERİŞİLEBİLİRLİK · SÜREKLİ İYİLEŞTİRME")
-            : (english ? "POLICIES & LEGAL RIGHTS" : "BİLGİLENDİRME VE YASAL HAKLAR")}
-        </span>
-        <h1>{title}</h1>
-        <p>{english ? "Last updated: 13 September 2026" : "Son güncelleme: 13 Eylül 2026"}</p>
-      </div>
-      {english ? <EnglishLegalContent kind={kind} /> : privacy ? <PrivacyContent /> : accessibility ? <AccessibilityContent /> : <TermsContent />}
-      <section className="legal-note">
-        <ShieldCheck size={21} />
-        <p>
-          {english
-            ? <>For questions, privacy requests or feedback, contact <ProtectedContact locale="en" />.</>
-            : <>Gizlilik politikası, KVKK başvuruları veya geri bildirimleriniz için doğrudan <ProtectedContact /> adresi üzerinden iletişime geçebilirsiniz.</>}
-        </p>
-      </section>
-    </article>
-  </main>;
+  return (
+    <main className="legal-page">
+      <header className="legal-nav">
+        <Link href={english ? "/en" : "/"} className="back-button">
+          <ArrowLeft size={18} /> {english ? "Game catalogue" : "Oyun kataloğu"}
+        </Link>
+        <span>SELY.TR · {english ? "PLAYER INFORMATION & PRIVACY" : "OYUNCU BİLGİLENDİRMESİ VE GİZLİLİK"}</span>
+      </header>
+      <article className="legal-article">
+        <div className="legal-heading">
+          <span className="studio-kicker">
+            {accessibility
+              ? (english ? "ACCESSIBILITY · THOUGHTFUL FOR ALL" : "ERİŞİLEBİLİRLİK · HERKES İÇİN ÖZENLE")
+              : (english ? "TRANSPARENT & PLAYER-CENTRIC" : "ŞEFFAF VE OYUNCU ODAKLI BİLGİLENDİRME")}
+          </span>
+          <h1>{title}</h1>
+          <p>{english ? "Last updated: 20 September 2026" : "Son güncelleme: 20 Eylül 2026"}</p>
+        </div>
+        {english ? (
+          <EnglishLegalContent kind={kind} />
+        ) : privacy ? (
+          <PrivacyContent />
+        ) : accessibility ? (
+          <AccessibilityContent />
+        ) : (
+          <TermsContent />
+        )}
+        <section className="legal-note">
+          <ShieldCheck size={21} />
+          <p>
+            {english ? (
+              <>
+                Have a question about your privacy, a suggestion, or a request? Contact us directly at{" "}
+                <ProtectedContact locale="en" />.
+              </>
+            ) : (
+              <>
+                Gizliliğiniz, haklarınız veya oyunlar hakkında aklınıza takılan her türlü soru ve öneri için doğrudan{" "}
+                <ProtectedContact /> adresi üzerinden bizimle iletişime geçebilirsiniz.
+              </>
+            )}
+          </p>
+        </section>
+      </article>
+    </main>
+  );
 }
 
 function EnglishLegalContent({ kind }: { kind: LegalPageProps["kind"] }) {
   const { openBanner } = useCookieConsent();
 
   if (kind === "accessibility") {
-    return <div className="legal-copy">
-      <section>
-        <h2>1. Our Approach</h2>
-        <p>SELY.TR MiniGame Hub is designed to ensure short, thoughtful games are accessible and enjoyable to everyone regardless of physical ability or device. Accessibility is not an afterthought; it is integrated directly into interface layouts, typography, and controls.</p>
-      </section>
-      <section>
-        <h2>2. Available Features</h2>
-        <p>Meaningful semantic markup and accessible labels are maintained across all game cards and navigation bars. Directional games (Echo, Shadow, Spark) feature comprehensive keyboard bindings (arrow keys, Space, WASD) as well as touch zones. Color contrast is audited against WCAG 2.1 AA standards, and text alternatives supplement color-coded indicators.</p>
-      </section>
-      <section>
-        <h2>3. Motion & Auditory Options</h2>
-        <p>The interface respects the <code>prefers-reduced-motion</code> operating system setting by muting excessive particle effects and aggressive camera shakes. All games are fully playable with sound muted; audio serves purely as supplementary feedback.</p>
-      </section>
-      <section>
-        <h2>4. Feedback & Support</h2>
-        <p>If you encounter any accessibility barriers on any device or browser, please report the details to <ProtectedContact locale="en" />.</p>
-      </section>
-    </div>;
+    return (
+      <div className="legal-copy">
+        <section>
+          <h2>1. Built for Everyone</h2>
+          <p>
+            SELY.TR MiniGame Hub is designed to ensure short, thoughtful, and procedural games are
+            welcoming and accessible to every player regardless of physical ability, device type, or
+            connection speed. Accessibility is baked into typography, touch zone ergonomics, and control schemes.
+          </p>
+        </section>
+        <section>
+          <h2>2. Controls & Multimodal Play</h2>
+          <p>
+            Directional games (Echo, Shadow, Spark) feature complete keyboard bindings (Arrow keys, Space,
+            WASD) alongside generous on-screen touch buttons for mobile screens. Text alternatives supplement
+            all color-coded feedback so that color blindness never impedes gameplay.
+          </p>
+        </section>
+        <section>
+          <h2>3. Gentle on the Senses & Battery</h2>
+          <p>
+            We honor your operating system&apos;s <code>prefers-reduced-motion</code> setting, softening
+            particle effects and camera shakes. All games are 100% playable with audio muted. Furthermore,
+            sound loops automatically pause whenever you switch tabs or lock your screen, preventing battery drain.
+          </p>
+        </section>
+        <section>
+          <h2>4. Feedback & Reach Out</h2>
+          <p>
+            If you run into any barriers or have an idea to make games more accessible, please share it with us at{" "}
+            <ProtectedContact locale="en" />.
+          </p>
+        </section>
+      </div>
+    );
   }
 
   if (kind === "privacy") {
-    return <div className="legal-copy">
-      <section>
-        <h2>1. Data Controller</h2>
-        <p>This privacy notice is issued by the operator of SELY.TR (<ProtectedName /> / dixtuel). You may address any privacy or data rights inquiries to <ProtectedContact locale="en" />.</p>
-      </section>
-      <section>
-        <h2>2. Data Minimisation & No Account Requirement</h2>
-        <p>You can play all games on SELY.TR completely anonymously. Playing games does not require an account, registration, email submission, or telephone number. We believe in radical data minimisation.</p>
-      </section>
-      <section>
-        <h2>3. Local Storage (On-Device Data)</h2>
-        <p>To preserve your high scores and preferences without requiring a cloud profile, SELY.TR stores minimal information directly in your browser’s local storage (<code>localStorage</code>):</p>
-        <ul>
-          <li><code>sely_mini_scores_v1</code>: Your personal best scores across each mini-game.</li>
-          <li><code>sely-cookie-consent</code>: Your cookie notice confirmation (accepted/rejected).</li>
-          <li><code>sely-locale</code>: Your selected language (Turkish or English).</li>
-          <li><code>theme</code>: Your visual theme preference (light or dark).</li>
-        </ul>
-        <p>These values stay strictly on your personal device, are never transmitted to our database, and can be cleared at any time via your browser settings.</p>
-      </section>
-      <section>
-        <h2>4. Cookies & Google AdSense Advertising</h2>
-        <p>SELY.TR maintains a strict data minimization stance. We do not use intrusive cross-site tracking pixels or behavioural surveillance beacons. However, the site displays sponsored advertisements provided through Google AdSense to sustain operations:</p>
-        <ul>
-          <li><strong>Google AdSense Cookies:</strong> Google and its partner advertising vendors use cookies (such as <code>__gads</code>, <code>__gpi</code>, and advertising identifiers) to serve relevant ads based on prior visits to this or other websites.</li>
-          <li><strong>Google Consent Mode v2:</strong> SELY.TR respects your choices via Google Consent Mode v2. By default, ad personalization and ad storage permissions are set to denied, and requests are submitted as non-personalized (<code>requestNonPersonalizedAds = 1</code>).</li>
-          <li><strong>User Choice & Opt-Out:</strong> Advertising cookies are only active if you explicitly provide consent via our cookie banner. You can change your choice at any time using the preferences button below or via <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">Google Ads Settings <ExternalLink size={12} /></a> and <a href="https://aboutads.info/choices" target="_blank" rel="noreferrer">aboutads.info <ExternalLink size={12} /></a>.</li>
-        </ul>
-        <div style={{ marginTop: "14px" }}>
-          <button type="button" className="footer-link-button" onClick={openBanner}>
-            <Cookie size={14} /> Open Cookie & Ad Preferences
-          </button>
-        </div>
-      </section>
-      <section>
-        <h2>5. Game Performance & Site Improvements (Analytics)</h2>
-        <p>To ensure our games launch swiftly and run smoothly without stutter on both mobile phones and desktop computers, and to discover which games players enjoy most, SELY.TR uses lightweight, privacy-friendly analytics tools (Vercel Web Analytics & Speed Insights). Here is what this means for you as a player:</p>
-        <ul>
-          <li><strong>Zero Personal Profiling:</strong> We never record your name, email address, password, or precise IP address. There are no tracking cookies following you around the web.</li>
-          <li><strong>No Battery or Data Drain:</strong> We run no heavy background trackers or intrusive surveillance scripts. The service merely records technical quality markers—such as whether a 3D maze loaded promptly and whether touch controls respond without lag.</li>
-          <li><strong>Continuous Quality Improvements:</strong> If an update makes a game run slower on certain older phones, these anonymized diagnostics alert us so we can fix it immediately.</li>
-          <li><strong>You Are Always in Control:</strong> While these measurements are completely anonymous, you can turn them off at any time by clicking "Reject (Essential Only)" in our Cookie Settings banner.</li>
-        </ul>
-      </section>
-      <section>
-        <h2>6. Server Logs & Security</h2>
-        <p>When you access SELY.TR, standard technical connection data (client IP address, request timestamp, HTTP status code, user agent) is processed transiently by our edge proxy and server infrastructure to prevent DDoS attacks, mitigate abusive automated scraping, and ensure system uptime. This processing is grounded in legitimate interest (KVKK Art. 5/2-f and GDPR Art. 6/1-f). These transient records are not retained in long-term databases or linked to player identities.</p>
-      </section>
-      <section>
-        <h2>7. Your Rights</h2>
-        <p>Under Turkish Law No. 6698 on the Protection of Personal Data (KVKK Art. 11) and applicable data protection regulations (such as GDPR Art. 15-22), you have the right to learn whether your data is processed, request information, and demand deletion. Because we do not store persistent player profiles or identifiable databases, there are typically no personal records to query; however, you may direct any inquiry to <ProtectedContact locale="en" />.</p>
-      </section>
-    </div>;
+    return (
+      <div className="legal-copy">
+        <section>
+          <h2>1. Who We Are & Our Privacy-First Commitment</h2>
+          <p>
+            SELY.TR is an independent, non-intrusive mini-game catalogue created and operated by{" "}
+            <ProtectedName /> (dixtuel). Under Turkish Data Protection Law No. 6698 (&ldquo;KVKK&rdquo;)
+            and the EU General Data Protection Regulation (&ldquo;GDPR&rdquo;), we act as the data
+            controller. You can reach us directly at <ProtectedContact locale="en" />.
+          </p>
+          <p>
+            Our core commitment is simple: <strong>You don&apos;t need to share your identity to have fun.</strong> You
+            can play every game without creating an account, registering an email, or handing over personal phone
+            numbers.
+          </p>
+        </section>
+
+        <section>
+          <h2>2. What Stays on Your Device (Local Storage)</h2>
+          <p>
+            To remember your high scores and keep the site responsive without storing user accounts on the
+            cloud, small preferences are saved directly on your phone or computer:
+          </p>
+          <ul>
+            <li>
+              <strong>Your High Scores (<code>sely_mini_scores_v1</code>):</strong> Your best records for each
+              game stay strictly in your personal browser.
+            </li>
+            <li>
+              <strong>Site Preferences:</strong> Your dark/light theme choice (<code>theme</code>), preferred
+              language (<code>sely-locale</code>), and cookie preference (<code>sely-cookie-consent</code>).
+            </li>
+            <li>
+              <strong>Offline & Data-Saving Cache (Service Worker):</strong> Game assets, sounds, and fonts are
+              cached on your device via <code>/sw.js</code>. This saves your mobile data plan and allows instant
+              replay even on weak subway Wi-Fi or offline.
+            </li>
+          </ul>
+          <p>
+            These files never leave your device. You can clear them whenever you want simply by clearing your
+            browser history or site data.
+          </p>
+        </section>
+
+        <section>
+          <h2>3. Daily Leaderboards: Is My Identity or IP Visible?</h2>
+          <p>
+            <strong>No, absolutely not.</strong> When you finish a run, your score can join today&apos;s global
+            leaderboard to celebrate daily achievements with other players:
+          </p>
+          <ul>
+            <li>
+              <strong>Fun Anonymous Nicknames:</strong> Instead of your real name, the system assigns you a
+              friendly, procedurally generated gamer tag for the day (e.g. <em>&ldquo;Brave Fox #4829&rdquo;</em> or{" "}
+              <em>&ldquo;Silent Architect #1042&rdquo;</em>).
+            </li>
+            <li>
+              <strong>Zero Identity Tracking:</strong> To allow you to beat your own score later in the day, your
+              browser generates an anonymous cryptographic signature. Your IP address, device name, and location
+              are never displayed or attached to leaderboard records.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>4. AI Detective Interrogations in &ldquo;Vaka Mystery&rdquo;</h2>
+          <p>
+            In the mystery case &ldquo;Vaka: Murder on the Orient Express&rdquo;, you can type free-form
+            interrogation questions or bluffs to suspect passengers:
+          </p>
+          <ul>
+            <li>
+              <strong>How It Works:</strong> Your typed question is sent securely to an AI provider (such as
+              NVIDIA NIM or Groq) along with the fictional story context so the suspect can give you an immediate,
+              dramatic, and in-character answer.
+            </li>
+            <li>
+              <strong>No Personal Data Attached:</strong> No user accounts, real names, or device profiles are
+              included in this request.
+            </li>
+            <li>
+              <strong>Transient & Ephemeral:</strong> Your dialogue is processed in real time solely to generate
+              the character&apos;s response; it is never stored to build player profiles or train private AI models.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>5. Protecting Your Device & Battery (Zero Data Sent)</h2>
+          <p>
+            We take player battery life and device smoothness seriously. When running on low-power phones,
+            budget devices, or in-app WebViews:
+          </p>
+          <ul>
+            <li>
+              Your browser checks locally if your battery is low or if your device has limited memory.
+            </li>
+            <li>
+              If so, it smoothly scales down canvas render resolution and halts background audio loops to keep
+              your phone cool and prevent battery drain.
+            </li>
+            <li>
+              <strong>Completely Local:</strong> This check occurs <strong>entirely inside your phone&apos;s
+              temporary memory</strong>. Your battery level or hardware specs are <strong>never transmitted to our
+              servers</strong>, never logged, and never used to fingerprint your device.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>6. Non-Intrusive Ads & Cookie Choices</h2>
+          <p>
+            To cover hosting and bandwidth expenses, SELY.TR displays unobtrusive advertisements via Google
+            AdSense:
+          </p>
+          <ul>
+            <li>
+              <strong>Google Consent Mode v2:</strong> When you first visit, advertising personalization and ad
+              storage cookies are set to <strong>denied by default</strong>.
+            </li>
+            <li>
+              <strong>Full Control:</strong> Personalized ad cookies are only enabled if you explicitly choose
+              &ldquo;Accept All&rdquo;. You can review or switch back to strictly essential storage at any time
+              using the button below or via the &ldquo;Cookie Settings&rdquo; link in the footer.
+            </li>
+          </ul>
+          <div style={{ marginTop: "14px" }}>
+            <button type="button" className="footer-link-button" onClick={openBanner}>
+              <Cookie size={14} /> Open Cookie & Ad Preferences
+            </button>
+          </div>
+        </section>
+
+        <section>
+          <h2>7. Site Speed & Quality Monitoring (Cookieless Analytics)</h2>
+          <p>
+            To ensure games load quickly and touch controls don&apos;t lag across various devices, we monitor
+            anonymized speed diagnostics (Vercel Speed Insights). This system uses no tracking cookies and does not
+            follow you across the web. You can turn this off at any time by selecting &ldquo;Reject (Essential Only)&rdquo;
+            in the Cookie Settings banner.
+          </p>
+        </section>
+
+        <section>
+          <h2>8. Your Rights & How to Reach Us</h2>
+          <p>
+            Under KVKK Art. 11 and GDPR Art. 15&ndash;22, you have full rights to learn what data is processed and
+            request deletion. Because we don&apos;t maintain user accounts or personal profiles, there are typically
+            no identifiable personal records to query; however, if you ever wish to remove an anonymous leaderboard
+            score or have any question, write to us directly at <ProtectedContact locale="en" />.
+          </p>
+        </section>
+      </div>
+    );
   }
 
-  return <div className="legal-copy">
-    <section>
-      <h2>1. Acceptance of Terms</h2>
-      <p>By accessing and playing games on SELY.TR, you agree to these Terms of Use. If you do not agree, you should discontinue using the site.</p>
-    </section>
-    <section>
-      <h2>2. Open Source License</h2>
-      <p>SELY MiniGame Hub is free and open-source software licensed under the <strong>GNU Affero General Public License version 3 (AGPLv3)</strong>. You are free to inspect, study, modify, and host the code in accordance with the AGPLv3 terms, provided source code of any modified network service is made available under the same license.</p>
-    </section>
-    <section>
-      <h2>3. Fair & Safe Play</h2>
-      <p>SELY.TR is maintained as a free, welcoming, and thoughtful gaming hub for everyone. By playing, you agree to enjoy the games fairly as a human player: please do not direct automated bots or stress tools against our servers, attempt to tamper with daily game seeds or scores, or disrupt the experience for fellow players.</p>
-    </section>
-    <section>
-      <h2>4. Disclaimer of Warranty</h2>
-      <p>The service and games are provided "as is", without warranty of any kind, express or implied. We do not guarantee uninterrupted availability, error-free gameplay, or persistence of unbacked browser state.</p>
-    </section>
-    <section>
-      <h2>5. Inquiries & Contact</h2>
-      <p>For questions or operational notices, contact <ProtectedContact locale="en" />.</p>
-    </section>
-  </div>;
+  return (
+    <div className="legal-copy">
+      <section>
+        <h2>1. Welcome & The Spirit of Fair Play</h2>
+        <p>
+          Welcome to SELY.TR MiniGame Hub. This space was built with love to offer short, mindful, and engaging
+          mini-games for everyone. By browsing and playing on SELY.TR, you agree to these fair-play principles.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. Free & Open Source (GNU AGPLv3)</h2>
+        <p>
+          SELY MiniGame Hub is independent and free software licensed under the{" "}
+          <strong>GNU Affero General Public License v3.0 (AGPLv3)</strong>. You are welcome to inspect, study,
+          and contribute to the code. If you host or adapt the network service, AGPLv3 requires making your
+          modifications available to the community under the same open-source terms.
+        </p>
+      </section>
+
+      <section>
+        <h2>3. Fair Play & Community Respect</h2>
+        <p>
+          Games are most fun when everyone competes on fair, human terms. We kindly ask you to honor these guidelines:
+        </p>
+        <ul>
+          <li>
+            <strong>Human Players Only:</strong> Please do not unleash automated scrapers, stress-testing bots, or
+            denial-of-service scripts on our servers.
+          </li>
+          <li>
+            <strong>Honest Leaderboards:</strong> Tampering with game memory, manipulating cryptographic signatures,
+            or submitting impossible scores ruins the spirit of friendly competition. Unrealistic scores are
+            filtered out automatically.
+          </li>
+          <li>
+            <strong>Enjoy the Challenge:</strong> Avoid reverse-engineering daily seeds to spoil solutions for fellow
+            players.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. Friendly AI Interaction (Vaka Interrogations)</h2>
+        <p>
+          The detective interrogation in &ldquo;Vaka&rdquo; lets you roleplay with AI-driven characters. While
+          interrogating:
+        </p>
+        <ul>
+          <li>
+            Please keep your dialogue creative and respectful: harassment, hate speech, threats, and illegal
+            content are strictly prohibited.
+          </li>
+          <li>
+            Attempting system prompt injection or jailbreak exploits is not permitted and will be intercepted by
+            automated guards.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>5. As-Is Availability</h2>
+        <p>
+          Games are provided &ldquo;as is&rdquo; as an independent passion project. While we strive for smooth,
+          reliable performance on every phone and desktop, we cannot guarantee uninterrupted uptime or prevent local
+          data loss resulting from browser cache wipes.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Jurisdiction & Contact</h2>
+        <p>
+          These terms are governed by the laws of the Republic of Turkey, with Istanbul Courts having jurisdiction
+          over any disputes. For questions, suggestions, or feedback, you can always reach us at{" "}
+          <ProtectedContact locale="en" />.
+        </p>
+      </section>
+    </div>
+  );
 }
 
 function AccessibilityContent() {
-  return <div className="legal-copy">
-    <section>
-      <h2>1. Yaklaşımımız</h2>
-      <p>SELY.TR MiniGame Hub’ın herkes için kullanılabilir, anlaşılır ve keyifli olmasını hedefliyoruz. Oyunlar kısa, berrak kurallı ve dikkat odaklı deneyimler olarak kurgulanır; erişilebilirlik, sonradan eklenen bir katman değil, arayüz ve oyun kontrolü kararlarının temel bileşenidir.</p>
-    </section>
-    <section>
-      <h2>2. Kullanılabilir Özellikler</h2>
-      <p>Katalog, oyun başlatma ve hukuki bilgi bağlantıları anlamlı semantik metinlerle etiketlenir. Yön temelli oyunlar (Yankı, Gölge, Kıvılcım) hem klavye yön tuşları (oklar, Space, WASD) hem de mobil dokunmatik geniş tuş alanlarıyla yönetilebilir. Renk, bilgi aktarmanın tek yolu olarak kullanılmaz; skor, hedef ve tur durumu metinsel olarak da eşzamanlı aktarılır.</p>
-    </section>
-    <section>
-      <h2>3. Hareket ve Görsel Tercihler</h2>
-      <p>Arayüz ve Canvas motorları, işletim sistemi düzeyinde tanımlanan <code>prefers-reduced-motion</code> (azaltılmış hareket) tercihini dinler ve aşırı parçacık ya da kamera sarsıntılarını sınırlar. Ses efektleri oyunun tamamlanması için zorunlu değildir; oyunlar sessiz modda da %100 oynanabilir durumdadır.</p>
-    </section>
-    <section>
-      <h2>4. Geri Bildirim ve İletişim</h2>
-      <p>Kullandığınız yardımcı teknoloji veya cihazda herhangi bir erişilebilirlik engeliyle karşılaşırsanız, detayları <ProtectedContact /> adresine iletebilirsiniz.</p>
-    </section>
-  </div>;
+  return (
+    <div className="legal-copy">
+      <section>
+        <h2>1. Herkes İçin Özenli Tasarım</h2>
+        <p>
+          SELY.TR MiniGame Hub’ın herkes için kullanılabilir, anlaşılır ve keyifli olmasını hedefliyoruz.
+          Oyunlarımız kısa, berrak kurallı ve dikkat odaklı deneyimler olarak kurgulanmıştır; erişilebilirlik,
+          sonradan eklenen bir katman değil, arayüz, renk kontrastı ve tuş ergonomisi kararlarımızın temelidir.
+        </p>
+      </section>
+      <section>
+        <h2>2. Kontroller ve Çok Yönlü Oynanış</h2>
+        <p>
+          Tüm oyun butonları ve bağlantılar ekran okuyuculara uygun semantik etiketlerle desteklenir.
+          Yön temelli oyunlar (Yankı, Gölge, Kıvılcım) hem klavye yön tuşları (oklar, Space, WASD) hem de mobil
+          dokunmatik geniş tuş alanlarıyla rahatça yönetilebilir. Renk, bilgi aktarmanın tek yolu olarak
+          kullanılmaz; puan, hedef ve tur durumu metin olarak da gösterilerek renk algısı farkı olan oyuncuların
+          önündeki engeller kaldırılır.
+        </p>
+      </section>
+      <section>
+        <h2>3. Gözü ve Cihazı Yormayan Seçenekler</h2>
+        <p>
+          Oyun motorlarımız cihazınızın <code>prefers-reduced-motion</code> (azaltılmış hareket) ayarına saygı
+          gösterir, parçacık efektlerini ve kamera sarsıntılarını yumuşatır. Oyunlarımızın tamamı sessiz modda da
+          %100 oynanabilir durumdadır. Ayrıca sekmeyi alta aldığınızda sesler kendiliğinden durur, telefonunuzun
+          şarjı boş yere harcanmaz.
+        </p>
+      </section>
+      <section>
+        <h2>4. Geri Bildirim ve İletişim</h2>
+        <p>
+          Kullandığınız cihazda herhangi bir erişim engeliyle karşılaşırsanız veya erişilebilirliği daha da
+          artırmak için bir fikriniz olursa lütfen <ProtectedContact /> üzerinden bize bildirin.
+        </p>
+      </section>
+    </div>
+  );
 }
 
 function PrivacyContent() {
   const { openBanner } = useCookieConsent();
 
-  return <div className="legal-copy">
-    <section>
-      <h2>1. Veri Sorumlusu</h2>
-      <p>6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) uyarınca, SELY.TR MiniGame Hub platformunun veri sorumlusu site işleticisi <ProtectedName />’tır (dixtuel). Her türlü bilgi talebi veya başvuru için doğrudan <ProtectedContact /> adresini kullanabilirsiniz.</p>
-    </section>
-    <section>
-      <h2>2. Veri Minimizasyonu ve Hesapsız Kullanım</h2>
-      <p>SELY.TR üzerinde sunulan tüm mini oyunlar <strong>tamamen anonim</strong> olarak oynanabilir. Platformumuz kullanıcı kaydı, e-posta toplama, şifre belirleme veya telefon doğrulama gibi kimlik tespitine yarayan hiçbir hesap oluşturma adımı içermez. Temel felsefemiz, oyun deneyimini kişisel verilerden tamamen arındırmaktır.</p>
-    </section>
-    <section>
-      <h2>3. Tarayıcı Yerel Depolaması (LocalStorage)</h2>
-      <p>Skorlarınızı ve tercihlerinizi sunucuya göndermeden hatırlayabilmek için yalnızca cihazınızın tarayıcısındaki yerel depolama (<code>localStorage</code>) mekanizması kullanılır:</p>
-      <ul>
-        <li><code>sely_mini_scores_v1</code>: Her bir mini oyundaki kişisel rekor skorlarınız.</li>
-        <li><code>sely-cookie-consent</code>: Çerez bilgilendirme tercihiniz (kabul/red).</li>
-        <li><code>sely-locale</code>: Tercih ettiğiniz arayüz dili (Türkçe veya İngilizce).</li>
-        <li><code>theme</code>: Görsel tema tercihiniz (açık veya koyu tema).</li>
-      </ul>
-      <p>Bu veriler <strong>yalnızca sizin cihazınızda saklanır</strong>, sunucularımıza iletilmez veya üçüncü kişilerle paylaşılmaz. İstediğiniz zaman tarayıcı geçmişinizi ve yerel depolama verilerinizi temizleyerek bu bilgileri silebilirsiniz.</p>
-    </section>
-    <section>
-      <h2>4. Çerezler ve Google AdSense Reklam Tercihleri</h2>
-      <p>SELY.TR olarak veri minimizasyonu ilkesini benimsiyoruz; platformumuzda kullanıcıyı internet genelinde gözetleyen harici pazarlama pikselleri veya istilacı veri simsarı takipçileri yer almaz. Bununla birlikte, platformun sürdürülebilirliğini sağlamak amacıyla Google AdSense sponsorlu reklam alanları sunulmaktadır:</p>
-      <ul>
-        <li><strong>Google AdSense Çerezleri:</strong> Google ve yetkili reklam iş ortakları, ziyaretçilerin önceki internet ziyaretlerine dayanarak reklam sunmak ve reklam sıklığını sınırlamak amacıyla çerezler (örneğin <code>__gads</code>, <code>__gpi</code> vb.) ve cihaz tanıtıcıları kullanabilir.</li>
-        <li><strong>Google Consent Mode v2 Entegrasyonu:</strong> Sitemiz uluslararası gizlilik standartlarına ve Google Consent Mode v2 protokolüne tam uyumludur. Ziyaretiniz başladığında reklam kişiselleştirme ve depolama izinleri varsayılan olarak kapalı (denied) tutulur ve reklamlar kişiselleştirilmemiş modda (<code>requestNonPersonalizedAds = 1</code>) talep edilir.</li>
-        <li><strong>Kullanıcı İzni ve Tercih Yönetimi:</strong> Kişiselleştirilmiş reklam çerezleri yalnızca çerez bildirim panelimiz üzerinden açık onay vermeniz durumunda devreye girer. Tercihinizi istediğiniz an aşağıdaki butondan veya sayfa altlığındaki "Çerez Ayarları" bağlantısından güncelleyebilirsiniz. Ayrıca dilediğinizde <a href="https://adssettings.google.com" target="_blank" rel="noreferrer">Google Reklam Ayarları <ExternalLink size={12} /></a> veya <a href="https://aboutads.info/choices" target="_blank" rel="noreferrer">aboutads.info <ExternalLink size={12} /></a> üzerinden kişiselleştirmeyi küresel olarak devre dışı bırakabilirsiniz.</li>
-      </ul>
-      <div style={{ marginTop: "14px" }}>
-        <button type="button" className="footer-link-button" onClick={openBanner}>
-          <Cookie size={14} /> Çerez ve Reklam Tercihlerini Değiştir
-        </button>
-      </div>
-    </section>
-    <section>
-      <h2>5. Oyun Performansı ve Site İyileştirme (Web Analitiği)</h2>
-      <p>Oyunlarımızın hem cep telefonunuzda hem de bilgisayarınızda donmadan, akıcı bir şekilde çalışabilmesi ve hangi oyunların daha çok sevildiğini anlayabilmemiz için sitemizde hafif ve gizlilik dostu analiz araçları (Vercel Web Analytics & Speed Insights) kullanılır. Bu araçlar bir oyuncu olarak sizin için ne anlama gelir?</p>
-      <ul>
-        <li><strong>Kimliğiniz Asla Bilinmez:</strong> Adınız, e-postanız, şifreniz veya tam IP adresiniz kesinlikle kaydedilmez. Sizi diğer web sitelerinde takip eden casus çerezler (tracking cookies) yerleştirilmez.</li>
-        <li><strong>Cihazınızı ve İnternetinizi Yoramaz:</strong> Arka planda pilinizi tüketen veya internet paketinizi bitiren ağır yazılımlar çalışmaz. Yalnızca oyunun cihazınızda kaç saniyede açıldığı ve ekranın takılma yaşayıp yaşamadığı gibi teknik kalite verileri anonim olarak ölçülür.</li>
-        <li><strong>Amacı Yalnızca Kaliteyi Artırmaktır:</strong> Örneğin Yankı Odası'nın eski bir telefonda yavaş açıldığını veya Hane oyununun ekran boyutunuza tam oturmadığını tespit edip hızlıca düzeltebilmemizi sağlar.</li>
-        <li><strong>Kontrol Tamamen Sizde (Tek Tıkla Kapatma):</strong> Bu ölçümler tamamen isimsiz olmasına rağmen tercih etmiyorsanız, sayfanın altındaki "Çerez Ayarları" panelinden "Yalnızca Zorunlular (Reddet)" seçeneğini tıklayarak bu ölçümleri anında durdurabilirsiniz.</li>
-      </ul>
-    </section>
-    <section>
-      <h2>6. Sunucu Güvenlik Kayıtları ve Hukuki Sebepler</h2>
-      <p>Siteye bağlandığınızda, web sunucusu ve ters vekil altyapısı (Caddy, Cloudflare) tarafından kötü niyetli saldırıları (DDoS, brute-force vb.) engellemek ve sistem güvenliğini sağlamak amacıyla teknik erişim kayıtları (IP adresi, istek zamanı, kullanıcı istemci bilgisi) geçici olarak işlenir. Bu veriler KVKK m. 5/2-f (veri sorumlusunun meşru menfaati) hukuki sebebiyle işlenmekte olup, kullanıcı profili oluşturmak amacıyla kullanılmaz ve kalıcı veritabanlarına kaydedilmez.</p>
-    </section>
-    <section>
-      <h2>7. İlgili Kişi Hakları (KVKK Madde 11)</h2>
-      <p>KVKK’nın 11. maddesi uyarınca herkes; kişisel verilerinin işlenip işlenmediğini öğrenme, işlenmişse buna ilişkin bilgi talep etme, verilerin işlenme amacına uygun kullanılıp kullanılmadığını öğrenme ve silinmesini talep etme haklarına sahiptir. Sitede kalıcı kişisel veri tutulmadığı için pratikte sorgulanabilecek bir kullanıcı kaydı bulunmamakla birlikte, yasal haklarınıza dair her türlü sorunuz için <ProtectedContact /> adresine başvurabilirsiniz.</p>
-    </section>
-    <section>
-      <h2>8. Yasal Dayanak ve Güncellik</h2>
-      <p>Bu metin, Kişisel Verileri Koruma Kurumu’nun Aydınlatma Yükümlülüğünün Yerine Getirilmesinde Uyulacak Usul ve Esaslar Hakkında Tebliği dikkate alınarak hazırlanmıştır.</p>
-      <a className="source-link" href="https://www.kvkk.gov.tr/Icerik/5395/Aydinlatma-Yukumlulugunun-Yerine-Getirilmesi-Rehberi-Kurum-Internet-Sayfasinda-Yayinlanmistir-" target="_blank" rel="noreferrer">
-        KVKK Resmi Aydınlatma Rehberi <ExternalLink size={14} />
-      </a>
-    </section>
-  </div>;
+  return (
+    <div className="legal-copy">
+      <section>
+        <h2>1. Biz Kimiz ve Temel Gizlilik İlkemiz</h2>
+        <p>
+          SELY.TR, oyun oynamayı seven herkes için bağımsız bir çabayla geliştirilen mini oyun kataloğudur.
+          6698 sayılı Kişisel Verilerin Korunması Kanunu (&ldquo;KVKK&rdquo;) ve Avrupa Genel Veri Koruma
+          Tüzüğü (&ldquo;GDPR&rdquo;) kapsamında veri sorumlusu site kurucusu <ProtectedName />&rsquo;tır
+          (dixtuel). Her türlü sorunuz veya veri talebiniz için doğrudan <ProtectedContact /> adresinden bize
+          ulaşabilirsiniz.
+        </p>
+        <p>
+          En temel ilkemiz şudur: <strong>Oyun oynamak için kimliğinizi vermek zorunda değilsiniz.</strong> Sitedeki
+          tüm oyunlar hesap açmadan, e-posta veya telefon numarası paylaşmadan tamamen anonim olarak oynanabilir.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. Cihazınızda Saklananlar (Yerel Depolama & Çevrimdışı Kolaylık)</h2>
+        <p>
+          Skorlarınızı ve tercihlerinizi sunucuya kullanıcı hesabı kaydetmeden hatırlayabilmek için yalnızca kendi
+          telefonunuzun veya bilgisayarınızın yerel depolama alanı kullanılır:
+        </p>
+        <ul>
+          <li>
+            <strong>Oyun Rekorlarınız (<code>sely_mini_scores_v1</code>):</strong> Her oyunda elde ettiğiniz en yüksek
+            puanlar yalnızca kendi tarayıcınızda saklanır.
+          </li>
+          <li>
+            <strong>Görünüm ve Dil Tercihleriniz:</strong> Karanlık/aydınlık tema tercihiniz (<code>theme</code>),
+            dil seçiminiz (<code>sely-locale</code>) ve çerez onay durumunuz (<code>sely-cookie-consent</code>).
+          </li>
+          <li>
+            <strong>İnternet Kotası Tasarrufu ve Çevrimdışı Oyun (Service Worker):</strong> Oyun grafikleri, sesler
+            ve yazı tipleri cihazınızın yerel önbelleğinde (<code>CacheStorage</code>) tutulur. Bu sayede mobil
+            internet kotanız tükenmez; oyunlar zayıf bağlantılarda veya çevrimdışıyken bile anında açılır.
+          </li>
+        </ul>
+        <p>
+          Bu veriler <strong>kesinlikle sizin cihazınızın dışına çıkmaz</strong>. İstediğiniz zaman tarayıcı
+          geçmişinizi veya site verilerinizi temizleyerek bu kayıtları sıfırlayabilirsiniz.
+        </p>
+      </section>
+
+      <section>
+        <h2>3. Günlük Sıralama (Liderlik Tablosu): Kimliğim Görünür mü?</h2>
+        <p>
+          <strong>Kesinlikle hayır.</strong> Bir oyunu başarıyla tamamladığınızda skorunuz günün tatlı rekabetine
+          katılmak üzere günlük liderlik tablosuna iletilir:
+        </p>
+        <ul>
+          <li>
+            <strong>Sevimli Rastgele Takma Adlar:</strong> Gerçek adınız veya kullanıcı adınız yerine, sistem her gün
+            adınıza rastgele ve eğlenceli bir oyuncu rumuzu üretir (örneğin <em>&ldquo;Cesur Tilki #4829&rdquo;</em> veya{" "}
+            <em>&ldquo;Sessiz Mimar #1042&rdquo;</em>).
+          </li>
+          <li>
+            <strong>Sıfır Kimlik Takibi:</strong> Gün içinde aynı cihazdan yeni bir rekor kırdığınızda kendi skorunuzu
+            güncelleyebilmeniz için cihazınız tek yönlü bir matematiksel imza kullanır. IP adresiniz, cihaz bilginiz
+            veya kimliğiniz hiçbir oyuncuya ya da üçüncü kişiye gösterilmez.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. &ldquo;Vaka: Trende Cinayet&rdquo; Oyununda Yapay Zekâ ile Dedektiflik</h2>
+        <p>
+          Trende Cinayet oyununda şüphelilere klavyeden dilediğiniz soruları sorabilir ve blöf yapabilirsiniz:
+        </p>
+        <ul>
+          <li>
+            <strong>Nasıl Çalışır?</strong> Şüpheliye yazdığınız dedektiflik sorusu, oyunun kurgusal durumuyla
+            (şüphelinin karakteri, ipuçları ve stres düzeyi) birlikte güvenli bir yapay zekâ servisine (örneğin NVIDIA
+            NIM veya Groq) iletilir. Böylece şüpheli size anında, gerçekçi ve rolüne uygun bir cevap verir.
+          </li>
+          <li>
+            <strong>Kişisel Bilginiz Gitmez:</strong> Bu isteklerde adınız, e-postanız veya cihaz bilginiz asla
+            bulunmaz.
+          </li>
+          <li>
+            <strong>Kalıcı Olarak Saklanmaz:</strong> Yazdığınız sorular yalnızca o anki şüpheli cevabını üretmek için
+            işlenir; profilinizi oluşturmak veya yapay zekâyı eğitmek amacıyla bir veritabanında saklanmaz.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>5. Telefonunuzu ve Pilinizi Koruma (Sıfır Veri Aktarımı)</h2>
+        <p>
+          Oyunlarımızın eski telefonlarda, kısıtlı donanımlarda veya şarjınız azaldığında cihazınızı ısıtmadan akıcı
+          çalışabilmesi için:
+        </p>
+        <ul>
+          <li>
+            Tarayıcınız kendi içinde pil durumunu (şarjın az olup olmadığını) ve cihazın yaklaşık işlem gücünü kontrol
+            eder.
+          </li>
+          <li>
+            Gerektiğinde ekran çözünürlüğünü ve animasyon yoğunluğunu hafifleterek pilinizin tükenmesini ve telefonunuzun
+            ısınmasını önler.
+          </li>
+          <li>
+            <strong>Tamamen Kendi Cihazınızda:</strong> Bu denetim <strong>yalnızca telefonunuzun kendi anlık
+            hafızasında</strong> gerçekleşir. Pil yüzdeniz veya donanım özellikleriniz <strong>kesinlikle sunucularımıza
+            gönderilmez</strong>, kaydedilmez ve cihaz parmak izi (fingerprinting) çıkarma amacıyla kullanılmaz.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>6. Reklamlar ve Çerez Tercihleriniz</h2>
+        <p>
+          SELY.TR&rsquo;nin sunucu ve barındırma masraflarını karşılayabilmek amacıyla sitede Google AdSense sponsorlu
+          alanları yer alır:
+        </p>
+        <ul>
+          <li>
+            <strong>Google Consent Mode v2 Desteği:</strong> Sitemize ilk girişinizde reklam kişiselleştirme ve çerez
+            izinleri <strong>varsayılan olarak kapalıdır</strong>.
+          </li>
+          <li>
+            <strong>Karar Tamamen Sizde:</strong> Kişiselleştirilmiş reklam çerezleri yalnızca siz &ldquo;Tümünü Kabul
+            Et&rdquo; butonuna basarsanız devreye girer. Tercihinizi istediğiniz zaman aşağıdaki butondan veya sayfa
+            altındaki &ldquo;Çerez Ayarları&rdquo; bağlantısından güncelleyebilir veya iptal edebilirsiniz.
+          </li>
+        </ul>
+        <div style={{ marginTop: "14px" }}>
+          <button type="button" className="footer-link-button" onClick={openBanner}>
+            <Cookie size={14} /> Çerez ve Reklam Tercihlerini Aç
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h2>7. Site Hızı ve Kalite Ölçümü (Çerezsiz Analitik)</h2>
+        <p>
+          Hangi oyunların sevildiğini anlamak ve oyunların telefonlarda takılmadan açıldığından emin olmak için Vercel
+          Speed Insights kullanılır. Bu ölçüm sizi internette takip eden çerezler kullanmaz; adınızı veya tam IP
+          adresinizi kaydetmez. Dilerseniz çerez ayarlarından &ldquo;Yalnızca Zorunlular (Reddet)&rdquo; seçeneğiyle bu
+          ölçümü de kolayca kapatabilirsiniz.
+        </p>
+      </section>
+
+      <section>
+        <h2>8. Yasal Haklarınız ve Başvuru (KVKK Madde 11 & GDPR)</h2>
+        <p>
+          KVKK ve GDPR uyarınca herkes kişisel verilerinin durumunu öğrenme, silinmesini veya düzeltilmesini talep etme
+          hakkına sahiptir. Sistemimizde adınıza ait bir kullanıcı hesabı bulunmadığı için doğrudan sorgulanabilir bir
+          kişisel profiliniz yoktur; ancak liderlik tablosundaki anonim skorunuzun silinmesini isterseniz veya
+          gizliliğe dair herhangi bir sorunuz olursa doğrudan <ProtectedContact /> adresinden bize yazabilirsiniz.
+        </p>
+      </section>
+    </div>
+  );
 }
 
 function TermsContent() {
-  return <div className="legal-copy">
-    <section>
-      <h2>1. Kapsam ve Kabul</h2>
-      <p>Bu kullanım koşulları, SELY.TR MiniGame Hub platformu ve sunulan tüm oyun içerikleri için geçerlidir. Siteye erişerek ve oyunları oynayarak bu koşulları kabul etmiş sayılırsınız.</p>
-    </section>
-    <section>
-      <h2>2. Açık Kaynak Lisansı (GNU AGPLv3)</h2>
-      <p>SELY MiniGame Hub'ın kaynak kodları <strong>GNU Affero General Public License v3.0 (AGPLv3)</strong> kapsamında açık kaynaktır. Kodları inceleyebilir, değiştirebilir, yerelinizde veya sunucunuzda çalıştırabilirsiniz. AGPLv3 gereğince, yazılımı bir ağ üzerinden hizmet olarak sunduğunuzda yaptığınız tüm değişikliklerin kaynak kodunu da aynı lisansla toplulukla paylaşmanız gerekmektedir.</p>
-    </section>
-    <section>
-      <h2>3. Adil ve Güvenli Oyun Deneyimi</h2>
-      <p>SELY.TR herkesin ücretsiz, keyifle ve adil şartlarda oyun oynayabilmesi için sunulan bağımsız bir platformdur. Diğer oyuncuların deneyimini aksatacak şekilde sunuculara otomatik botlar veya yük araçları yönlendirmemeyi, günlük oyun tohumlarını ya da skorları hileli döngülerle tahrif etmemeyi ve platformu dürüst bir oyun sever olarak kullanmayı kabul etmiş sayılırsınız.</p>
-    </section>
-    <section>
-      <h2>4. Sorumluluk Reddi (Garanti Yoktur)</h2>
-      <p>SELY.TR üzerindeki oyunlar ve servisler "olduğu gibi" (as-is) sunulur. Kesintisiz, hatasız veya her donanımla kusursuz çalışacağı yönünde açık veya zımni bir garanti verilmez. İnternet bağlantısı, sunucu bakımı veya tarayıcı uyumsuzluklarından kaynaklanan aksaklıklardan site sorumlu tutulamaz.</p>
-    </section>
-    <section>
-      <h2>5. İletişim</h2>
-      <p>Kullanım koşulları veya hizmetle ilgili teknik bildirimleriniz için <ProtectedContact /> üzerinden iletişim kurabilirsiniz.</p>
-    </section>
-  </div>;
+  return (
+    <div className="legal-copy">
+      <section>
+        <h2>1. Hoş Geldiniz ve Oyun Ruhu</h2>
+        <p>
+          SELY.TR MiniGame Hub&rsquo;a hoş geldiniz! Burası zihninizi dinlendirmek, dikkat ve odaklanma gerektiren kısa,
+          özenli oyunlarla keyifli vakit geçirmeniz için hazırlandı. Siteye girerek ve oyunları oynayarak bu dostane
+          kuralları kabul etmiş sayılırsınız.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. Özgür ve Açık Kaynak (GNU AGPLv3)</h2>
+        <p>
+          SELY MiniGame Hub bağımsız bir projedir ve kaynak kodları{" "}
+          <strong>GNU Affero General Public License v3.0 (AGPLv3)</strong> lisansıyla açık kaynaktır. Kodları
+          inceleyebilir, katkı sunabilir veya kendi ortamınızda çalıştırabilirsiniz. AGPLv3 uyarınca bu yazılımı bir ağ
+          üzerinden hizmet olarak sunduğunuzda yaptığınız geliştirmelerin kaynak kodunu da toplulukla paylaşmanız
+          gerekir.
+        </p>
+      </section>
+
+      <section>
+        <h2>3. Adil Oyun ve Centilmenlik Kuralları</h2>
+        <p>
+          Oyunlar herkes eşit ve adil şartlarda yarıştığında güzeldir. Platformumuzu kullanırken aşağıdaki ilkelere
+          özen göstermenizi rica ediyoruz:
+        </p>
+        <ul>
+          <li>
+            <strong>Gerçek İnsan Deneyimi:</strong> Sunucularımıza otomatik botlar, yük araçları veya siteyi yoracak
+            kazıyıcılar (scrapers) yönlendirmeyiniz.
+          </li>
+          <li>
+            <strong>Dürüst Sıralama:</strong> Bellek müdahaleleri, sahte paketler veya hileli skorlar göndermek tatlı
+            rekabet ortamını bozar. Mantık dışı veya hileli skorlar sistem filtrelerimiz tarafından otomatik olarak
+            reddedilir.
+          </li>
+          <li>
+            <strong>Topluluk Saygısı:</strong> Günlük oyun tohumlarını kırıp diğer oyuncuların oyun keyfini kaçıracak
+            şekilde çözümleri yaymaktan kaçınınız.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. Yapay Zekâ ile Saygılı Etkileşim (Vaka Dedektiflik Alanı)</h2>
+        <p>
+          &ldquo;Vaka: Trende Cinayet&rdquo; oyunundaki serbest sorgu alanı, şüphelilerle yaratıcı diyaloglar kurmanız
+          için sunulmuştur. Bu alanı kullanırken:
+        </p>
+        <ul>
+          <li>
+            Hakaret, tehdit, nefret söylemi veya yasa dışı unsurlar içeren ifadeler kullanılamaz.
+          </li>
+          <li>
+            Yapay zekâ karakterlerini kötüye kullanmaya veya güvenlik kurallarını aşmaya (jailbreak/prompt injection)
+            yönelik komutlar gönderilemez.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>5. Kesintisiz Hizmet Garantisi Olmaması</h2>
+        <p>
+          SELY.TR bağımsız bir çabayla sunulmaktadır. Oyunlarımızın her zaman sorunsuz çalışması için titizlikle
+          çalışsak da, sunucu bakımları veya internet kesintilerinden kaynaklanabilecek geçici aksaklıklardan site
+          sorumlu tutulamaz.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Yasal Zemin ve İletişim</h2>
+        <p>
+          Bu kullanım koşulları Türkiye Cumhuriyeti yasalarına tabidir ve doğabilecek uyuşmazlıklarda İstanbul
+          Mahkemeleri yetkilidir. Her türlü soru, görüş ve dostane geri bildirimleriniz için dilediğiniz an{" "}
+          <ProtectedContact /> üzerinden bize yazabilirsiniz.
+        </p>
+      </section>
+    </div>
+  );
 }
