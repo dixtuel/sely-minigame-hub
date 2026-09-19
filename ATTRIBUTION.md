@@ -1,6 +1,6 @@
-# Açık Kaynak Lisans ve Atıf Bildirimleri (Attribution & Third-Party Notices)
+# Üçüncü Taraf Lisans ve Atıf Bildirimleri (Third-Party Notices & Attribution)
 
-Bu belge, **SELY MiniGame Hub** (`sely.tr`) projesinde doğrudan veya dolaylı olarak kullanılan tüm açık kaynaklı yazılımları, 3D motorlarını, grafik ve doku materyallerini, ses efektlerini, kelime ve veri setlerini, web yazı tiplerini (fontlar) ve algoritmik referansları eksiksiz bir şekilde belgeler.
+Bu belge, **SELY MiniGame Hub** (`sely.tr`) projesinde doğrudan veya dolaylı olarak kullanılan tüm üçüncü taraf açık kaynak kütüphaneleri, 3D grafik motorlarını, doku materyallerini, ses efektlerini, kelime/dil veri setlerini, web yazı tiplerini ve algoritmik açık kaynak referanslarını belgeler.
 
 Tüm üçüncü taraf bileşenlerin telif hakları, ticari markaları ve patent hakları ilgili hak sahiplerine aittir.
 
@@ -9,13 +9,13 @@ Tüm üçüncü taraf bileşenlerin telif hakları, ticari markaları ve patent 
 ## İçindekiler
 
 1. [Proje Lisansı ve Uyumluluk Esasları](#1-proje-lisansı-ve-uyumluluk-esasları)
-2. [Oyun İçi Ses Varlıkları (Audio - TASL)](#2-oyun-içi-ses-varlıkları-audio---tasl)
-3. [3D Dokular ve Yüzey Materyalleri (Textures - TASL)](#3-3d-dokular-ve-yüzey-materyalleri-textures---tasl)
+2. [Oyun İçi Ses Efektleri (Audio)](#2-oyun-içi-ses-efektleri-audio)
+3. [3D Dokular ve Yüzey Materyalleri (Textures)](#3-3d-dokular-ve-yüzey-materyalleri-textures)
 4. [Sözlükler, Kelime Havuzları ve Dil Veri Setleri](#4-sözlükler-kelime-havuzları-ve-dil-veri-setleri)
 5. [Tipografi ve Yazı Tipleri (Fonts)](#5-tipografi-ve-yazı-tipleri-fonts)
 6. [3D Grafik ve Render Motorları](#6-3d-grafik-ve-render-motorları)
 7. [Yazılım Kütüphaneleri ve Bağımlılık Matrisi](#7-yazılım-kütüphaneleri-ve-bağımlılık-matrisi)
-8. [Algoritmik, Matematiksel ve Tasarım Referansları](#8-algoritmik-matematiksel-ve-tasarım-referansları)
+8. [Algoritmik ve Açık Kaynak Referanslar](#8-algoritmik-ve-açık-kaynak-referanslar)
 9. [Tam Açık Kaynak Lisans Metinleri](#9-tam-açık-kaynak-lisans-metinleri)
 
 ---
@@ -24,94 +24,70 @@ Tüm üçüncü taraf bileşenlerin telif hakları, ticari markaları ve patent 
 
 SELY MiniGame Hub kaynak kodları **[GNU Affero General Public License v3.0](LICENSE)** (AGPL-3.0) kapsamında sunulmaktadır.
 
-Bu depoda kullanılan üçüncü taraf bileşenler (kütüphaneler, dokular, sesler, fontlar ve sözlükler) AGPL-3.0 ile tamamen uyumlu olan permissive (izin verici) ve kamu malı lisanslar altındadır:
+Bu depoda kullanılan tüm üçüncü taraf bileşenler (kütüphaneler, dokular, sesler, fontlar ve sözlükler) AGPL-3.0 ile tam uyumlu açık kaynak, izin verici (permissive) ve kamu malı lisanslar altındadır:
 - **MIT Lisansı** (`MIT`)
 - **Apache License 2.0** (`Apache-2.0`)
 - **ISC Lisansı** (`ISC`)
 - **BSD 2-Clause & 3-Clause Lisansları** (`BSD-2-Clause`, `BSD-3-Clause`)
 - **SIL Open Font License 1.1** (`OFL-1.1`)
-- **Creative Commons Zero 1.0 Universal** (`CC0-1.0` / Public Domain)
+- **Creative Commons Zero 1.0 Universal** (`CC0-1.0` / Kamu Malı)
 - **Public Domain Dedications** (ENABLE, Wordle Guess Lexicon)
 
 ---
 
-## 2. Oyun İçi Ses Varlıkları (Audio - TASL)
+## 2. Oyun İçi Ses Efektleri (Audio)
 
-Yankı Odası (Echo Room) 3D oyununda kullanılan fiziksel ses efektleri, açık kaynak oyun geliştirme topluluğunun saygın varlık üreticisi **Kenney** tarafından sağlanan paketlerden derlenmiştir.
+Yankı Odası (Echo Room) 3D oyununda kullanılan ses efektleri, [Kenney](https://kenney.nl) tarafından kamu malı (CC0 1.0 Universal) olarak sağlanan ses paketlerinden alınmıştır:
 
-Uluslararası **TASL** (Title, Author, Source, License) atıf çerçevesine uygun detaylı varlık dökümü:
+| Dosya Yolu | Kaynak Paket | Orijinal Dosya | Lisans | Kullanım Amacı |
+| :--- | :--- | :--- | :--- | :--- |
+| `client/public/assets/audio/footstep-00.ogg` | [RPG Audio](https://kenney.nl/assets/rpg-audio) | `footstep00.ogg` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Karakter yürüme sesi |
+| `client/public/assets/audio/footstep-01.ogg` | [RPG Audio](https://kenney.nl/assets/rpg-audio) | `footstep01.ogg` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Karakter yürüme sesi |
+| `client/public/assets/audio/footstep-02.ogg` | [RPG Audio](https://kenney.nl/assets/rpg-audio) | `footstep02.ogg` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Karakter yürüme sesi |
+| `client/public/assets/audio/footstep-03.ogg` | [RPG Audio](https://kenney.nl/assets/rpg-audio) | `footstep04.ogg` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Karakter yürüme sesi |
+| `client/public/assets/audio/gate-open.ogg` | [RPG Audio](https://kenney.nl/assets/rpg-audio) | `doorOpen_1.ogg` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Çıkış kapısı açılma sesi |
+| `client/public/assets/audio/echo-pulse.ogg` | [Interface Sounds](https://kenney.nl/assets/interface-sounds) | `glass_002.ogg` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Sonar yankı darbesi sesi |
+| `client/public/assets/audio/mark-collect.ogg` | [Interface Sounds](https://kenney.nl/assets/interface-sounds) | `confirmation_002.ogg` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Glif/anahtar toplama geri bildirimi |
+| `client/public/assets/audio/listener-caught.ogg` | [Interface Sounds](https://kenney.nl/assets/interface-sounds) | `error_004.ogg` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | Yakalanma ve tur sonu uyarısı |
 
-| Yerel Dosya Yolu | Varlık Başlığı (Title) | Yazar / Hak Sahibi (Author) | Kaynak Bağlantısı (Source) | Lisans (License) | Değişiklik / İşleme (Modifications) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `client/public/assets/audio/footstep-00.ogg` | RPG Audio: `footstep00.ogg` | Kenney ([Kenney.nl](https://kenney.nl)) | [Kenney RPG Audio](https://kenney.nl/assets/rpg-audio) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Dosya adı web dizin standardına göre düzenlendi |
-| `client/public/assets/audio/footstep-01.ogg` | RPG Audio: `footstep01.ogg` | Kenney ([Kenney.nl](https://kenney.nl)) | [Kenney RPG Audio](https://kenney.nl/assets/rpg-audio) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Dosya adı web dizin standardına göre düzenlendi |
-| `client/public/assets/audio/footstep-02.ogg` | RPG Audio: `footstep02.ogg` | Kenney ([Kenney.nl](https://kenney.nl)) | [Kenney RPG Audio](https://kenney.nl/assets/rpg-audio) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Dosya adı web dizin standardına göre düzenlendi |
-| `client/public/assets/audio/footstep-03.ogg` | RPG Audio: `footstep04.ogg` | Kenney ([Kenney.nl](https://kenney.nl)) | [Kenney RPG Audio](https://kenney.nl/assets/rpg-audio) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Dosya adı web dizin standardına göre düzenlendi |
-| `client/public/assets/audio/gate-open.ogg` | RPG Audio: `doorOpen_1.ogg` | Kenney ([Kenney.nl](https://kenney.nl)) | [Kenney RPG Audio](https://kenney.nl/assets/rpg-audio) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Çıkış kapısı tetikleyicisi için optimize edildi |
-| `client/public/assets/audio/echo-pulse.ogg` | Interface Sounds: `glass_002.ogg` | Kenney ([Kenney.nl](https://kenney.nl)) | [Kenney Interface Sounds](https://kenney.nl/assets/interface-sounds) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Sonar darbe yankısı olarak eşlendi |
-| `client/public/assets/audio/mark-collect.ogg` | Interface Sounds: `confirmation_002.ogg` | Kenney ([Kenney.nl](https://kenney.nl)) | [Kenney Interface Sounds](https://kenney.nl/assets/interface-sounds) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Glif/anahtar toplama geri bildirimi olarak eşlendi |
-| `client/public/assets/audio/listener-caught.ogg` | Interface Sounds: `error_004.ogg` | Kenney ([Kenney.nl](https://kenney.nl)) | [Kenney Interface Sounds](https://kenney.nl/assets/interface-sounds) | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Yakalanma ve tur sonu uyarısı olarak eşlendi |
-
-### Web Audio API Prosedürel Ses Sentezleme (Harici Dosyasız Mimari)
-SELY MiniGame Hub, ağ yükünü en aza indirmek ve gecikmesiz ses üretimi sağlamak için harici örnek dosyalar yerine tarayıcının yerel **Web Audio API** modülünü kullanarak prosedürel ses sentezleme tekniğini benimser:
-- **`client/src/lib/sfx.ts`:**
-  - `playStamp`: Hane damga onay sesi (640–1000 Hz üçgen ve sinüs osilatörleri).
-  - `playHit`: Kıvılcım çarpma darbesi (170 Hz testere ve 85 Hz kare dalga frekans kayması).
-  - `playThrust`: Kıvılcım dikey ivme sesi (210 Hz kısa kare dalga darbesi).
-  - `playComplete`: Seviye tamamlama arpeji (C5 523 Hz, E5 659 Hz, G5 784 Hz, C6 1046 Hz üçgen dalga harmonisi).
-  - `playFail`: Seviye başarısızlık tonu (220 Hz'den 60 Hz'e üstel sönen testere dalgası).
-  - `playAccuse` & `playContradiction`: Vaka sorgu ve çelişki tespit akorları (340 Hz kare, 880/1320 Hz üçgen dalga).
-  - `playSlice`: Kırpık çokgen kesme hışırtısı (1100 Hz ve 740 Hz frekans rampalı çift dalga).
-- **`client/src/game/audio.ts`:**
-  - Yankı Odası düşük frekanslı dinamik ortam uğultusu (`startDrone`: 48 Hz ve 72 Hz sinüs osilatörleri, rastgele dalgalanan kazanç katmanı).
-- **`client/src/components/SparkCanvasGame.tsx`:**
-  - Elektrik arkı zıplama (460–840 Hz sinüs rampası), pilon geçiş harmonik tonu (523/659 Hz üçgen) ve ark boşalma çarpışması (160–35 Hz testere dalga).
-
-*Not: Prosedürel olarak sentezlenen sesler saf matematiksel dalga formları olup herhangi bir harici ses kaydı, telif hakkı veya lisans yükümlülüğü içermez.*
+*Not: Yukarıda listelenen dosyalar dışındaki oyun içi ses efektleri ve ortam tonları (Hane, Kıvılcım, Kırpık vb.), harici bir ses kaydı kullanılmaksızın tarayıcının yerel Web Audio API osilatörleri ile prosedürel olarak sentezlenmektedir.*
 
 ---
 
-## 3. 3D Dokular ve Yüzey Materyalleri (Textures - TASL)
+## 3. 3D Dokular ve Yüzey Materyalleri (Textures)
 
-Yankı Odası (Echo Room) 3D labirentinde kullanılan PBR (Physically Based Rendering) materyalleri, fotogerçekçi açık kaynak doku arşivi **ambientCG** üzerinden temin edilmiştir:
+Yankı Odası (Echo Room) 3D labirentinde kullanılan PBR dokuları, [ambientCG](https://ambientcg.com) (Lennart Demes) tarafından sağlanan CC0 materyallerdir:
 
-| Yerel Dosya Yolu | Varlık Başlığı (Title) | Yazar / Hak Sahibi (Author) | Kaynak Bağlantısı (Source) | Lisans (License) | Değişiklik / İşleme (Modifications) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `client/public/assets/textures/stone-wall-color.jpg` | Rock030 Color Map | Lennart Demes ([ambientCG](https://ambientcg.com)) | [ambientCG Rock030](https://ambientcg.com/a/Rock030) | [CC0 1.0 Universal](https://docs.ambientcg.com/license/) | Orijinal 1K PNG dokudan 512×512 piksel JPEG formatına optimize edildi |
-| `client/public/assets/textures/stone-wall-normal.jpg` | Rock030 NormalDX Map | Lennart Demes ([ambientCG](https://ambientcg.com)) | [ambientCG Rock030](https://ambientcg.com/a/Rock030) | [CC0 1.0 Universal](https://docs.ambientcg.com/license/) | Orijinal 1K PNG dokudan 512×512 piksel JPEG formatına optimize edildi |
-| `client/public/assets/textures/floor-basalt-color.jpg` | Ground068 Color Map | Lennart Demes ([ambientCG](https://ambientcg.com)) | [ambientCG Ground068](https://ambientcg.com/a/Ground068) | [CC0 1.0 Universal](https://docs.ambientcg.com/license/) | Orijinal 1K PNG dokudan 512×512 piksel JPEG formatına optimize edildi |
-| `client/public/assets/textures/floor-basalt-normal.jpg` | Ground068 NormalDX Map | Lennart Demes ([ambientCG](https://ambientcg.com)) | [ambientCG Ground068](https://ambientcg.com/a/Ground068) | [CC0 1.0 Universal](https://docs.ambientcg.com/license/) | Orijinal 1K PNG dokudan 512×512 piksel JPEG formatına optimize edildi |
-
-*Telif Feragatı: ambientCG dokuları CC0 1.0 Universal kapsamında sunulmakta olup yasal olarak atıf şartı bulunmamaktadır; şeffaflık ve kaynak izlenebilirliği amacıyla belgelenmiştir.*
+| Dosya Yolu | Varlık | Harita Türü | Lisans | İşleme / Format |
+| :--- | :--- | :--- | :--- | :--- |
+| `client/public/assets/textures/stone-wall-color.jpg` | [Rock030](https://ambientcg.com/a/Rock030) | Color | [CC0 1.0](https://docs.ambientcg.com/license/) | 512×512 piksel JPEG |
+| `client/public/assets/textures/stone-wall-normal.jpg` | [Rock030](https://ambientcg.com/a/Rock030) | NormalDX | [CC0 1.0](https://docs.ambientcg.com/license/) | 512×512 piksel JPEG |
+| `client/public/assets/textures/floor-basalt-color.jpg` | [Ground068](https://ambientcg.com/a/Ground068) | Color | [CC0 1.0](https://docs.ambientcg.com/license/) | 512×512 piksel JPEG |
+| `client/public/assets/textures/floor-basalt-normal.jpg` | [Ground068](https://ambientcg.com/a/Ground068) | NormalDX | [CC0 1.0](https://docs.ambientcg.com/license/) | 512×512 piksel JPEG |
 
 ---
 
 ## 4. Sözlükler, Kelime Havuzları ve Dil Veri Setleri
 
-Hane oyununun harf/kelime modunda oyuncuların girdiği tahminlerin geçerliliğini denetlemek için (gerçek Wordle standartlarında "solutions" ve "allowed-guesses" ayrımıyla) kapsamlı açık kaynak ve kamu malı sözlük veri setleri derlenmiştir:
+Hane oyununun harf/kelime modunda oyuncu tahminlerinin geçerliliğini denetlemek için kamuya açık ve açık kaynaklı sözlük veri setleri kullanılmıştır:
 
-### 1. TDK Kamusal Türkçe Sözlük Madde Başları (Türkçe Modu)
-- **Kullanım:** `HANE_WORD_GUESS_LISTS_TR` — Hane Türkçe tahmin doğrulama sözlüğü (`client/src/lib/haneWordLists.ts`).
+### 1. TDK Kamusal Türkçe Sözlük Madde Başları (Türkçe Sözlük)
 - **Veri Derleyicisi:** `ncarkaci/TDKDictionaryCrawler` (Nurettin Sadık Çarkacı)
-- **Kaynak Veri:** Türk Dil Kurumu (TDK) çevrimiçi güncel sözlüğünden kamuya açık biçimde toplanmış madde başları.
-- **Kapsam:** 4 harfli (1.971 geçerli kelime) ve 5 harfli (5.242 geçerli kelime) temizlenmiş sözlük havuzu.
+- **Kaynak Veri:** Türk Dil Kurumu (TDK) güncel çevrimiçi sözlüğünden derlenmiş madde başları listesi.
+- **Kapsam:** 4 harfli (1.971 geçerli sözcük) ve 5 harfli (5.242 geçerli sözcük) ayıklanmış sözlük havuzu.
 - **Lisans:** MIT Lisansı
 - **Kaynak:** https://github.com/ncarkaci/TDKDictionaryCrawler
 
-### 2. ENABLE — Enhanced North American Benchmark Lexicon (İngilizce Modu)
-- **Kullanım:** `HANE_WORD_GUESS_LISTS_EN` — Hane İngilizce tahmin doğrulama sözlüğü.
+### 2. ENABLE — Enhanced North American Benchmark Lexicon (İngilizce Sözlük)
 - **Yazarlar / Derleyenler:** Keith Schmidt & Alan Beale
 - **Kapsam:** 3.903 adet 4 harfli ve 8.636 adet 5 harfli İngilizce sözcük.
-- **Lisans:** Public Domain (Kamu Malı — herhangi bir telif veya ticari kullanım kısıtlaması yoktur).
-- **Açıklama:** Scrabble ve kelime oyunu topluluklarının 1997'den bu yana temel aldığı en yaygın kamu malı İngilizce referans sözlüğü.
+- **Lisans:** Public Domain (Kamu Malı)
+- **Açıklama:** Scrabble ve kelime oyunu geliştiricilerinin 1997'den beri temel aldığı kamu malı İngilizce referans sözlüğü.
 
-### 3. Wordle Allowed Guesses List (İngilizce 5 Harfli Genişletilmiş Mod)
-- **Kullanım:** `HANE_WORD_GUESS_LISTS_EN[5]` — Hane İngilizce 5 harfli tahmin doğrulama havuzunun zenginleştirilmesi.
-- **Köken:** Josh Wardle / Wordle kamuya açık istemci tahmin sözlüğü.
+### 3. Wordle Allowed Guesses List (Genişletilmiş İngilizce 5 Harf Sözlüğü)
+- **Köken:** Josh Wardle / Wordle kamuya açık tahmin sözlüğü.
 - **Kapsam:** 14.856 adet 5 harfli geçerli İngilizce tahmin sözcüğü.
 - **Lisans:** Public Domain / Permissive Lexicon
-
-*Mimari Not: Bu sözlükler yalnızca TAHMİN DOĞRULAMA (allowed guesses) için kullanılır. Günün hedef çözümleri, `client/src/lib/levelGenerators.ts` içindeki küratörlü, tematik ve anlamlı sözcük havuzlarından deterministik günlük seed ile seçilir. Ayrıca sözlük dosyası (~203KB) ana JS paket boyutunu şişirmemek için dinamik import (`import("./haneWordLists")`) ile tembel yüklenir.*
 
 ---
 
@@ -119,28 +95,26 @@ Hane oyununun harf/kelime modunda oyuncuların girdiği tahminlerin geçerliliğ
 
 SELY MiniGame Hub arayüzünde kullanılan tüm web yazı tipleri Google Fonts aracılığıyla **SIL Open Font License 1.1** (OFL-1.1) koşulları altında sunulmaktadır:
 
-| Yazı Tipi Ailesi (Font Family) | Tasarımcı / Dökümhane (Designer) | Lisans | Kullanım Alanı ve CSS Değişkeni | Kaynak Depo |
+| Yazı Tipi Ailesi | Tasarımcı / Dökümhane | Lisans | Kullanım Alanı | Kaynak Depo |
 | :--- | :--- | :--- | :--- | :--- |
-| **Bricolage Grotesque** | Mathieu Triay | SIL OFL 1.1 | Başlıklar, editoryal katalog kartları ve büyük skor sayaçları (`--font-display`) | [ateliertriay/bricolage](https://github.com/ateliertriay/bricolage) |
-| **DM Mono** | Colophon Foundry | SIL OFL 1.1 | Monospace kayıt fişleri, HUD panelleri, tuş takımı ve oyun içi kodlar (`--font-mono`) | [googlefonts/dm-fonts](https://github.com/googlefonts/dm-fonts) |
-| **Space Grotesk** | Florian Karsten | SIL OFL 1.1 | Yankı Odası (Echo Room) 3D arayüzü, pusula, durum göstergeleri ve wayfinding paneli | [floriankarsten/space-grotesk](https://github.com/floriankarsten/space-grotesk) |
+| **Bricolage Grotesque** | Mathieu Triay | SIL OFL 1.1 | Başlıklar, katalog kartları ve skor sayaçları | [ateliertriay/bricolage](https://github.com/ateliertriay/bricolage) |
+| **DM Mono** | Colophon Foundry | SIL OFL 1.1 | Monospace kayıt panelleri, HUD göstergeleri ve tuş takımı | [googlefonts/dm-fonts](https://github.com/googlefonts/dm-fonts) |
+| **Space Grotesk** | Florian Karsten | SIL OFL 1.1 | Yankı Odası 3D arayüzü ve navigasyon paneli | [floriankarsten/space-grotesk](https://github.com/floriankarsten/space-grotesk) |
 
-*OFL Bildirimi: SIL Open Font License 1.1 uyarınca yazı tipleri tek başlarına satılamaz; bu yazılım projesiyle birlikte özgürce dağıtılmakta ve kullanılmaktadır. Orijinal Reserved Font Name (RFN) hakları korunmuştur.*
+*SIL Open Font License 1.1 uyarınca yazı tipleri tek başlarına satılamaz; bu yazılım projesiyle birlikte özgürce dağıtılmakta ve kullanılmaktadır. Orijinal Reserved Font Name (RFN) hakları saklıdır.*
 
 ---
 
 ## 6. 3D Grafik ve Render Motorları
 
 ### [Babylon.js Core](https://www.babylonjs.com/) (`@babylonjs/core`)
-- **Rol:** Yankı Odası (Echo Room) 3D labirentinin prosedürel olarak oluşturulması, WebGL/WebGPU render döngüsü, dinamik nokta ve spot ışıklandırmaları, görüş alanı (fog-of-war) simülasyonu, PBR materyal işleme ve ArcRotateCamera yönetimi.
-- **Sürüm:** `^9.22.2`
+- **İşlev:** Yankı Odası (Echo Room) 3D labirentinin prosedürel oluşturulması, WebGL/WebGPU render döngüsü, dinamik ışıklandırma, görüş alanı simülasyonu, PBR materyaller ve ArcRotateCamera yönetimi.
 - **Lisans:** Apache License 2.0
 - **Telif Hakkı:** Copyright (c) 2013-2026 BabylonJS
 - **Kaynak:** https://github.com/BabylonJS/Babylon.js
 
 ### [Three.js](https://threejs.org/) & [React Three Fiber](https://r3f.docs.pmnd.rs/) (`three`, `@react-three/fiber`, `@react-three/drei`)
-- **Rol:** 3D sahne bileşenleri, geometri işleme ve kamera matris yönetimi.
-- **Sürümler:** `three: ^0.185.1`, `@react-three/fiber: ^9.7.0`, `@react-three/drei: ^10.7.8`
+- **İşlev:** 3D sahne bileşenleri, geometri işleme ve kamera matris yönetimi.
 - **Lisans:** MIT Lisansı
 - **Telif Hakkı:** Copyright (c) 2010-2026 Three.js Authors; Copyright (c) 2019-2026 pmndrs
 - **Kaynak:** https://github.com/mrdoob/three.js | https://github.com/pmndrs/react-three-fiber
@@ -149,81 +123,50 @@ SELY MiniGame Hub arayüzünde kullanılan tüm web yazı tipleri Google Fonts a
 
 ## 7. Yazılım Kütüphaneleri ve Bağımlılık Matrisi
 
-Aşağıdaki tablo, projede kullanılan doğrudan kod kütüphanelerini, sürümlerini, lisanslarını ve işlevlerini listeler:
+Aşağıdaki tablo, projede kullanılan doğrudan kod kütüphanelerini, sürümlerini, lisanslarını ve telif hakkı sahiplerini listeler:
 
-| Paket Adı | Sürüm | SPDX Lisans | Telif Hakkı Sahibi | Sorumluluk / İşlev |
+| Paket Adı | Sürüm | SPDX Lisans | Telif Hakkı Sahibi | İşlev |
 | :--- | :--- | :--- | :--- | :--- |
-| `react` & `react-dom` | `^19.2.1` | `MIT` | Meta Platforms, Inc. and affiliates | Çekirdek UI kütüphanesi, Virtual DOM ve bileşen mimarisi |
-| `vite` | `^7.1.7` | `MIT` | Yuxi (Evan) You & Vite contributors | İstemci tarafı modül paketleyici, HMR ve derleme sistemi |
-| `tailwindcss` | `^4.1.14` | `MIT` | Tailwind Labs, Inc. | Utility-first CSS motoru ve tasarım sistemi |
-| `wouter` | `^3.3.5` | `MIT` | Alexey Taktarov | Minimalist (~1.5KB), hafif ve dependency-free SPA yönlendiricisi |
-| `lucide-react` | `^0.453.0` | `ISC` | Lucide Contributors | Arayüz, kontrol ve oyun navigasyon simgeleri |
-| `framer-motion` | `^12.23.22` | `MIT` | Framer B.V. | Arayüz geçişleri ve akıcı etkileşim animasyonları |
-| `@tanstack/react-query` | `^5.90.2` | `MIT` | TanStack (Tanner Linsley) | Asenkron sunucu durumu yönetimi ve önbellekleme |
-| `@trpc/server` & `@trpc/client` | `^11.6.0` | `MIT` | Alex Johansson and tRPC contributors | Uçtan uca tip güvenli RPC API haberleşmesi |
-| `drizzle-orm` | `^0.44.5` | `Apache-2.0` | Drizzle Team | Tip güvenli SQL sorgu ve şema modelleme katmanı |
-| `drizzle-kit` | `^0.31.4` | `Apache-2.0` | Drizzle Team | Veritabanı şema migrasyon ve yönetim araçları |
+| `react` & `react-dom` | `^19.2.1` | `MIT` | Meta Platforms, Inc. and affiliates | Çekirdek UI kütüphanesi ve bileşen mimarisi |
+| `vite` | `^7.1.7` | `MIT` | Yuxi (Evan) You & Vite contributors | İstemci tarafı paketleyici ve geliştirme sunucusu |
+| `tailwindcss` | `^4.1.14` | `MIT` | Tailwind Labs, Inc. | Utility-first CSS motoru |
+| `wouter` | `^3.3.5` | `MIT` | Alexey Taktarov | Minimalist (~1.5KB) hafif SPA yönlendiricisi |
+| `lucide-react` | `^0.453.0` | `ISC` | Lucide Contributors | Kullanıcı arayüzü ve navigasyon simgeleri |
+| `framer-motion` | `^12.23.22` | `MIT` | Framer B.V. | Arayüz geçiş ve etkileşim animasyonları |
+| `@tanstack/react-query` | `^5.90.2` | `MIT` | TanStack (Tanner Linsley) | Asenkron sunucu veri yönetimi ve önbellekleme |
+| `@trpc/server` & `@trpc/client` | `^11.6.0` | `MIT` | Alex Johansson and tRPC contributors | Uçtan uca tip güvenli RPC API katmanı |
+| `drizzle-orm` | `^0.44.5` | `Apache-2.0` | Drizzle Team | Tip güvenli SQL modelleme ve sorgu motoru |
+| `drizzle-kit` | `^0.31.4` | `Apache-2.0` | Drizzle Team | Veritabanı şema migrasyon araçları |
 | `@libsql/client` | `^0.17.4` | `MIT` | ChiselStrike, Inc. / Turso | Sunucusuz libSQL / SQLite veritabanı sürücüsü |
 | `pg` | `^8.23.0` | `MIT` | Brian Carlson | PostgreSQL istemci sürücüsü |
-| `express` | `^4.21.2` | `MIT` | StrongLoop, Inc. & contributors | HTTP sunucu ve arka uç REST yönlendirme katmanı |
+| `express` | `^4.21.2` | `MIT` | StrongLoop, Inc. & contributors | HTTP sunucusu ve REST yönlendirme katmanı |
 | `zod` | `^4.1.12` | `MIT` | Colin McDonnell | Tip güvenli şema ve girdi doğrulama kütüphanesi |
-| `sonner` | `^2.0.7` | `MIT` | Emil Kowalski | Erişilebilir görsel bildirim (toast) sistemi |
+| `sonner` | `^2.0.7` | `MIT` | Emil Kowalski | Erişilebilir bildirim (toast) bileşeni |
 | `cmdk` | `^1.1.1` | `MIT` | Paco Coursey | Hızlı komut ve arama paleti arayüzü |
-| `recharts` | `^2.15.2` | `MIT` | Recharts Group | İstatistik ve performans veri görselleştirmeleri |
-| `embla-carousel-react` | `^8.6.0` | `MIT` | Petter Hedman | Akıcı dokunmatik karusel bileşeni |
+| `recharts` | `^2.15.2` | `MIT` | Recharts Group | Performans ve istatistik veri grafikleri |
+| `embla-carousel-react` | `^8.6.0` | `MIT` | Petter Hedman | Dokunmatik karusel bileşeni |
 | `vaul` | `^1.1.2` | `MIT` | Emil Kowalski | Mobil alt çekmece (drawer) bileşeni |
-| `@radix-ui/react-*` | `1.x` | `MIT` | WorkOS | WAI-ARIA uyumlu ilkel UI bileşenleri (Dialog, Tooltip, Tabs vb.) |
-| `clsx` & `tailwind-merge` | `2.x / 3.x` | `MIT` | Luke Edwards / Dany Castillo | Koşullu ve çakışmasız Tailwind sınıf birleştirme |
-| `date-fns` | `^4.1.0` | `MIT` | Sasha Koss & Lesha Koss | Tarih, saat ve günlük tohum formatlama araçları |
+| `@radix-ui/react-*` | `1.x` | `MIT` | WorkOS | WAI-ARIA uyumlu ilkel UI bileşenleri |
+| `clsx` & `tailwind-merge` | `2.x / 3.x` | `MIT` | Luke Edwards / Dany Castillo | Dinamik Tailwind sınıf birleştirme araçları |
+| `date-fns` | `^4.1.0` | `MIT` | Sasha Koss & Lesha Koss | Tarih ve tohum formatlama araçları |
 | `nanoid` | `^5.1.5` | `MIT` | Andrey Sitnik | Kriptografik güvenli benzersiz kimlik üretimi |
-| `vitest` | `^2.1.4` | `MIT` | Anthony Fu & Vitest contributors | Birim, entegrasyon ve çözülebilirlik stres test koşucusu |
+| `vitest` | `^2.1.4` | `MIT` | Anthony Fu & Vitest contributors | Birim ve entegrasyon test koşucusu |
 | `typescript` | `5.9.3` | `Apache-2.0` | Microsoft Corporation | Statik tip denetimi ve geliştirme araç seti |
-| `esbuild` | `^0.25.0` | `MIT` | Evan Wallace | Ultra hızlı sunucu derleme ve paketleme aracı |
+| `esbuild` | `^0.25.0` | `MIT` | Evan Wallace | Hızlı sunucu derleme ve paketleme aracı |
 
 ---
 
-## 8. Algoritmik, Matematiksel ve Tasarım Referansları
+## 8. Algoritmik ve Açık Kaynak Referanslar
 
-SELY MiniGame Hub'daki yedi mini oyunun temelini oluşturan algoritmik ve matematiksel referanslar:
+Oyun mekanikleri ve algoritmik temeller geliştirilirken faydalanılan açık kaynak projeler, algoritmalar ve yayınlar:
 
-### 1. Recursive Backtracker & Braiding Labirent Mimarisi (Echo Room)
-- **Kaynak / Referans:** Jamis Buck — *Mazes for Programmers* & Recursive Depth-First Search Maze Generation.
-- **Uygulama (`client/src/game/maze.ts`):** 
-  - Deterministik günlük seed tabanlı `generateMaze` fonksiyonu.
-  - Labirent çıkmaz sokaklarının (dead-ends) oyuncu ustalık seviyesine (`mastery`) göre açılarak döngüsel alternatif koridorlara dönüştürülmesi (*braiding*).
-  - A* / BFS koridor rota hesaplayıcısı (`findMazePath`) ile oyuncunun anahtarlara ve kilitli çıkış kapısına ulaşabilirliğinin matematiksel ispatı.
-
-### 2. Spanning Tree Akış Yönlendirmesi ve BFS Çözücü (Knot / Düğüm)
-- **Uygulama (`client/src/lib/levelGenerators.ts`):**
-  - Randomized DFS Spanning Tree algoritmasıyla 4×4 karo ızgarası üzerinde döngüsüz, tekil birincil akış rotası oluşturulması.
-  - BFS (Breadth-First Search) kuyruk çözücüsü (`isKnotLevelSolvable`) ile ısı limiti (`heatLimit`) dahilinde rotanın ve opsiyonel bonus karolarının daima çözülebilir olduğunun garantilenmesi.
-
-### 3. Konveks Çokgen Kesme ve Açısal Örnekleme (Cut / Kırpık)
-- **Uygulama (`client/src/lib/levelGenerators.ts` & `client/src/components/GameStudio.tsx`):**
-  - Rejection sampling ile belirlenen içbükey/dışbükey çokgen sınırları.
-  - Çokgenin düzlem üzerinde bir doğru ile kesilmesi (Sutherland-Hodgman polygon clipping türevi) ve kalan alanların orantısal yüzdesinin hesaplanması.
-
-### 4. Zaman Gecikmeli Gölge Hafıza Matrisi (Shadow Share / Gölge Payı)
-- **Uygulama (`client/src/lib/levelGenerators.ts`):**
-  - 5×5 ızgara üzerinde oyuncu hareketlerinin $N$ adım gecikmeli gölge izdüşümüyle eşzamanlı simülasyonu.
-  - Ters polarite karoları (`is-inverse`) ve eşzamanlı hedef aktivasyon matrisi.
-
-### 5. Tümdengelimsel Çelişki Grafı ve Kanıt Çözücü (Vaka / VakaHub)
-- **Uygulama (`client/src/lib/vakaEngine.ts` & `shared/vakaCases.ts`):**
-  - World Model + Truth Model + Evidence Graph dedektiflik mantık motoru.
-  - Şüpheli ifadeleri, tanık beyanları ve fiziksel deliller arasındaki çelişkileri bağımsız olarak puanlayan ve tek bir suçluya indirgeyen grafik tabanlı çözücü (`solveVakaCase`).
-
-### 6. İki Geçişli Frekans Eşleme Algoritması (Hane)
-- **Uygulama (`client/src/lib/levelGenerators.ts`):**
-  - Wordle ve Mastermind kural motorlarına dayanan iki geçişli (two-pass) harf değerlendirme algoritması (`compareHaneWordGuess`).
-  - Birinci geçişte tam eşleşmeler (`exact`) işaretlenir; ikinci geçişte hedefte kalan harf frekansları üzerinden izde kalanlar (`present`) tüketilir. Bu sayede tekrarlanan harfler asla hedeften fazla sayılmaz.
-
-### 7. Delta-Time Arcade Uçuş ve Fizik Mimarisi (Spark / Kıvılcım)
-Kıvılcım (Spark) oyununun 60 FPS Canvas render motoru ve pilon kaçış mekaniği geliştirilirken incelenen ve faydalanılan açık kaynak arcade projeleri:
-- **[Serkanbyx/flappy-bird](https://github.com/Serkanbyx/flappy-bird):** (MIT Lisansı) — Saf JavaScript & HTML5 Canvas ile delta-time tabanlı yerçekimi ($g$), zıplama ivmesi ve pilon hız senkronizasyonu mimarisi.
-- **[robert-kratz/flappy-bird](https://github.com/robert-kratz/flappy-bird):** (Apache-2.0 Lisansı) — Ardışık engeller arası dikey açıklık farkını sınırlandırma (`maxDelta = 140` clamping) tekniği.
-- **[JohnDev19/Flappy-Ball](https://github.com/JohnDev19/Flappy-Ball):** (MIT Lisansı) — Dairesel gövde ile dikdörtgen engeller arasında hibrit AABB toleranslı çarpışma geometrisi.
-- **[wayou/t-rex-runner](https://github.com/wayou/t-rex-runner):** (BSD-3-Clause) — Sonsuz koşu/uçuş döngüsü ve prosedürel hız eskalasyonu.
+- **Labirent Üretimi & Braiding:** Jamis Buck — *Mazes for Programmers* (The Pragmatic Bookshelf) eseri ve Recursive Depth-First Search labirent oluşturma prensipleri.
+- **Çokgen Kırpma (Polygon Clipping):** Sutherland-Hodgman çokgen kesme algoritması (Ivan Sutherland, Gary W. Hodgman, 1974).
+- **Arcade 2D Fizik & Oyun Döngüsü Referansları:**
+  - **[Serkanbyx/flappy-bird](https://github.com/Serkanbyx/flappy-bird):** (MIT Lisansı) — HTML5 Canvas delta-time tabanlı yerçekimi ve dikey ivme mekaniği referansı.
+  - **[robert-kratz/flappy-bird](https://github.com/robert-kratz/flappy-bird):** (Apache-2.0 Lisansı) — Ardışık engeller arası açıklık farkı sınırlama tekniği.
+  - **[JohnDev19/Flappy-Ball](https://github.com/JohnDev19/Flappy-Ball):** (MIT Lisansı) — Dairesel gövde ile dikdörtgen engeller arası AABB toleranslı çarpışma geometrisi.
+  - **[wayou/t-rex-runner](https://github.com/wayou/t-rex-runner):** (BSD-3-Clause) — Prosedürel sonsuz döngü ve hız eskalasyonu mimarisi.
 
 ---
 
@@ -430,6 +373,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## 10. İletişim ve Lisans Denetimi
 
-Bu belgedeki bildirimler, açık kaynak topluluğunun şeffaflık, izlenebilirlik ve telif haklarına saygı ilkeleri uyarınca düzenli olarak denetlenir ve güncellenir. 
+Bu belgedeki bildirimler, açık kaynak topluluğunun şeffaflık, izlenebilirlik ve telif haklarına saygı ilkeleri doğrultusunda düzenli olarak denetlenir ve güncellenir. 
 
-Eksik veya güncellenmesi gereken herhangi bir atıf bildirimi tespit etmeniz halinde, lütfen projenin GitHub deposu üzerinden bir Issue veya Pull Request açarak bildirin.
+Eksik veya güncellenmesi gereken herhangi bir atıf bildirimi tespit etmeniz halinde, lütfen projenin GitHub deposu üzerinden bir bildirim (Issue) veya katkı (Pull Request) açınız.
