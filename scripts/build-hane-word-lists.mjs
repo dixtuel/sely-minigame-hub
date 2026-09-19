@@ -1,49 +1,88 @@
-// Hane kelime modu için geniş "tahmin sözlüğü" üretir — gerçek Wordle'ların
-// solutions/allowed-guesses ayrımıyla aynı desen: bu liste yalnız TAHMİN DOĞRULAMA
-// içindir, günün cevabı hâlâ levelGenerators.ts'teki küçük, elle-küratörlü
-// HANE_WORD_POOLS'tan seçilir. Kaynak: scripts/data/tdk-source.txt (TDK'nin
-// kamuya açık çevrimiçi sözlüğünden toplanmış madde başları, bkz.
-// https://github.com/ncarkaci/TDKDictionaryCrawler). Tek seferlik/gerekince
-// tekrar çalıştırılır: `node scripts/build-hane-word-lists.mjs`
+// Hane kelime modu için geniş "tahmin sözlüğü" üretir — hem Türkçe hem İngilizce.
+// Gerçek Wordle'ların solutions/allowed-guesses ayrımıyla aynı desen: bu liste
+// yalnız TAHMİN DOĞRULAMA içindir, günün cevabı hâlâ levelGenerators.ts'teki
+// küratörlü havuzlardan seçilir.
+//
+// Kaynaklar:
+// 1. Türkçe: scripts/data/tdk-source.txt (TDK kamu sözlüğü, ncarkaci/TDKDictionaryCrawler)
+// 2. İngilizce: scripts/data/enable-source.txt (ENABLE lexicon, Public Domain)
+//               + scripts/data/wordle-source.txt (Wordle guess list, Public Domain)
+//
+// Çalıştırma: `node scripts/build-hane-word-lists.mjs`
 import { readFileSync, writeFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const sourcePath = resolve(__dirname, "data/tdk-source.txt");
+const tdkPath = resolve(__dirname, "data/tdk-source.txt");
+const enablePath = resolve(__dirname, "data/enable-source.txt");
+const wordlePath = resolve(__dirname, "data/wordle-source.txt");
 const outputPath = resolve(__dirname, "../client/src/lib/haneWordLists.ts");
 
-const LENGTHS = [4, 5, 6, 7, 8];
+const LENGTHS = [4, 5];
 const TR_WORD = /^[a-zçğıöşü]+$/;
+const EN_WORD = /^[a-z]+$/;
 
-const raw = readFileSync(sourcePath, "utf-8").split("\n");
-const byLength = Object.fromEntries(LENGTHS.map(length => [length, new Set()]));
+// 1. Türkçe Sözlük (TDK)
+const tdkRaw = readFileSync(tdkPath, "utf-8").split("\n");
+const trByLength = Object.fromEntries(LENGTHS.map(l => [l, new Set()]));
 
-for (const line of raw) {
+for (const line of tdkRaw) {
   const word = line.trim();
   if (!word) continue;
-  if (word.includes(" ") || word.includes("/") || word.includes("-")) continue; // çok kelimeli/varyant maddeler
-  if (word[0] !== word[0].toLocaleLowerCase("tr-TR")) continue; // büyük harfle başlayan özel isimler (Abana, Duma...)
+  if (word.includes(" ") || word.includes("/") || word.includes("-")) continue;
+  if (word[0] !== word[0].toLocaleLowerCase("tr-TR")) continue; // özel isimleri atla
   const lower = word.toLocaleLowerCase("tr-TR");
   if (!TR_WORD.test(lower)) continue;
   const upper = Array.from(lower.toLocaleUpperCase("tr-TR")).join("");
   const length = Array.from(upper).length;
-  if (byLength[length]) byLength[length].add(upper);
+  if (trByLength[length]) trByLength[length].add(upper);
 }
+
+// 2. İngilizce Sözlük (ENABLE + Wordle)
+const enByLength = Object.fromEntries(LENGTHS.map(l => [l, new Set()]));
+
+function processEnglishSource(filePath) {
+  const raw = readFileSync(filePath, "utf-8").split("\n");
+  for (const line of raw) {
+    const word = line.trim().toLowerCase();
+    if (!word) continue;
+    if (!EN_WORD.test(word)) continue;
+    const length = word.length;
+    if (enByLength[length]) {
+      enByLength[length].add(word.toUpperCase());
+    }
+  }
+}
+
+processEnglishSource(enablePath);
+processEnglishSource(wordlePath);
 
 const lines = [
   "// AUTO-GENERATED — düzenlemeyin. Üretmek için: node scripts/build-hane-word-lists.mjs",
-  "// Kaynak: TDK'nin kamuya açık sözlük madde başları (scripts/data/tdk-source.txt,",
-  "// bkz. https://github.com/ncarkaci/TDKDictionaryCrawler). Yalnız TAHMİN DOĞRULAMA",
-  "// için kullanılır — günün cevabı burada değil, levelGenerators.ts'teki küçük",
-  "// HANE_WORD_POOLS'tan seçilir (gerçek Wordle'ların solutions/allowed-guesses",
-  "// ayrımıyla aynı mantık).",
-  "export const HANE_WORD_GUESS_LISTS: Record<number, string[]> = {",
-  ...LENGTHS.map(length => `  ${length}: [${Array.from(byLength[length]).sort().map(w => JSON.stringify(w)).join(",")}],`),
+  "// Kaynaklar:",
+  "// - Türkçe: TDK kamuya açık sözlük madde başları (scripts/data/tdk-source.txt)",
+  "// - İngilizce: ENABLE Enhanced North American Benchmark Lexicon + Wordle guess list (Public Domain)",
+  "// Yalnız TAHMİN DOĞRULAMA için kullanılır — günün cevabı burada değil, levelGenerators.ts'teki",
+  "// küratörlü havuzlardan seçilir (gerçek Wordle'ların solutions/allowed-guesses mantığı).",
+  "",
+  "export const HANE_WORD_GUESS_LISTS_TR: Record<number, string[]> = {",
+  ...LENGTHS.map(l => `  ${l}: [${Array.from(trByLength[l]).sort().map(w => JSON.stringify(w)).join(",")}],`),
   "};",
+  "",
+  "export const HANE_WORD_GUESS_LISTS_EN: Record<number, string[]> = {",
+  ...LENGTHS.map(l => `  ${l}: [${Array.from(enByLength[l]).sort().map(w => JSON.stringify(w)).join(",")}],`),
+  "};",
+  "",
+  "// Geriye dönük uyumluluk için varsayılan liste (TR)",
+  "export const HANE_WORD_GUESS_LISTS = HANE_WORD_GUESS_LISTS_TR;",
   "",
 ];
 
 writeFileSync(outputPath, lines.join("\n"));
-for (const length of LENGTHS) console.log(`${length} harf: ${byLength[length].size} kelime`);
+
+console.log("=== Türkçe (TDK) ===");
+for (const l of LENGTHS) console.log(`${l} harf: ${trByLength[l].size} kelime`);
+console.log("=== İngilizce (ENABLE + Wordle) ===");
+for (const l of LENGTHS) console.log(`${l} harf: ${enByLength[l].size} kelime`);
 console.log("Yazıldı:", outputPath);

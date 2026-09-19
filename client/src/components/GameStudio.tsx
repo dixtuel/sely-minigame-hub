@@ -911,9 +911,9 @@ function VakaGame({ locale, soundOn, onFinish }: { locale: SiteLocale; seed: num
 
 function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; seed: number; mastery: number; onFinish: (result: GameResult) => void }) {
   const numberLevel = useMemo(() => generateHaneLevel(seed, mastery), [seed, mastery]);
-  const wordLevel = useMemo(() => generateHaneWordLevel(seed, mastery), [seed, mastery]);
+  const wordLevel = useMemo(() => generateHaneWordLevel(seed, mastery, locale), [seed, mastery, locale]);
   const finish = useFinishOnce(onFinish);
-  const [mode, setMode] = useState<"number" | "word">("number");
+  const [mode, setMode] = useState<"number" | "word">("word");
   const [guess, setGuess] = useState("");
   const [numberRows, setNumberRows] = useState<Array<{ guess: string; marks: Array<"exact" | "present" | "absent"> }>>([]);
   const [wordRows, setWordRows] = useState<Array<{ guess: string; marks: Array<"exact" | "present" | "absent"> }>>([]);
@@ -940,11 +940,13 @@ function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
       return;
     }
     setCheckingWord(true);
-    isHaneWordGuessValid(guess, wordLevel).then(valid => {
+    isHaneWordGuessValid(guess, wordLevel, locale).then(valid => {
       setCheckingWord(false);
-      if (!valid) { setNotice(local(locale, `${wordLevel.length} harfli, geçerli bir Türkçe sözcük gir.`, `Enter a valid ${wordLevel.length}-letter Turkish word.`)); return; }
-      const normalizedGuess = Array.from(guess.toLocaleUpperCase("tr-TR")).join("");
-      const feedback = compareHaneWordGuess(wordLevel.target, normalizedGuess);
+      if (!valid) { setNotice(local(locale, `${wordLevel.length} harfli, geçerli bir Türkçe sözcük gir.`, `Enter a valid ${wordLevel.length}-letter English word.`)); return; }
+      const normalizedGuess = locale === "en"
+        ? guess.trim().toUpperCase()
+        : Array.from(guess.toLocaleUpperCase("tr-TR")).join("");
+      const feedback = compareHaneWordGuess(wordLevel.target, normalizedGuess, locale);
       const nextRows = [...wordRows, { guess: normalizedGuess, marks: feedback.marks }];
       setWordRows(nextRows); setGuess(""); setNotice("");
       if (feedback.exact === wordLevel.length) { finish({ outcome: "success", score: 1_160 - nextRows.length * 105 + mastery * 65, label: local(locale, "Sözcük kayda geçti", "Word entered the record"), detail: local(locale, `${nextRows.length}. fişte gizli sözcüğü çözdün.`, `You resolved the hidden word on receipt ${nextRows.length}.`) }); return; }
@@ -957,13 +959,16 @@ function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
       if (document.activeElement?.id === inputId) return;
       if (event.key === "Enter") { event.preventDefault(); submit(); return; }
       if (event.key === "Backspace") { event.preventDefault(); setGuess(current => Array.from(current).slice(0, -1).join("")); return; }
-      const letter = event.key.toLocaleUpperCase("tr-TR");
-      if (/^[A-ZÇĞİÖŞÜ]$/.test(letter)) { event.preventDefault(); append(letter); }
+      const letter = locale === "en" ? event.key.toUpperCase() : event.key.toLocaleUpperCase("tr-TR");
+      const pattern = locale === "en" ? /^[A-Z]$/ : /^[A-ZÇĞİÖŞÜ]$/;
+      if (pattern.test(letter)) { event.preventDefault(); append(letter); }
     };
     window.addEventListener("keydown", keydown);
     return () => window.removeEventListener("keydown", keydown);
-  }, [inputId, isWord, submit]);
-  const wordKeyboard = ["QWERTYUIOPĞÜ", "ASDFGHJKLŞİ", "ZXCVBNMÖÇ"];
+  }, [inputId, isWord, locale, submit]);
+  const wordKeyboard = locale === "en"
+    ? ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"]
+    : ["QWERTYUIOPĞÜ", "ASDFGHJKLŞİ", "ZXCVBNMÖÇ"];
   const bestMarkPerKey = (rows: Array<{ guess: string; marks: Array<"exact" | "present" | "absent"> }>) => {
     const rank: Record<"exact" | "present" | "absent", number> = { exact: 3, present: 2, absent: 1 };
     const marks: Record<string, "exact" | "present" | "absent"> = {};
@@ -984,12 +989,13 @@ function HaneGame({ locale, seed, mastery, onFinish }: { locale: SiteLocale; see
       <div className="hane-mode-tabs" role="tablist" aria-label={local(locale, "Hane kayıt türü", "Hane record type")}><button type="button" role="tab" aria-selected={!isWord} className={!isWord ? "is-active" : ""} onClick={() => chooseMode("number")}>{local(locale, "Sayı kaydı", "Number record")}</button><button type="button" role="tab" aria-selected={isWord} className={isWord ? "is-active" : ""} onClick={() => chooseMode("word")}>{local(locale, "Sözcük kaydı", "Word record")}</button></div>
       <div className="hane-key"><div><b>▣ {local(locale, "YERİNDE", "EXACT")}</b><span>{isWord ? local(locale, "doğru harf · doğru yer", "right letter · right place") : local(locale, "doğru hane · doğru yer", "right digit · right place")}</span></div><div><b>◌ {local(locale, "İZDE", "TRACED")}</b><span>{isWord ? local(locale, "doğru harf · başka yer", "right letter · other place") : local(locale, "doğru hane · başka yer", "right digit · other place")}</span></div></div>
       <ol className="hane-word-rows" aria-live="polite" style={{ "--word-length": activeLength } as React.CSSProperties}>{Array.from({ length: activeMaxGuesses }, (_, index) => { const row = activeRows[index]; return <li key={index}>{Array.from({ length: activeLength }, (_, cellIndex) => <span key={cellIndex} className={row ? `is-${row.marks[cellIndex]}` : ""}>{row?.guess[cellIndex] || ""}</span>)}</li>; })}</ol>
-      <form className="hane-entry" onSubmit={event => { event.preventDefault(); submit(); }}><label htmlFor={inputId}>{isWord ? local(locale, "SÖZCÜK YAZ", "ENTER WORD") : local(locale, "KAYIT GİR", "ENTER RECORD")}</label><input id={inputId} value={guess} onChange={event => { setNotice(""); const next = isWord ? Array.from(event.target.value.toLocaleUpperCase("tr-TR")).filter(letter => /^[A-ZÇĞİÖŞÜ]$/.test(letter)).slice(0, wordLevel.length).join("") : event.target.value.replace(/\D/g, "").slice(0, numberLevel.digits); setGuess(next); }} inputMode={isWord ? "text" : "numeric"} autoComplete="off" pattern={isWord ? "[A-Za-zÇĞİÖŞÜçğıöşü]+" : "[0-9]*"} aria-describedby={`${inputId}-note`} placeholder={isWord ? "—".repeat(wordLevel.length) : "0".repeat(numberLevel.digits)} /><button className="ink-button" type="submit" disabled={checkingWord}>{checkingWord ? local(locale, "Kontrol ediliyor…", "Checking…") : local(locale, "Baskıya ver", "Stamp entry")}</button></form>
-      {!isWord ? <div className="hane-word-keypad hane-number-keypad" aria-label={local(locale, "Sayı tuşları", "Number keypad")}><div>{[1,2,3,4,5,6,7,8,9,0].map(value => <button type="button" key={value} className={numberKeyboardMarks[String(value)] ? `is-${numberKeyboardMarks[String(value)]}` : ""} onClick={() => append(String(value))}>{value}</button>)}</div><button className="hane-backspace" type="button" onClick={() => setGuess(current => current.slice(0, -1))}>⌫</button></div> : <div className="hane-word-keypad" aria-label={local(locale, "Türkçe harf tuşları", "Turkish letter keys")}>{wordKeyboard.map((line, index) => <div key={index}>{Array.from(line).map(letter => <button type="button" key={letter} className={keyboardMarks[letter] ? `is-${keyboardMarks[letter]}` : ""} onClick={() => append(letter)}>{letter}</button>)}</div>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => Array.from(current).slice(0, -1).join(""))}>⌫</button></div>}
+      <form className="hane-entry" onSubmit={event => { event.preventDefault(); submit(); }}><label htmlFor={inputId}>{isWord ? local(locale, "SÖZCÜK YAZ", "ENTER WORD") : local(locale, "KAYIT GİR", "ENTER RECORD")}</label><input id={inputId} value={guess} onChange={event => { setNotice(""); const next = isWord ? (locale === "en" ? Array.from(event.target.value.toUpperCase()).filter(letter => /^[A-Z]$/.test(letter)).slice(0, wordLevel.length).join("") : Array.from(event.target.value.toLocaleUpperCase("tr-TR")).filter(letter => /^[A-ZÇĞİÖŞÜ]$/.test(letter)).slice(0, wordLevel.length).join("")) : event.target.value.replace(/\D/g, "").slice(0, numberLevel.digits); setGuess(next); }} inputMode={isWord ? "text" : "numeric"} autoComplete="off" pattern={isWord ? (locale === "en" ? "[A-Za-z]+" : "[A-Za-zÇĞİÖŞÜçğıöşü]+") : "[0-9]*"} aria-describedby={`${inputId}-note`} placeholder={isWord ? "—".repeat(wordLevel.length) : "0".repeat(numberLevel.digits)} /><button className="ink-button" type="submit" disabled={checkingWord}>{checkingWord ? local(locale, "Kontrol ediliyor…", "Checking…") : local(locale, "Baskıya ver", "Stamp entry")}</button></form>
+      {!isWord ? <div className="hane-word-keypad hane-number-keypad" aria-label={local(locale, "Sayı tuşları", "Number keypad")}><div>{[1,2,3,4,5,6,7,8,9,0].map(value => <button type="button" key={value} className={numberKeyboardMarks[String(value)] ? `is-${numberKeyboardMarks[String(value)]}` : ""} onClick={() => append(String(value))}>{value}</button>)}</div><button className="hane-backspace" type="button" onClick={() => setGuess(current => current.slice(0, -1))}>⌫</button></div> : <div className="hane-word-keypad" aria-label={local(locale, "Harf tuşları", "Letter keys")}>{wordKeyboard.map((line, index) => <div key={index}>{Array.from(line).map(letter => <button type="button" key={letter} className={keyboardMarks[letter] ? `is-${keyboardMarks[letter]}` : ""} onClick={() => append(letter)}>{letter}</button>)}</div>)}<button className="hane-backspace" type="button" onClick={() => setGuess(current => Array.from(current).slice(0, -1).join(""))}>⌫</button></div>}
       <p id={`${inputId}-note`} className={notice ? "hane-note is-alert" : "hane-note"}>{notice || (isWord ? (locale === "en" ? `Today’s topic: ${wordLevel.categoryEn}. ${wordLevel.lesson}` : `Bugünün konusu: ${wordLevel.category}. ${wordLevel.lesson}`) : numberLevel.lesson)}</p>
     </section>
   </div>;
 }
+
 
 function DirectionPad({ locale = "tr", onMove }: { locale?: SiteLocale; onMove: (dr: number, dc: number) => void }) {
   return <div className="direction-pad" aria-label={local(locale, "Yön kontrolleri", "Direction controls")}><span /><button onClick={() => onMove(-1, 0)} aria-label={local(locale, "Yukarı", "Up")}><ArrowUp size={18} /></button><span /><button onClick={() => onMove(0, -1)} aria-label={local(locale, "Sol", "Left")}><ArrowLeftIcon size={18} /></button><button onClick={() => onMove(1, 0)} aria-label={local(locale, "Aşağı", "Down")}><ArrowDown size={18} /></button><button onClick={() => onMove(0, 1)} aria-label={local(locale, "Sağ", "Right")}><ArrowRight size={18} /></button></div>;

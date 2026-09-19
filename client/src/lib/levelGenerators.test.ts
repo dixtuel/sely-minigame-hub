@@ -185,19 +185,27 @@ describe("mini-game level generators", () => {
     expect(compareHaneNumberGuess("1212", "2121")).toEqual({ marks: ["present", "present", "present", "present"], exact: 0, present: 4 });
   });
 
-  it("varies the daily Hane word length by seed and keeps every pool word valid for its own length", async () => {
+  it("varies the daily Hane word length by seed (max 5 letters: 4 or 5) and keeps every pool word valid for both TR and EN", async () => {
     const lengths = new Set(Array.from({ length: 30 }, (_, seed) => generateHaneWordLevel(seed + 1, 2).length));
-    expect(lengths.size).toBeGreaterThan(1); // en az bazı seed'ler farklı uzunluk üretmeli (4-8 arası)
-    for (const length of [4, 5, 6, 7, 8]) {
+    expect(lengths.size).toBe(2);
+    expect(lengths.has(4)).toBe(true);
+    expect(lengths.has(5)).toBe(true);
+    for (const length of [4, 5]) {
       const seed = Array.from({ length: 40 }, (_, index) => index + 1).find(candidate => generateHaneWordLevel(candidate, 2).length === length);
       expect(seed, `${length} harfli bir seed bulunamadı`).toBeDefined();
       if (!seed) continue;
-      const level = generateHaneWordLevel(seed, 2);
-      expect(level.length).toBe(length);
-      expect(Array.from(level.target)).toHaveLength(length);
-      expect(await isHaneWordGuessValid(level.target, level)).toBe(true);
+      const trLevel = generateHaneWordLevel(seed, 2, "tr");
+      expect(trLevel.length).toBe(length);
+      expect(Array.from(trLevel.target)).toHaveLength(length);
+      expect(await isHaneWordGuessValid(trLevel.target, trLevel, "tr")).toBe(true);
+
+      const enLevel = generateHaneWordLevel(seed, 2, "en");
+      expect(enLevel.length).toBe(length);
+      expect(Array.from(enLevel.target)).toHaveLength(length);
+      expect(await isHaneWordGuessValid(enLevel.target, enLevel, "en")).toBe(true);
     }
   });
+
 
   it("guarantees exactly one contradicting suspect and a fully cleared innocent set for every vaka case", () => {
     for (const seed of [14151, 76321, 99183]) {
@@ -288,20 +296,34 @@ describe("mini-game level generators", () => {
   });
 
   it("builds a deterministic Turkish word record and consumes repeated letters only once", async () => {
-    const level = generateHaneWordLevel(74181, 2);
-    expect(level).toEqual(generateHaneWordLevel(74181, 2));
+    const level = generateHaneWordLevel(74181, 2, "tr");
+    expect(level).toEqual(generateHaneWordLevel(74181, 2, "tr"));
     expect(Array.from(level.target)).toHaveLength(level.length);
-    expect(await isHaneWordGuessValid("bahçe", level)).toBe(level.length === 5);
-    expect(await isHaneWordGuessValid("xxxxx", level)).toBe(false);
-    expect(compareHaneWordGuess("KİTAP", "KİLİT")).toEqual({ marks: ["exact", "exact", "absent", "absent", "present"], exact: 2, present: 1 });
-    expect(compareHaneWordGuess("KİTAP", "AAAAA")).toEqual({ marks: ["absent", "absent", "absent", "exact", "absent"], exact: 1, present: 0 });
+    expect(await isHaneWordGuessValid("bahçe", level, "tr")).toBe(level.length === 5);
+    expect(await isHaneWordGuessValid("xxxxx", level, "tr")).toBe(false);
+    expect(compareHaneWordGuess("KİTAP", "KİLİT", "tr")).toEqual({ marks: ["exact", "exact", "absent", "absent", "present"], exact: 2, present: 1 });
+    expect(compareHaneWordGuess("KİTAP", "AAAAA", "tr")).toEqual({ marks: ["absent", "absent", "absent", "exact", "absent"], exact: 1, present: 0 });
   });
 
-  it("accepts any valid Turkish dictionary word as a guess, not just the curated solution pool (real Wordle behavior)", async () => {
-    // "orman" (forest) 5 harfli gerçek bir TDK kelimesi ama günün çözüm havuzunda (HANE_WORD_POOLS) yok —
-    // gerçek Wordle'da olduğu gibi geniş bir tahmin sözlüğünden kabul edilmeli.
-    expect(await isHaneWordGuessValid("orman", { length: 5 })).toBe(true);
-    expect(await isHaneWordGuessValid("zzzzz", { length: 5 })).toBe(false);
-    expect(await isHaneWordGuessValid("kelime", { length: 6 })).toBe(true);
+  it("supports English word mode with comprehensive dictionary and letter comparison", async () => {
+    const level = generateHaneWordLevel(74181, 2, "en");
+    expect(level).toEqual(generateHaneWordLevel(74181, 2, "en"));
+    expect(level.length).toBeLessThanOrEqual(5);
+    expect(Array.from(level.target)).toHaveLength(level.length);
+    expect(await isHaneWordGuessValid(level.target, level, "en")).toBe(true);
+    expect(await isHaneWordGuessValid("CRANE", { length: 5 }, "en")).toBe(true);
+    expect(await isHaneWordGuessValid("apple", { length: 5 }, "en")).toBe(true);
+    expect(await isHaneWordGuessValid("zzzzz", { length: 5 }, "en")).toBe(false);
+    expect(compareHaneWordGuess("PLANT", "POINT", "en")).toEqual({ marks: ["exact", "absent", "absent", "exact", "exact"], exact: 3, present: 0 });
   });
+
+  it("accepts any valid Turkish and English dictionary word as a guess, up to 5 letters (real Wordle behavior)", async () => {
+    expect(await isHaneWordGuessValid("orman", { length: 5 }, "tr")).toBe(true);
+    expect(await isHaneWordGuessValid("boya", { length: 4 }, "tr")).toBe(true);
+    expect(await isHaneWordGuessValid("zzzzz", { length: 5 }, "tr")).toBe(false);
+    expect(await isHaneWordGuessValid("cloud", { length: 5 }, "en")).toBe(true);
+    expect(await isHaneWordGuessValid("word", { length: 4 }, "en")).toBe(true);
+    expect(await isHaneWordGuessValid("qqqqq", { length: 5 }, "en")).toBe(false);
+  });
+
 });

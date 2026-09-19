@@ -1,4 +1,5 @@
 import type { GameId } from "./catalog";
+import type { SiteLocale } from "./i18n";
 
 export type Point = { x: number; y: number };
 export type Direction = "N" | "E" | "S" | "W";
@@ -53,7 +54,36 @@ export type HaneWordFeedback = { marks: HaneWordMark[]; exact: number; present: 
 export type HaneWordLevel = { length: number; maxGuesses: number; target: string; category: string; categoryEn: string; lesson: string };
 
 type HaneWordEntry = { word: string; category: string; categoryEn: string };
-const HANE_WORD_SOLUTIONS: HaneWordEntry[] = [
+
+const HANE_WORD_POOL_TR_4: HaneWordEntry[] = [
+  { word: "boya", category: "Atölye", categoryEn: "Workshop" }, { word: "çivi", category: "Atölye", categoryEn: "Workshop" },
+  { word: "harç", category: "Atölye", categoryEn: "Workshop" }, { word: "deri", category: "Atölye", categoryEn: "Workshop" },
+  { word: "keçe", category: "Atölye", categoryEn: "Workshop" }, { word: "kutu", category: "Atölye", categoryEn: "Workshop" },
+  { word: "ağaç", category: "Doğa", categoryEn: "Nature" }, { word: "kaya", category: "Doğa", categoryEn: "Nature" },
+  { word: "tepe", category: "Doğa", categoryEn: "Nature" }, { word: "vadi", category: "Doğa", categoryEn: "Nature" },
+  { word: "dere", category: "Doğa", categoryEn: "Nature" }, { word: "hava", category: "Doğa", categoryEn: "Nature" },
+  { word: "yurt", category: "Doğa", categoryEn: "Nature" }, { word: "kıyı", category: "Doğa", categoryEn: "Nature" },
+  { word: "araç", category: "Yol", categoryEn: "Journey" }, { word: "rota", category: "Yol", categoryEn: "Journey" },
+  { word: "adım", category: "Yol", categoryEn: "Journey" }, { word: "tren", category: "Yol", categoryEn: "Journey" },
+  { word: "gemi", category: "Yol", categoryEn: "Journey" }, { word: "yaya", category: "Yol", categoryEn: "Journey" },
+  { word: "akış", category: "Yol", categoryEn: "Journey" }, { word: "kapı", category: "Yol", categoryEn: "Journey" },
+  { word: "kule", category: "Keşif", categoryEn: "Discovery" }, { word: "plan", category: "Keşif", categoryEn: "Discovery" },
+  { word: "ışık", category: "Keşif", categoryEn: "Discovery" }, { word: "koku", category: "Keşif", categoryEn: "Discovery" },
+  { word: "ufuk", category: "Keşif", categoryEn: "Discovery" }, { word: "akıl", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "izin", category: "Bilgi", categoryEn: "Knowledge" }, { word: "konu", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "süre", category: "Bilgi", categoryEn: "Knowledge" }, { word: "soru", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "yazı", category: "Bilgi", categoryEn: "Knowledge" }, { word: "veri", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "ders", category: "Bilgi", categoryEn: "Knowledge" }, { word: "oyun", category: "Kültür", categoryEn: "Culture" },
+  { word: "nota", category: "Kültür", categoryEn: "Culture" }, { word: "dans", category: "Kültür", categoryEn: "Culture" },
+  { word: "film", category: "Kültür", categoryEn: "Culture" }, { word: "kupa", category: "Kültür", categoryEn: "Culture" },
+  { word: "şiir", category: "Kültür", categoryEn: "Culture" }, { word: "peri", category: "Kültür", categoryEn: "Culture" },
+  { word: "eser", category: "Kültür", categoryEn: "Culture" }, { word: "şans", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "kira", category: "Gündelik", categoryEn: "Everyday" }, { word: "masa", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "saat", category: "Gündelik", categoryEn: "Everyday" }, { word: "ayna", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "çatı", category: "Gündelik", categoryEn: "Everyday" }, { word: "tava", category: "Gündelik", categoryEn: "Everyday" },
+];
+
+const HANE_WORD_POOL_TR_5: HaneWordEntry[] = [
   { word: "baskı", category: "Atölye", categoryEn: "Workshop" }, { word: "kağıt", category: "Atölye", categoryEn: "Workshop" },
   { word: "damga", category: "Atölye", categoryEn: "Workshop" }, { word: "çizgi", category: "Atölye", categoryEn: "Workshop" },
   { word: "kalem", category: "Atölye", categoryEn: "Workshop" }, { word: "fırça", category: "Atölye", categoryEn: "Workshop" },
@@ -77,77 +107,119 @@ const HANE_WORD_SOLUTIONS: HaneWordEntry[] = [
   { word: "şeker", category: "Gündelik", categoryEn: "Everyday" }, { word: "ekmek", category: "Gündelik", categoryEn: "Everyday" },
   { word: "tatlı", category: "Gündelik", categoryEn: "Everyday" }, { word: "sayfa", category: "Gündelik", categoryEn: "Everyday" },
 ];
-const HANE_WORD_EXTRA_GUESSES = ["resim", "süreç", "sesli", "izler", "bölüm", "plaka", "merak", "oymak", "güneş"];
 
-// 5 harf dışındaki uzunluklar için ayrı havuzlar — kelime uzunluğu artık güne (seed'e) göre
-// değişiyor, her uzunluğun kendi geçerli kelime listesi olması gerekiyor.
-const HANE_WORD_POOL_4: HaneWordEntry[] = [
-  { word: "araç", category: "Yol", categoryEn: "Journey" }, { word: "izin", category: "Bilgi", categoryEn: "Knowledge" },
-  { word: "konu", category: "Bilgi", categoryEn: "Knowledge" }, { word: "süre", category: "Bilgi", categoryEn: "Knowledge" },
-  { word: "oyun", category: "Kültür", categoryEn: "Culture" }, { word: "akıl", category: "Bilgi", categoryEn: "Knowledge" },
-  { word: "şans", category: "Gündelik", categoryEn: "Everyday" }, { word: "kira", category: "Gündelik", categoryEn: "Everyday" },
-  { word: "peri", category: "Kültür", categoryEn: "Culture" }, { word: "kule", category: "Keşif", categoryEn: "Discovery" },
-  { word: "nota", category: "Kültür", categoryEn: "Culture" }, { word: "kupa", category: "Kültür", categoryEn: "Culture" },
+const HANE_WORD_POOL_EN_4: HaneWordEntry[] = [
+  { word: "tool", category: "Atölye", categoryEn: "Workshop" }, { word: "gear", category: "Atölye", categoryEn: "Workshop" },
+  { word: "iron", category: "Atölye", categoryEn: "Workshop" }, { word: "wood", category: "Atölye", categoryEn: "Workshop" },
+  { word: "clay", category: "Atölye", categoryEn: "Workshop" }, { word: "wire", category: "Atölye", categoryEn: "Workshop" },
+  { word: "rain", category: "Doğa", categoryEn: "Nature" }, { word: "wind", category: "Doğa", categoryEn: "Nature" },
+  { word: "leaf", category: "Doğa", categoryEn: "Nature" }, { word: "tree", category: "Doğa", categoryEn: "Nature" },
+  { word: "rock", category: "Doğa", categoryEn: "Nature" }, { word: "star", category: "Doğa", categoryEn: "Nature" },
+  { word: "moon", category: "Doğa", categoryEn: "Nature" }, { word: "wave", category: "Doğa", categoryEn: "Nature" },
+  { word: "path", category: "Yol", categoryEn: "Journey" }, { word: "road", category: "Yol", categoryEn: "Journey" },
+  { word: "gate", category: "Yol", categoryEn: "Journey" }, { word: "port", category: "Yol", categoryEn: "Journey" },
+  { word: "ship", category: "Yol", categoryEn: "Journey" }, { word: "lane", category: "Yol", categoryEn: "Journey" },
+  { word: "walk", category: "Yol", categoryEn: "Journey" }, { word: "dock", category: "Yol", categoryEn: "Journey" },
+  { word: "clue", category: "Keşif", categoryEn: "Discovery" }, { word: "mark", category: "Keşif", categoryEn: "Discovery" },
+  { word: "code", category: "Keşif", categoryEn: "Discovery" }, { word: "lens", category: "Keşif", categoryEn: "Discovery" },
+  { word: "mask", category: "Keşif", categoryEn: "Discovery" }, { word: "glow", category: "Keşif", categoryEn: "Discovery" },
+  { word: "echo", category: "Keşif", categoryEn: "Discovery" }, { word: "sign", category: "Keşif", categoryEn: "Discovery" },
+  { word: "word", category: "Bilgi", categoryEn: "Knowledge" }, { word: "page", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "idea", category: "Bilgi", categoryEn: "Knowledge" }, { word: "fact", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "mind", category: "Bilgi", categoryEn: "Knowledge" }, { word: "book", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "data", category: "Bilgi", categoryEn: "Knowledge" }, { word: "read", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "song", category: "Kültür", categoryEn: "Culture" }, { word: "poem", category: "Kültür", categoryEn: "Culture" },
+  { word: "drum", category: "Kültür", categoryEn: "Culture" }, { word: "myth", category: "Kültür", categoryEn: "Culture" },
+  { word: "epic", category: "Kültür", categoryEn: "Culture" }, { word: "tune", category: "Kültür", categoryEn: "Culture" },
+  { word: "arts", category: "Kültür", categoryEn: "Culture" }, { word: "band", category: "Kültür", categoryEn: "Culture" },
+  { word: "desk", category: "Gündelik", categoryEn: "Everyday" }, { word: "door", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "time", category: "Gündelik", categoryEn: "Everyday" }, { word: "bell", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "card", category: "Gündelik", categoryEn: "Everyday" }, { word: "lamp", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "soap", category: "Gündelik", categoryEn: "Everyday" }, { word: "home", category: "Gündelik", categoryEn: "Everyday" },
 ];
-const HANE_WORD_POOL_6: HaneWordEntry[] = [
-  { word: "kelime", category: "Bilgi", categoryEn: "Knowledge" }, { word: "hayvan", category: "Doğa", categoryEn: "Nature" },
-  { word: "kumsal", category: "Doğa", categoryEn: "Nature" }, { word: "market", category: "Gündelik", categoryEn: "Everyday" },
-  { word: "yaprak", category: "Doğa", categoryEn: "Nature" }, { word: "kaptan", category: "Yol", categoryEn: "Journey" },
-  { word: "yıldız", category: "Keşif", categoryEn: "Discovery" }, { word: "merkez", category: "Yol", categoryEn: "Journey" },
-  { word: "dükkan", category: "Gündelik", categoryEn: "Everyday" }, { word: "kanepe", category: "Gündelik", categoryEn: "Everyday" },
-  { word: "otobüs", category: "Yol", categoryEn: "Journey" }, { word: "sinema", category: "Kültür", categoryEn: "Culture" },
-  { word: "yağmur", category: "Doğa", categoryEn: "Nature" }, { word: "gazete", category: "Bilgi", categoryEn: "Knowledge" },
-  { word: "terazi", category: "Atölye", categoryEn: "Workshop" }, { word: "sözlük", category: "Bilgi", categoryEn: "Knowledge" },
-  { word: "defter", category: "Atölye", categoryEn: "Workshop" },
+
+const HANE_WORD_POOL_EN_5: HaneWordEntry[] = [
+  { word: "print", category: "Atölye", categoryEn: "Workshop" }, { word: "paper", category: "Atölye", categoryEn: "Workshop" },
+  { word: "stamp", category: "Atölye", categoryEn: "Workshop" }, { word: "brush", category: "Atölye", categoryEn: "Workshop" },
+  { word: "forge", category: "Atölye", categoryEn: "Workshop" }, { word: "craft", category: "Atölye", categoryEn: "Workshop" },
+  { word: "anvil", category: "Atölye", categoryEn: "Workshop" }, { word: "blade", category: "Atölye", categoryEn: "Workshop" },
+  { word: "river", category: "Doğa", categoryEn: "Nature" }, { word: "cloud", category: "Doğa", categoryEn: "Nature" },
+  { word: "bloom", category: "Doğa", categoryEn: "Nature" }, { word: "ocean", category: "Doğa", categoryEn: "Nature" },
+  { word: "grove", category: "Doğa", categoryEn: "Nature" }, { word: "frost", category: "Doğa", categoryEn: "Nature" },
+  { word: "earth", category: "Doğa", categoryEn: "Nature" }, { word: "flame", category: "Doğa", categoryEn: "Nature" },
+  { word: "trail", category: "Yol", categoryEn: "Journey" }, { word: "route", category: "Yol", categoryEn: "Journey" },
+  { word: "track", category: "Yol", categoryEn: "Journey" }, { word: "ferry", category: "Yol", categoryEn: "Journey" },
+  { word: "train", category: "Yol", categoryEn: "Journey" }, { word: "canal", category: "Yol", categoryEn: "Journey" },
+  { word: "guide", category: "Yol", categoryEn: "Journey" }, { word: "cabin", category: "Yol", categoryEn: "Journey" },
+  { word: "trace", category: "Keşif", categoryEn: "Discovery" }, { word: "crypt", category: "Keşif", categoryEn: "Discovery" },
+  { word: "relic", category: "Keşif", categoryEn: "Discovery" }, { word: "torch", category: "Keşif", categoryEn: "Discovery" },
+  { word: "spark", category: "Keşif", categoryEn: "Discovery" }, { word: "prism", category: "Keşif", categoryEn: "Discovery" },
+  { word: "vault", category: "Keşif", categoryEn: "Discovery" }, { word: "quest", category: "Keşif", categoryEn: "Discovery" },
+  { word: "logic", category: "Bilgi", categoryEn: "Knowledge" }, { word: "proof", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "truth", category: "Bilgi", categoryEn: "Knowledge" }, { word: "query", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "sense", category: "Bilgi", categoryEn: "Knowledge" }, { word: "study", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "brain", category: "Bilgi", categoryEn: "Knowledge" }, { word: "focus", category: "Bilgi", categoryEn: "Knowledge" },
+  { word: "music", category: "Kültür", categoryEn: "Culture" }, { word: "radio", category: "Kültür", categoryEn: "Culture" },
+  { word: "stage", category: "Kültür", categoryEn: "Culture" }, { word: "novel", category: "Kültür", categoryEn: "Culture" },
+  { word: "dance", category: "Kültür", categoryEn: "Culture" }, { word: "choir", category: "Kültür", categoryEn: "Culture" },
+  { word: "story", category: "Kültür", categoryEn: "Culture" }, { word: "actor", category: "Kültür", categoryEn: "Culture" },
+  { word: "bread", category: "Gündelik", categoryEn: "Everyday" }, { word: "sugar", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "lemon", category: "Gündelik", categoryEn: "Everyday" }, { word: "clock", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "water", category: "Gündelik", categoryEn: "Everyday" }, { word: "fruit", category: "Gündelik", categoryEn: "Everyday" },
+  { word: "glass", category: "Gündelik", categoryEn: "Everyday" }, { word: "table", category: "Gündelik", categoryEn: "Everyday" },
 ];
-const HANE_WORD_POOL_7: HaneWordEntry[] = [
-  { word: "kelebek", category: "Doğa", categoryEn: "Nature" }, { word: "pencere", category: "Gündelik", categoryEn: "Everyday" },
-  { word: "şemsiye", category: "Gündelik", categoryEn: "Everyday" }, { word: "gökyüzü", category: "Doğa", categoryEn: "Nature" },
-  { word: "telefon", category: "Gündelik", categoryEn: "Everyday" }, { word: "bilezik", category: "Kültür", categoryEn: "Culture" },
-  { word: "koridor", category: "Keşif", categoryEn: "Discovery" }, { word: "anahtar", category: "Keşif", categoryEn: "Discovery" },
-];
-const HANE_WORD_POOL_8: HaneWordEntry[] = [
-  { word: "kitaplık", category: "Bilgi", categoryEn: "Knowledge" }, { word: "öğretmen", category: "Bilgi", categoryEn: "Knowledge" },
-  { word: "kahvaltı", category: "Gündelik", categoryEn: "Everyday" }, { word: "merdiven", category: "Keşif", categoryEn: "Discovery" },
-  { word: "yolculuk", category: "Yol", categoryEn: "Journey" }, { word: "kalemlik", category: "Atölye", categoryEn: "Workshop" },
-  { word: "gazeteci", category: "Kültür", categoryEn: "Culture" }, { word: "toplantı", category: "Kültür", categoryEn: "Culture" },
-];
-const HANE_WORD_LENGTHS = [4, 5, 6, 7, 8] as const;
-const HANE_WORD_POOLS: Record<number, HaneWordEntry[]> = {
-  4: HANE_WORD_POOL_4,
-  5: HANE_WORD_SOLUTIONS,
-  6: HANE_WORD_POOL_6,
-  7: HANE_WORD_POOL_7,
-  8: HANE_WORD_POOL_8,
+
+const HANE_WORD_EXTRA_GUESSES_TR = ["resim", "süreç", "sesli", "izler", "bölüm", "plaka", "merak", "oymak", "güneş"];
+const HANE_WORD_EXTRA_GUESSES_EN = ["apple", "crane", "slate", "adieu", "audio", "roast", "stare", "raise"];
+
+export const HANE_WORD_LENGTHS = [4, 5] as const;
+const HANE_WORD_POOLS_TR: Record<number, HaneWordEntry[]> = {
+  4: HANE_WORD_POOL_TR_4,
+  5: HANE_WORD_POOL_TR_5,
 };
-const haneLetters = (value: string) => Array.from(value.trim().toLocaleUpperCase("tr-TR"));
-// Tahmin doğrulaması artık kapalı bir küçük listeyle değil, TDK kökenli geniş bir
-// sözlükle yapılıyor (gerçek Wordle'ların solutions/allowed-guesses ayrımıyla aynı
-// mantık — bkz. scripts/build-hane-word-lists.mjs) — oyuncu, o günün uzunluğunda
-// GEÇERLİ herhangi bir Türkçe kelimeyi tahmin olarak girebilir. Cevap havuzu
-// (HANE_WORD_POOLS) küçük/küratörlü kalmaya devam eder, yalnız kendi kelimelerinin
-// de kabul edilmesini garanti etmek için tahmin kümesine birleştirilir.
-// Liste dosyası (~300KB) DİNAMİK import edilir — Hane'yi hiç açmayan ziyaretçinin
-// ana JS paketini şişirmesin diye (bkz. build sonrası gzip farkı: statik import
-// ana chunk'ı ~104KB gzip büyütüyordu).
-const HANE_WORD_GUESS_SET_CACHE: Record<number, Set<string>> = {};
-let haneWordGuessListsPromise: Promise<Record<number, string[]>> | null = null;
+const HANE_WORD_POOLS_EN: Record<number, HaneWordEntry[]> = {
+  4: HANE_WORD_POOL_EN_4,
+  5: HANE_WORD_POOL_EN_5,
+};
+const HANE_WORD_POOLS = HANE_WORD_POOLS_TR;
 
-function extraGuessesFor(length: number) {
+export const haneLetters = (value: string, locale: SiteLocale = "tr") =>
+  Array.from(value.trim().toLocaleUpperCase(locale === "tr" ? "tr-TR" : "en-US"));
+
+const HANE_WORD_GUESS_SET_CACHE_TR: Record<number, Set<string>> = {};
+const HANE_WORD_GUESS_SET_CACHE_EN: Record<number, Set<string>> = {};
+let haneWordGuessListsPromise: Promise<{
+  HANE_WORD_GUESS_LISTS_TR: Record<number, string[]>;
+  HANE_WORD_GUESS_LISTS_EN: Record<number, string[]>;
+}> | null = null;
+
+function extraGuessesFor(length: number, locale: SiteLocale = "tr") {
+  const pools = locale === "tr" ? HANE_WORD_POOLS_TR : HANE_WORD_POOLS_EN;
+  const pool = pools[length] ?? [];
+  const extras = locale === "tr" ? HANE_WORD_EXTRA_GUESSES_TR : HANE_WORD_EXTRA_GUESSES_EN;
   return [
-    ...HANE_WORD_POOLS[length].map(entry => haneLetters(entry.word).join("")),
-    ...HANE_WORD_EXTRA_GUESSES.filter(word => haneLetters(word).length === length).map(word => haneLetters(word).join("")),
+    ...pool.map(entry => haneLetters(entry.word, locale).join("")),
+    ...extras.filter(word => haneLetters(word, locale).length === length).map(word => haneLetters(word, locale).join("")),
   ];
 }
 
-async function haneWordGuessSetFor(length: number): Promise<Set<string>> {
-  if (HANE_WORD_GUESS_SET_CACHE[length]) return HANE_WORD_GUESS_SET_CACHE[length];
-  if (!haneWordGuessListsPromise) haneWordGuessListsPromise = import("./haneWordLists").then(module => module.HANE_WORD_GUESS_LISTS);
+export async function haneWordGuessSetFor(length: number, locale: SiteLocale = "tr"): Promise<Set<string>> {
+  const isTr = locale === "tr";
+  const cache = isTr ? HANE_WORD_GUESS_SET_CACHE_TR : HANE_WORD_GUESS_SET_CACHE_EN;
+  if (cache[length]) return cache[length];
+  if (!haneWordGuessListsPromise) {
+    haneWordGuessListsPromise = import("./haneWordLists").then(module => ({
+      HANE_WORD_GUESS_LISTS_TR: module.HANE_WORD_GUESS_LISTS_TR,
+      HANE_WORD_GUESS_LISTS_EN: module.HANE_WORD_GUESS_LISTS_EN,
+    }));
+  }
   const lists = await haneWordGuessListsPromise;
-  const set = new Set([...(lists[length] ?? []), ...extraGuessesFor(length)]);
-  HANE_WORD_GUESS_SET_CACHE[length] = set;
+  const list = (isTr ? lists.HANE_WORD_GUESS_LISTS_TR : lists.HANE_WORD_GUESS_LISTS_EN)[length] ?? [];
+  const set = new Set([...list, ...extraGuessesFor(length, locale)]);
+  cache[length] = set;
   return set;
 }
+
 
 export function generateHaneLevel(seed: number, mastery: number): HaneLevel {
   const random = rng(seed ^ Math.imul(mastery + 17, 0x45d9f3b));
@@ -196,32 +268,35 @@ export function compareHaneNumberGuess(target: string, guess: string): HaneFeedb
   return { marks, exact, present };
 }
 
-export function generateHaneWordLevel(seed: number, mastery: number): HaneWordLevel {
-  // Uzunluk sadece güne (ham seed'e) bağlı — mastery'den bağımsız, aynı gün herkes aynı
-  // uzunlukla oynar. Kelime seçimi ayrıca mastery'yi de karıştırır (pratik modda farklılaşsın).
+export function generateHaneWordLevel(seed: number, mastery: number, locale: SiteLocale = "tr"): HaneWordLevel {
+  // Uzunluk sadece güne (ham seed'e) bağlı — mastery'den ve dilden bağımsız, aynı gün herkes
+  // aynı uzunlukla (4 veya 5) oynar. Kelime seçimi dile göre ilgili havuzdan yapılır.
   const length = HANE_WORD_LENGTHS[indexFor(seed, 991, HANE_WORD_LENGTHS.length)];
-  const pool = HANE_WORD_POOLS[length];
+  const pools = locale === "en" ? HANE_WORD_POOLS_EN : HANE_WORD_POOLS_TR;
+  const pool = pools[length];
   const entry = pool[indexFor(seed ^ Math.imul(mastery + 31, 0x27d4eb2d), 71 + mastery * 19, pool.length)];
   return {
     length,
     maxGuesses: Math.max(4, 7 - mastery),
-    target: haneLetters(entry.word).join(""),
+    target: haneLetters(entry.word, locale).join(""),
     category: entry.category,
     categoryEn: entry.categoryEn,
-    lesson: "Her işareti tek başına değil, önceki fişlerle birlikte oku. Aynı harf hedefte bulunduğu kadar iz bırakır.",
+    lesson: locale === "en"
+      ? "Read each mark in context with previous slips. A letter leaves a trace only as many times as it appears in the target."
+      : "Her işareti tek başına değil, önceki fişlerle birlikte oku. Aynı harf hedefte bulunduğu kadar iz bırakır.",
   };
 }
 
-export async function isHaneWordGuessValid(guess: string, level: Pick<HaneWordLevel, "length">) {
-  const normalized = haneLetters(guess);
+export async function isHaneWordGuessValid(guess: string, level: Pick<HaneWordLevel, "length">, locale: SiteLocale = "tr") {
+  const normalized = haneLetters(guess, locale);
   if (normalized.length !== level.length) return false;
-  const set = await haneWordGuessSetFor(level.length);
+  const set = await haneWordGuessSetFor(level.length, locale);
   return set.has(normalized.join(""));
 }
 
-export function compareHaneWordGuess(target: string, guess: string): HaneWordFeedback {
-  const targetLetters = haneLetters(target);
-  const guessLetters = haneLetters(guess);
+export function compareHaneWordGuess(target: string, guess: string, locale: SiteLocale = "tr"): HaneWordFeedback {
+  const targetLetters = haneLetters(target, locale);
+  const guessLetters = haneLetters(guess, locale);
   const marks: HaneWordMark[] = Array.from({ length: targetLetters.length }, () => "absent");
   const remainingTarget: string[] = [];
   const pending: number[] = [];
@@ -237,6 +312,7 @@ export function compareHaneWordGuess(target: string, guess: string): HaneWordFee
   }
   return { marks, exact, present };
 }
+
 
 export type EchoLevel = {
   cols: number;
