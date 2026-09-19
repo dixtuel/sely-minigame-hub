@@ -307,7 +307,7 @@ cp .env.example .env
 
 ## Açık Kaynak Atıfları
 
-Babylon.js, React, Tailwind CSS, Lucide simgeleri, Radix UI, tRPC, PostgreSQL, libSQL ve TDK Türkçe sözlük tarayıcısının açık kaynak lisans bildirimleri için **[ATTRIBUTION.md](ATTRIBUTION.md)** belgesini inceleyebilirsiniz.
+Babylon.js, React, Tailwind CSS, Lucide simgeleri, Radix UI, tRPC, PostgreSQL, libSQL ve TDK Türkçe sözlük tarayıcısının açık kaynak lisans bildirimleri için **[ATTRIBUTION.md](docs/ATTRIBUTION.md)** belgesini inceleyebilirsiniz.
 
 ---
 

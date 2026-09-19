@@ -167,3 +167,8 @@ data/
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Prettier & lockfile exclusions
+bun.lock
+bun.lockb
+.env*
