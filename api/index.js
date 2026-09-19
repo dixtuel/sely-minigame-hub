@@ -311,7 +311,7 @@ var _mysqlDb = null;
 var _pgPool = null;
 var _pgSchemaInitialized = false;
 function getPostgresUrl() {
-  const url = process.env.POSTGRES_URL || process.env.DATABASE_URL || null;
+  const url = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.CONTENT_DB_URL || null;
   if (url && (url.startsWith("postgres://") || url.startsWith("postgresql://"))) {
     return url;
   }
@@ -1108,14 +1108,23 @@ var store = null;
 function getDailyStore() {
   if (store) return store;
   const provider = process.env.CONTENT_DB_PROVIDER?.toLowerCase();
-  const postgresUrl = process.env.CONTENT_DB_URL;
-  const tursoUrl = process.env.TURSO_URL;
-  if (provider === "postgres" && postgresUrl && /^(postgres|postgresql):\/\//.test(postgresUrl)) {
-    store = new PostgresStore(new Pool2({ connectionString: postgresUrl, max: 2, idleTimeoutMillis: 1e4 }));
+  const postgresUrl = process.env.CONTENT_DB_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  const tursoUrl = process.env.TURSO_URL || process.env.TURSO_DATABASE_URL;
+  const tursoAuthToken = process.env.TURSO_AUTH_TOKEN;
+  if ((provider === "turso" || !provider) && tursoUrl && (/^libsql:\/\//.test(tursoUrl) && tursoAuthToken || tursoUrl.startsWith("file:") || tursoUrl === ":memory:")) {
+    store = new TursoStore(createClient2({ url: tursoUrl, authToken: tursoAuthToken }));
     return store;
   }
-  if (provider === "turso" && tursoUrl && /^libsql:\/\//.test(tursoUrl) && process.env.TURSO_AUTH_TOKEN) {
-    store = new TursoStore(createClient2({ url: tursoUrl, authToken: process.env.TURSO_AUTH_TOKEN }));
+  if ((provider === "postgres" || !provider) && postgresUrl && /^(postgres|postgresql):\/\//.test(postgresUrl)) {
+    const isCloud = postgresUrl.includes("sslmode=require") || postgresUrl.includes("neon.tech") || postgresUrl.includes("vercel-storage.com") || postgresUrl.includes("aws.connect");
+    store = new PostgresStore(
+      new Pool2({
+        connectionString: postgresUrl,
+        max: 2,
+        idleTimeoutMillis: 1e4,
+        ssl: isCloud ? { rejectUnauthorized: false } : void 0
+      })
+    );
     return store;
   }
   store = new MemoryStore();
