@@ -23,7 +23,7 @@ export default function ShadowGame({
   onFinish: (result: GameResult) => void;
 }) {
   const level = useMemo(() => generateShadowLevel(seed, mastery), [seed, mastery]);
-  const finish = useFinishOnce(onFinish);
+  const [finish, isFinished] = useFinishOnce(onFinish);
 
   type GameState = {
     player: Position;
@@ -71,6 +71,7 @@ export default function ShadowGame({
 
   const move = useCallback(
     (dr: number, dc: number) => {
+      if (isFinished) return;
       setState((previous) => {
         const player = {
           r: Math.max(0, Math.min(level.size - 1, previous.player.r + dr)),
@@ -149,6 +150,7 @@ export default function ShadowGame({
   );
 
   const undo = useCallback(() => {
+    if (isFinished) return;
     setUndoStack((prev) => {
       if (prev.length === 0) return prev;
       const last = prev[prev.length - 1];
@@ -156,16 +158,18 @@ export default function ShadowGame({
       playThrust(soundOn);
       return prev.slice(0, -1);
     });
-  }, [soundOn]);
+  }, [isFinished, soundOn]);
 
   const restart = useCallback(() => {
+    if (isFinished) return;
     setState(initial);
     setUndoStack([]);
     playHit(soundOn);
-  }, [initial, soundOn]);
+  }, [initial, isFinished, soundOn]);
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (isFinished) return;
       // WASD, Arrow keys, Z (Undo), R (Restart)
       const map: Record<string, [number, number]> = {
         ArrowUp: [-1, 0],
@@ -310,7 +314,7 @@ export default function ShadowGame({
           <button
             type="button"
             className="shadow-tool-btn shadow-undo-btn"
-            disabled={undoStack.length === 0}
+            disabled={isFinished || undoStack.length === 0}
             onClick={undo}
             title={local(locale, "Geri Al (Z)", "Undo (Z)")}
           >
@@ -319,6 +323,7 @@ export default function ShadowGame({
           <button
             type="button"
             className="shadow-tool-btn shadow-restart-btn"
+            disabled={isFinished}
             onClick={restart}
             title={local(locale, "Baştan Başla (R)", "Restart (R)")}
           >

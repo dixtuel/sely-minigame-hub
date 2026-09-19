@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { GameId } from "@/lib/catalog";
 import { masteryBand } from "@/lib/levelGenerators";
 
@@ -26,10 +26,13 @@ export function scoreFor(id: GameId, raw: number) {
 }
 
 export function useFinishOnce(onFinish: (result: GameResult) => void) {
+  const [isFinished, setIsFinished] = useState(false);
   const done = useRef(false);
-  return useCallback((result: GameResult) => {
+  const finish = useCallback((result: GameResult) => {
     if (done.current) return;
     done.current = true;
+    setIsFinished(true);
     window.setTimeout(() => onFinish(result), 90);
   }, [onFinish]);
+  return [finish, isFinished] as const;
 }

@@ -15,6 +15,7 @@ export type DeterministicEngineResult = {
   stressDelta: number;
   confessed: boolean;
   unlockedClueId?: string;
+  unlockedClueLabel?: string;
   unlockedSuspectId?: string;
   unlockedSuspectName?: string;
 };
@@ -60,12 +61,16 @@ export function processDeterministicInterrogation(
   // Çelişki Avında Yakalanmış Şüpheli Kontrolü (Cross-Mode Contradiction Awareness)
   if (payload.isExposedByContradiction) {
     if (suspect.isCulprit) {
-      stress = Math.max(88, Math.min(100, stress + 8));
+      stress = Math.max(90, Math.min(100, stress + 12));
       const expSentence = payload.exposedContradictionInfo?.sentence || suspect.alibi;
       const expClue = payload.exposedContradictionInfo?.clue || "resmi kanıt";
+      const motive = isEn
+        ? (caseData.correctMotiveEn || suspect.motiveEn || suspect.motive)
+        : (caseData.correctMotive || suspect.motive);
+      const confDetail = isEn ? (suspect.confessionEn || suspect.confession) : suspect.confession;
       const reply = isEn
-        ? `(Head hung in defeat, voice trembling) I know you caught my contradiction regarding "${expSentence}" with the ${expClue}, detective... There's no point in lying anymore. The debt was suffocating me, I was backed into a corner!`
-        : `(Başını ellerinin arasına alıp yere bakıyor, sesi titriyor) O resmi ifademdeki "${expSentence}" yalanımı ${expClue} ile yakaladığınızı biliyorum dedektif... Artık inkar etmenin bir anlamı kalmadı. Borçlar gırtlağıma dayanmıştı, tefeciler kapımdaydı!`;
+        ? `(Head hung in defeat, voice trembling) I know you caught my contradiction regarding "${expSentence}" with the ${expClue}, detective... There's no point in denying it anymore. ${confDetail} (Motive: ${motive})`
+        : `(Başını ellerinin arasına alıp yere bakıyor, sesi titriyor) O resmi ifademdeki "${expSentence}" yalanımı ${expClue} ile yakaladığınızı biliyorum dedektif... Artık inkar etmenin bir anlamı kalmadı. ${confDetail} (Amacım: ${motive})`;
 
       return {
         text: reply,
@@ -90,14 +95,20 @@ export function processDeterministicInterrogation(
     }
   }
 
-  // Beden dili ipucu seçici
+  // Beden dili ipucu seçici (0-29 Sakin, 30-64 Huzursuz/Defansif, 65+ Kırılma)
   const getCue = (st: number) => {
-    if (st >= 75) return isEn ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr;
-    if (st >= 40) return isEn ? suspect.behavioralCues.nervous.en : suspect.behavioralCues.nervous.tr;
+    if (st >= 65) return isEn ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr;
+    if (st >= 30) return isEn ? suspect.behavioralCues.nervous.en : suspect.behavioralCues.nervous.tr;
     return isEn ? suspect.behavioralCues.calm.en : suspect.behavioralCues.calm.tr;
   };
 
-  const history = payload.history || [];
+  const allHistory = payload.history || [];
+  // Mevcut aksiyon çağrısı sırasında history dizisinin sonuna eklenmiş olan son kullanıcı mesajını
+  // önceki geçmiş (priorHistory) kontrollerinde hariç tut
+  const priorHistory =
+    allHistory.length > 0 && allHistory[allHistory.length - 1].role === "user"
+      ? allHistory.slice(0, -1)
+      : allHistory;
 
   // 1. EYLEM: DELİL YÜZLEŞTİRME (Present Evidence) - Asıl Kırılma Yolu
   if (actionType === "present_evidence" && payload.presentedClueId) {
@@ -114,12 +125,16 @@ export function processDeterministicInterrogation(
 
     // Doğrudan bu şüpheliyi çürüten kritik delil
     if (clue.contradictsSuspectId === suspect.id) {
-      const gain = stress < 45 ? 18 : 24;
+      const gain = stress < 40 ? 28 : 22;
       stress = Math.min(100, stress + gain);
 
       if (stress >= suspect.breakThreshold && suspect.isCulprit) {
+        const motive = isEn
+          ? (caseData.correctMotiveEn || suspect.motiveEn || suspect.motive)
+          : (caseData.correctMotive || suspect.motive);
+        const confDetail = isEn ? suspect.confessionEn : suspect.confession;
         return {
-          text: isEn ? suspect.confessionEn : suspect.confession,
+          text: isEn ? `${confDetail} (Motive: ${motive})` : `${confDetail} (Amacım: ${motive})`,
           behavioralCue: isEn ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr,
           newStress: stress,
           stressDelta: stress - startStress,
@@ -145,7 +160,7 @@ export function processDeterministicInterrogation(
 
     // Şüpheliyi temize çıkaran delil
     if (clue.clearsSuspectId === suspect.id) {
-      stress = Math.max(0, stress - 15);
+      stress = Math.max(10, stress - 10);
       const reply =
         isEn
           ? `See? Even this ${clue.labelEn.toLowerCase()} proves my innocence! You are barking up the wrong tree, detective.`
@@ -160,8 +175,8 @@ export function processDeterministicInterrogation(
       };
     }
 
-    // Alakasız delil -> Şüpheli özgüven kazanır (stres düşer)
-    stress = Math.max(0, stress - 10);
+    // Alakasız delil -> Şüpheli hafif özgüven kazanır
+    stress = Math.max(10, stress - 4);
     const reply =
       isEn
         ? `What does this ${clue.labelEn.toLowerCase()} have to do with me? You have absolutely nothing on me, detective.`
@@ -176,9 +191,9 @@ export function processDeterministicInterrogation(
     };
   }
 
-  // 2. EYLEM: BLÖF YAPMA (Bluff) - Spam Korumalı & Ters Tepme (Backfire) Mekaniği
+  // 2. EYLEM: BLÖF YAPMA (Bluff) - Spam Korumalı & Gerçekçi Psikolojik Baskı
   if (actionType === "bluff") {
-    const priorBluffs = history.filter(
+    const priorBluffs = priorHistory.filter(
       (m) =>
         m.role === "user" &&
         (m.actionType === "bluff" ||
@@ -190,9 +205,9 @@ export function processDeterministicInterrogation(
           m.content.includes("parmak izlerini ve DNA"))
     ).length;
 
-    // SPAM ENGELİ: 2. veya daha fazla blöfte şüpheli dedektifin elinde bir şey olmadığını anlar ve ÖZGÜVEN KAZANIR
+    // SPAM ENGELİ: 2. veya daha fazla blöfte şüpheli dedektifin elinde bir şey olmadığını anlar
     if (priorBluffs >= 1) {
-      stress = Math.max(5, stress - 14);
+      stress = Math.max(15, stress - 5);
       const spamReply = isEn
         ? "(Laughs dismissively) The exact same bluff again? Detective, if you actually had conclusive proof, you would have charged me already. Your empty threats are pathetic."
         : "(Alaycı bir tebessümle başını sallıyor) Yine mi aynı temelsiz blöf dedektif? Elinizde gerçekten bir kayıt ya da somut delil olsaydı şimdiye kadar masaya koymuştunuz. Bu boş tehditleriniz sadece çaresizliğinizi gösteriyor!";
@@ -206,23 +221,8 @@ export function processDeterministicInterrogation(
       };
     }
 
-    // İlk blöf: Risk & Ödül
+    // İlk blöf: Katil blöf karşısında sarsılır ve panikler (+16 stres)
     if (suspect.isCulprit) {
-      if (startStress < 45) {
-        stress = Math.max(5, stress - 12);
-        const reply = isEn
-          ? "(Smiles coldly) You're trying to bluff me, detective. You don't have a shred of surveillance footage or testimony, or you would have handcuffed me already."
-          : "(Soğukça gülümsüyor) Bana blöf yapmaya çalışıyorsunuz dedektif. Elinizde ne kamera kaydı ne de görgü tanığı var; olsaydı çoktan kelepçeyi takmıştınız.";
-
-        return {
-          text: reply,
-          behavioralCue: getCue(stress),
-          newStress: stress,
-          stressDelta: stress - startStress,
-          confessed: false,
-        };
-      }
-
       stress = Math.min(100, stress + 16);
       const reply = isEn
         ? "(Blinks rapidly, sweating) What... you pulled that record?! No, you can't have! The blind spot... I mean, you're bluffing! You have nothing!"
@@ -236,7 +236,7 @@ export function processDeterministicInterrogation(
         confessed: false,
       };
     } else {
-      stress = Math.max(0, stress - 12);
+      stress = Math.min(60, stress + 8);
       const reply = isEn
         ? "Nice try detective, but that's an obvious bluff. I know my rights and I won't let you intimidate me."
         : "Güzel deneme dedektif, ama bariz bir blöf yapıyorsunuz. Haklarımı biliyorum ve asılsız iddialarla beni yıldıramazsınız.";
@@ -317,7 +317,7 @@ export function processDeterministicInterrogation(
 
   // 4. EYLEM: SESSİZ KALIP BEKLEME (Stay Silent) - Spam Korumalı & Geri Tepme
   if (actionType === "stay_silent") {
-    const priorSilences = history.filter(
+    const priorSilences = priorHistory.filter(
       (m) =>
         m.role === "user" &&
         (m.actionType === "stay_silent" ||
@@ -396,7 +396,7 @@ export function processDeterministicInterrogation(
   const qText = payload.question || "";
   const qLower = qText.toLowerCase().trim();
 
-  // Şüphelinin sırrına, kurbana veya cinayet motifine temas eden soruları tespit et
+  // Şüphelinin sırrına, kurbana, cinayet motifine veya doğrudan suçlamaya temas eden soruları tespit et
   const motiveWords = [
     ...(suspect.motive || "").toLowerCase().split(/\s+/),
     ...(suspect.minorSecret || "").toLowerCase().split(/\s+/),
@@ -408,15 +408,32 @@ export function processDeterministicInterrogation(
     "saat", "time", "neredeydin", "where", "kamera", "camera", "görgü", "witness", "fırtına", "storm", "oda", "room", "otel", "hotel"
   ];
 
+  const accusationWords = [
+    "katil", "killer", "suçlu", "guilty", "öldürdün", "öldürdüğünü", "murdered", "yalan", "lie", "lying", "itiraf", "confess", "sen yaptın", "you did it",
+    "inkar", "suç ortağı", "accomplice", "biliyorum", "kurtulamazsın", "cezanı"
+  ];
+
+  const customBluffWords = [
+    "görmüş", "gören var", "şahit var", "tanık var", "saw you", "witness saw", "camdan", "pencereden",
+    "tırmanırken", "koşarken", "climbing", "running", "kamera kaydı", "gizli kamera", "footage", "kayıtlar",
+    "elimde kayıt", "ses kaydı", "parmak izin", "parmak izi", "kan izin", "kan izi", "izlerini bulduk",
+    "suçüstü", "gözleriyle görmüş", "biri seni gördü", "someone saw"
+  ];
+
   const touchesSecret = motiveWords.some((w) => qLower.includes(w));
   const touchesAlibi = alibiWords.some((w) => qLower.includes(w));
+  const touchesAccusation = accusationWords.some((w) => qLower.includes(w));
+  const touchesCustomBluff = customBluffWords.some((w) => qLower.includes(w));
 
-  // Son dedektif sorusunun aynısı mı (spam soru)?
-  const lastUserMsg = [...history].reverse().find((m) => m.role === "user");
-  const isDuplicateQuestion = lastUserMsg && lastUserMsg.content.toLowerCase().trim() === qLower && qLower.length > 5;
+  // Son dedektif sorusunun aynısı mı (spam soru)? (Mevcut soru hariç en son sorulmuş soru ile karşılaştır)
+  const lastPriorUserMsg = [...priorHistory].reverse().find((m) => m.role === "user");
+  const isDuplicateQuestion =
+    lastPriorUserMsg &&
+    lastPriorUserMsg.content.toLowerCase().trim() === qLower &&
+    qLower.length > 5;
 
   if (isDuplicateQuestion) {
-    stress = Math.max(5, stress - 5);
+    stress = Math.max(10, stress - 4);
     const repReply = isEn
       ? "You just asked me that exact same thing. Repeating questions won't change my answer, detective."
       : "Bana az önce sorduğunuz sorunun tıpatıp aynısını soruyorsunuz. Tekrarlamanız cevabımı değiştirmeyecek dedektif.";
@@ -448,32 +465,86 @@ export function processDeterministicInterrogation(
     };
   }
 
-  let gain = 3;
-  if (touchesSecret) {
+  let gain = 4;
+  if ((touchesAccusation || touchesCustomBluff) && suspect.isCulprit) {
+    // Katil doğrudan suçlandığında veya serbest blöfle (camdan tırmanma, kamera, gizli şahit) köşeye sıkıştırıldığında yüksek stres kazanır (+18 stres)
+    gain = stress < 50 ? 18 : 12;
+  } else if (touchesCustomBluff && !suspect.isCulprit) {
+    // Masum şüpheli asılsız blöfle itham edildiğinde savunmaya geçer (+6 stres)
+    gain = 6;
+  } else if (touchesSecret) {
     // Sırra veya kurbanla olan çatışmaya dokunursa yüksek stres
-    gain = stress < 60 ? 14 : 6;
+    gain = stress < 50 ? 14 : 7;
   } else if (touchesAlibi) {
     // Savunma ve zaman çelişkisine dokunursa orta stres
-    gain = stress < 60 ? 8 : 4;
+    gain = stress < 50 ? 10 : 6;
+  } else if (touchesAccusation) {
+    // Masum şüpheli doğrudan suçlandığında savunmaya geçer
+    gain = 6;
   }
 
-  if (stress < 70) {
-    stress = Math.min(70, stress + gain);
+  if (stress < 85) {
+    stress = Math.min(85, stress + gain);
   }
 
-  // Kademeli ve bağlamsal yalanlar
-  let replyText = "";
-  if (
-    suspect.alibiDenial &&
-    (touchesAlibi ||
+  // Şüphelinin yalanlayacağı sahte alibi ve fail tespiti
+  const triggerSuspect = caseData.suspects.find(
+    (s) => s.id === suspect.unlockCondition?.triggerSuspectId
+  );
+  const triggerNameParts = triggerSuspect
+    ? triggerSuspect.name.toLowerCase().split(/\s+/)
+    : [];
+
+  const mentionsTriggerSuspect = triggerNameParts.some(
+    (part) => part.length > 2 && qLower.includes(part)
+  );
+
+  const mentionsAlibiThemes = [
+    "çay", "cay", "tea", "akü", "aku", "battery", "prova", "rehearsal", "kafe", "kafeterya", "cafe",
+    "garaj", "kulis", "jeneratör", "şalter", "salter", "restoran", "vagon", "arıza", "tamir",
+    "neredeydin", "neredeydi", "seninle", "beraber", "birlikte", "alibi", "savunma", "doğru mu",
+    "yalan", "gördün mü", "iddia", "with", "true", "saw him", "see him", "was he"
+  ].some((kw) => qLower.includes(kw));
+
+  const isAlibiDenialMatch =
+    Boolean(suspect.alibiDenial) &&
+    (mentionsTriggerSuspect ||
+      (mentionsAlibiThemes && touchesAlibi) ||
       qLower.includes("seninle") ||
       qLower.includes("birlikte") ||
       qLower.includes("beraber") ||
-      qLower.includes("patron") ||
-      qLower.includes("with") ||
-      qLower.includes("alibi"))
-  ) {
+      qLower.includes("with you") ||
+      qLower.includes("alibi") ||
+      qLower.includes("doğru mu") ||
+      qLower.includes("is that true"));
+
+  // Kademeli ve bağlamsal yalanlar veya tanık alibi yalanlaması
+  let replyText = "";
+  let isDenialTriggered = false;
+
+  if (isAlibiDenialMatch && suspect.alibiDenial) {
     replyText = isEn ? suspect.alibiDenial.en : suspect.alibiDenial.tr;
+    isDenialTriggered = true;
+  } else if (touchesCustomBluff) {
+    if (suspect.isCulprit) {
+      replyText = isEn
+        ? `(Eyes widening in momentary panic, hands trembling) Wh-what window?! Who saw that?! That's a complete lie, no one could have seen me out there... I mean, I was inside all along! Stop trying to rattle me with absurd bluffs, detective!`
+        : `(Göz bebekleri büyüyor, elleri hafifçe titriyor) N-ne penceresi?! Hangi yolcu görmüş?! Yalan söylüyorlar dedektif, beni o saatte kimse dışarıda göremez... yani ben zaten içerideydim! Bana boş blöfler savurarak bir yere varamazsınız!`;
+    } else {
+      replyText = isEn
+        ? `(Raises eyebrows in utter disbelief) Climbing out a window?! Detective, have you completely lost your mind? Do I look like an acrobat to you?! Whoever invented that ridiculous lie, bring them in here to say it to my face!`
+        : `(Hayretle kaşlarını kaldırıyor) Pencereden tırmanırken mi?! Dedektif siz aklınızı mı kaçırdınız, sirk cambazı mıyım ben?! Hangi yalancı bunu uydurduysa getirin karşıma, yüzüme söylesin! Boş iddialarla vaktimi harcamayın!`;
+    }
+  } else if (touchesAccusation && suspect.isCulprit) {
+    if (stress >= 65) {
+      replyText = isEn
+        ? `(Sweating profusely, pounding table) Stop pointing fingers at me without proof! You don't know what happened that night!`
+        : `(Alnından ter damlıyor, masaya vuruyor) Elinizde kesin bir kanıt olmadan bana katil diyemezsiniz! O gece orada ne olduğunu bilmiyorsunuz!`;
+    } else {
+      replyText = isEn
+        ? `(Stiffens defensively) How dare you accuse me of murder, detective?! Watch your tone unless you have hard evidence!`
+        : `(Savunmaya geçerek dikleşiyor) Bana katil demeye nasıl cüret edersiniz dedektif?! Elinizde somut bir delil olmadan beni suçlayamazsınız!`;
+    }
   } else if (touchesSecret) {
     replyText = isEn
       ? `(Eyes shifting nervously) That matter with ${caseData.victim.name} was strictly personal! ${stress >= 50 ? suspect.lies.level3 : suspect.lies.level2}`
@@ -490,19 +561,42 @@ export function processDeterministicInterrogation(
     replyText = isEn ? suspect.lies.level1 : suspect.lies.level1;
   }
 
-  // Kilitli bir şüphelinin açılma koşulunu kontrol et
+  // Tanık şüpheli sahte savunmayı yalanladığında resmi ifade delilinin kilidini aç
+  let unlockedClueId: string | undefined;
+  let unlockedClueLabel: string | undefined;
+  if (isDenialTriggered && suspect.alibiDenial) {
+    const cleanKey = suspect.id.replace("suspect-", "");
+    const testimonyClue = caseData.clues.find(
+      (c) => c.category === "witness" && c.type === "alibi" && c.id.includes(cleanKey)
+    ) || caseData.clues.find(
+      (c) => c.category === "witness" && c.type === "alibi" && (c.contradictsSuspectId || c.clearsSuspectId)
+    );
+
+    if (testimonyClue) {
+      unlockedClueId = testimonyClue.id;
+      unlockedClueLabel = isEn ? (testimonyClue.labelEn || testimonyClue.label) : testimonyClue.label;
+    }
+  }
+
+  // Kilitli bir şüphelinin açılma koşulunu kontrol et (Sadece cevabında açıkça bahsettiyse veya dedektif sorduysa)
   let unlockedSuspectId: string | undefined;
   let unlockedSuspectName: string | undefined;
   const lockedSuspects = caseData.suspects.filter((s) => s.isInitiallyLocked);
-  const combined = `${payload.question || ""} ${payload.crossQuote || ""} ${replyText}`.toLowerCase();
+  const replyLower = replyText.toLowerCase();
+  const qCleanLower = (payload.question || "").toLowerCase();
+  const crossQuoteCleanLower = (payload.crossQuote || "").toLowerCase();
+
   for (const ls of lockedSuspects) {
     if (!ls.unlockCondition) continue;
     const { keywords, triggerSuspectId } = ls.unlockCondition;
     if (triggerSuspectId && triggerSuspectId !== suspect.id) continue;
-    if (
-      keywords.some((kw) => combined.includes(kw.toLowerCase())) ||
-      (actionType === "cross_examine" && payload.crossSuspectId === ls.id)
-    ) {
+
+    const mentionedInReply = keywords.some((kw) => replyLower.includes(kw.toLowerCase()));
+    const askedDirectlyByDetective =
+      keywords.some((kw) => qCleanLower.includes(kw.toLowerCase()) || crossQuoteCleanLower.includes(kw.toLowerCase())) ||
+      (actionType === "cross_examine" && payload.crossSuspectId === ls.id);
+
+    if (mentionedInReply || askedDirectlyByDetective) {
       unlockedSuspectId = ls.id;
       unlockedSuspectName = ls.name;
       break;
@@ -515,6 +609,8 @@ export function processDeterministicInterrogation(
     newStress: stress,
     stressDelta: stress - startStress,
     confessed: false,
+    unlockedClueId,
+    unlockedClueLabel,
     unlockedSuspectId,
     unlockedSuspectName,
   };

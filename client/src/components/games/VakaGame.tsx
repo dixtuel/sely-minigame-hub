@@ -3,7 +3,7 @@ import VakaHub from "@/components/VakaHub";
 import { useFinishOnce, type GameResult } from "./shared";
 
 export default function VakaGame({ locale, soundOn, onFinish }: { locale: SiteLocale; seed: number; mastery: number; soundOn: boolean; onFinish: (result: GameResult) => void }) {
-  const finish = useFinishOnce(onFinish);
+  const [finish, isFinished] = useFinishOnce(onFinish);
 
   const handleSolved = (earned: number) => {
     finish({
@@ -16,7 +16,7 @@ export default function VakaGame({ locale, soundOn, onFinish }: { locale: SiteLo
 
   return (
     <div className="vaka-game game-surface">
-      <VakaHub locale={locale} soundOn={soundOn} onSolved={handleSolved} />
+      <VakaHub locale={locale} soundOn={soundOn} onSolved={handleSolved} isGameFinished={isFinished} />
     </div>
   );
 }

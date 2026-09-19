@@ -90,15 +90,21 @@
 }
 
 .studio-shell-spark .studio-title {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  margin: 0 auto !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
 }
 
 .spark-topbar-hud {
   display: flex;
   align-items: center;
+  justify-content: center;
   background: var(--ink);
   border: 1.5px solid rgba(246, 240, 227, 0.28);
   box-shadow: 2px 2px 0 var(--coral);

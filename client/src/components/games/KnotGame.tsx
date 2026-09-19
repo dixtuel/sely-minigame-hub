@@ -13,7 +13,7 @@ const tileKey = (r: number, c: number) => `${r}-${c}`;
 
 export default function KnotGame({ locale, seed, mastery, soundOn = true, onFinish }: { locale: SiteLocale; seed: number; mastery: number; soundOn?: boolean; onFinish: (result: GameResult) => void }) {
   const level = useMemo(() => generateKnotLevel(seed, mastery), [seed, mastery]);
-  const finish = useFinishOnce(onFinish);
+  const [finish, isFinished] = useFinishOnce(onFinish);
   const knotCriticalIndexes = useMemo(() => new Set([...level.targetPath, ...level.bonusPath]), [level.targetPath, level.bonusPath]);
   const baseTiles = useMemo<Tile[]>(() => level.tileShapes.map((base, index) => ({
     r: Math.floor(index / 4),
@@ -58,7 +58,7 @@ export default function KnotGame({ locale, seed, mastery, soundOn = true, onFini
   }, [connected.size, targetConnected, soundOn]);
 
   const sealFlow = useCallback(() => {
-    if (!targetConnected) return;
+    if (isFinished || !targetConnected) return;
     playComplete(soundOn);
     finish({
       outcome: "success",
@@ -70,10 +70,10 @@ export default function KnotGame({ locale, seed, mastery, soundOn = true, onFini
         ? `Route reached target in ${turns} turns${bonusConnected ? "; bonus knot energized." : "."}`
         : `${turns} hamlede hedefe ulaşan çizgiyi kurdun${bonusConnected ? "; yan düğüm de beslendi." : "."}`
     });
-  }, [bonusConnected, finish, locale, soundOn, targetConnected, turns]);
+  }, [bonusConnected, finish, isFinished, locale, soundOn, targetConnected, turns]);
 
   const rotate = useCallback((index: number) => {
-    if (tiles[index].locked) return;
+    if (isFinished || tiles[index].locked) return;
     playThrust(soundOn);
     const nextTurns = turns + 1;
     setTiles(previous => previous.map((tile, tileIndex) => tileIndex === index ? { ...tile, rot: (tile.rot + 1) % 4 } : tile));
@@ -90,19 +90,20 @@ export default function KnotGame({ locale, seed, mastery, soundOn = true, onFini
           : "Aynı akışı tekrar tekrar çevirmek yerine önce hedef çizgisini gözünle kur."
       });
     }
-  }, [finish, level.heatLimit, locale, soundOn, tiles, turns]);
+  }, [finish, isFinished, level.heatLimit, locale, soundOn, tiles, turns]);
 
   const undoLast = useCallback(() => {
-    if (lastRotated === null) return;
+    if (isFinished || lastRotated === null) return;
     playThrust(soundOn);
     setTiles(previous => previous.map((tile, tileIndex) => tileIndex === lastRotated ? { ...tile, rot: (tile.rot + 3) % 4 } : tile));
     setTurns(value => Math.max(0, value - 1));
     setLastRotated(null);
-  }, [lastRotated, soundOn]);
+  }, [isFinished, lastRotated, soundOn]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isFinished) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
@@ -138,7 +139,7 @@ export default function KnotGame({ locale, seed, mastery, soundOn = true, onFini
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [focusedIndex, level.targetIndex, rotate, sealFlow, targetConnected, undoLast]);
+  }, [focusedIndex, isFinished, level.targetIndex, rotate, sealFlow, targetConnected, undoLast]);
 
   return <div className="knot-game game-surface">
     <div className="game-hud">
@@ -157,8 +158,9 @@ export default function KnotGame({ locale, seed, mastery, soundOn = true, onFini
         const isFocused = focusedIndex === index;
         return <button
           key={tileKey(tile.r, tile.c)}
-          onClick={() => { setFocusedIndex(index); rotate(index); }}
-          className={`knot-tile ${active ? "is-active" : ""} ${tile.locked ? "is-locked" : ""} ${bonus ? "is-bonus" : ""} ${critical ? "is-critical" : ""} ${isSource ? "is-source" : ""} ${isTarget ? "is-target" : ""} ${isTarget && active ? "is-target-reached" : ""} ${isFocused ? "is-focused" : ""}`}
+          disabled={isFinished}
+          onClick={() => { if (!isFinished) { setFocusedIndex(index); rotate(index); } }}
+          className={`knot-tile ${active ? "is-active" : ""} ${tile.locked ? "is-locked" : ""} ${bonus ? "is-bonus" : ""} ${critical ? "is-critical" : ""} ${isSource ? "is-source" : ""} ${isTarget ? "is-target" : ""} ${isTarget && active ? "is-target-reached" : ""} ${isFocused ? "is-focused" : ""} ${isFinished ? "is-finished" : ""}`}
           aria-label={locale === "en" ? `Tile ${tile.r + 1}-${tile.c + 1}` : `Bağlantı karosu ${tile.r + 1}-${tile.c + 1}`}
         >
           <span className="knot-core">{tile.label || (bonus ? "✦" : "")}</span>
@@ -167,12 +169,16 @@ export default function KnotGame({ locale, seed, mastery, soundOn = true, onFini
       })}
     </div>
     <div className="knot-actions">
-      <button type="button" className="quiet-button" onClick={undoLast} disabled={lastRotated === null}>
+      <button type="button" className="quiet-button" onClick={undoLast} disabled={isFinished || lastRotated === null}>
         {locale === "en" ? "Undo last turn (Z)" : "Son hamleyi geri al (Z)"}
       </button>
       {targetConnected && (
-        <button className="ink-button knot-seal-button" onClick={sealFlow}>
-          {bonusConnected ? (locale === "en" ? "Seal flow + bonus (M)" : "Akışı mühürle + bonus (M)") : (locale === "en" ? "Seal flow (M)" : "Akışı mühürle (M)")}
+        <button className="ink-button knot-seal-button" onClick={sealFlow} disabled={isFinished}>
+          {isFinished
+            ? (locale === "en" ? "Flow sealed ✓" : "Akış mühürlendi ✓")
+            : bonusConnected
+            ? (locale === "en" ? "Seal flow + bonus (M)" : "Akışı mühürle + bonus (M)")
+            : (locale === "en" ? "Seal flow (M)" : "Akışı mühürle (M)")}
         </button>
       )}
     </div>

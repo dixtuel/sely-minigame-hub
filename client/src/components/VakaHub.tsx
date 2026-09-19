@@ -14,9 +14,10 @@ type Props = {
   locale: SiteLocale;
   soundOn: boolean;
   onSolved?: (score: number) => void;
+  isGameFinished?: boolean;
 };
 
-export default function VakaHub({ locale, soundOn, onSolved }: Props) {
+export default function VakaHub({ locale, soundOn, onSolved, isGameFinished }: Props) {
   const isEn = locale === "en";
 
   // tRPC Konfigürasyon ve Vaka sorguları
@@ -59,6 +60,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
   const activeCase: VakaDetailedCase = VAKA_SAMPLE_CASES[currentCaseIndex] || VAKA_SAMPLE_CASES[0];
   const nextCaseIndex = (currentCaseIndex + 1) % VAKA_SAMPLE_CASES.length;
   const nextCase: VakaDetailedCase = VAKA_SAMPLE_CASES[nextCaseIndex];
+  const isCaseSolved = Boolean(completedCases[activeCase.id]) || Boolean(isGameFinished);
 
   const handleSelectCase = (caseId: string) => {
     setSelectedCaseId(caseId);
@@ -112,10 +114,20 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
         <div className="vaka-hub-title-block">
           <div className="vaka-top-badge-row">
             <span className="vaka-hub-badge">SELY INVESTIGATION BUREAU</span>
-            {completedCases[activeCase.id] && (
+            {isCaseSolved && (
               <span className="vaka-solved-tag">
-                ✓ {isEn ? "SOLVED" : "ÇÖZÜLDÜ"} ({completedCases[activeCase.id]} pts)
+                ✓ {isEn ? "CASE CLOSED" : "VAKA KAPANDI"} {completedCases[activeCase.id] ? `(${completedCases[activeCase.id]} pts)` : ""}
               </span>
+            )}
+            {isCaseSolved && nextCase && (
+              <button
+                type="button"
+                className="vaka-advance-case-btn"
+                onClick={() => handleNextCase(nextCase.id)}
+                title={isEn ? `Advance to Case #${nextCaseIndex + 1}: ${nextCase.titleEn}` : `Sonraki Vaka #${nextCaseIndex + 1}: ${nextCase.title}'e Geç`}
+              >
+                ⏩ {isEn ? "Next Case File →" : "Sonraki Vakaya Geç →"}
+              </button>
             )}
           </div>
           <h2>{isEn ? activeCase.titleEn : activeCase.title}</h2>
@@ -188,10 +200,12 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
 
         <button
           type="button"
-          className="vaka-nav-tab vaka-indict-tab"
-          onClick={() => handleOpenVerdict()}
+          className={`vaka-nav-tab vaka-indict-tab ${isCaseSolved ? "is-disabled" : ""}`}
+          disabled={isCaseSolved}
+          onClick={() => !isCaseSolved && handleOpenVerdict()}
+          title={isCaseSolved ? (isEn ? "Verdict delivered. Case is archived." : "Hüküm bağlandı. Vaka arşive kaldırıldı.") : undefined}
         >
-          🏛️ {isEn ? "Indictment" : "Mahkemede Suçla"}
+          🏛️ {isCaseSolved ? (isEn ? "Verdict Delivered" : "Hüküm Verildi (Kapandı)") : (isEn ? "Indictment" : "Mahkemede Suçla")}
         </button>
       </div>
 
@@ -222,6 +236,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
             vakaCase={activeCase}
             locale={locale}
             soundOn={soundOn}
+            isCaseSolved={isCaseSolved}
             onOpenVerdict={handleOpenVerdict}
             onSolved={(score) => handleCaseCompleted(activeCase.id, score)}
           />
@@ -233,6 +248,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
             vakaCase={activeCase}
             locale={locale}
             soundOn={soundOn}
+            isCaseSolved={isCaseSolved}
             onOpenVerdict={handleOpenVerdict}
             onCaseCompleted={handleCaseCompleted}
             onSolved={(score) => handleCaseCompleted(activeCase.id, score)}

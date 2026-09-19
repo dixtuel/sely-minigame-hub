@@ -293,18 +293,86 @@ export const vakaRouter = router({
       // LLM veya deterministik çıktıda kilitli şüpheli tetiklendi mi?
       if (!unlockedSuspectId) {
         const lockedSuspects = caseData.suspects.filter((s) => s.isInitiallyLocked);
-        const combinedText = `${input.question || ""} ${input.crossQuote || ""} ${replyText}`.toLowerCase();
+        const replyLower = replyText.toLowerCase();
+        const qCleanLower = cleanQuestion.toLowerCase();
+        const crossQuoteLower = (input.crossQuote || "").toLowerCase();
+
         for (const ls of lockedSuspects) {
           if (!ls.unlockCondition) continue;
           const { keywords, triggerSuspectId } = ls.unlockCondition;
           if (triggerSuspectId && triggerSuspectId !== suspect.id) continue;
-          if (
-            keywords.some((kw) => combinedText.includes(kw.toLowerCase())) ||
-            input.crossSuspectId === ls.id
-          ) {
+
+          // Şüphelinin cevabında bu şahitten/kişiden bahsedildi mi?
+          const mentionedInReply = keywords.some((kw) => replyLower.includes(kw.toLowerCase()));
+          // Veya dedektif doğrudan bu kişiyi sordu mu / çapraz sorguladı mı?
+          const askedDirectly =
+            keywords.some((kw) => qCleanLower.includes(kw.toLowerCase()) || crossQuoteLower.includes(kw.toLowerCase())) ||
+            input.crossSuspectId === ls.id;
+
+          if (mentionedInReply || askedDirectly) {
             unlockedSuspectId = ls.id;
             unlockedSuspectName = ls.name;
             break;
+          }
+        }
+      }
+
+      // LLM veya deterministik çıktıda tanık yalanlaması ve resmi ifade delili tetiklendi mi?
+      let unlockedClueId = deterministic.unlockedClueId;
+      let unlockedClueLabel = deterministic.unlockedClueLabel || "";
+
+      if (suspect.alibiDenial && !unlockedClueId) {
+        const cleanKey = suspect.id.replace("suspect-", "");
+        const testimonyClue = caseData.clues.find(
+          (c) => c.category === "witness" && c.type === "alibi" && c.id.includes(cleanKey)
+        ) || caseData.clues.find(
+          (c) => c.category === "witness" && c.type === "alibi" && (c.contradictsSuspectId || c.clearsSuspectId)
+        );
+
+        if (testimonyClue) {
+          const replyLower = replyText.toLowerCase();
+          const qLower = cleanQuestion.toLowerCase();
+          const triggerSuspect = caseData.suspects.find(
+            (s) => s.id === suspect.unlockCondition?.triggerSuspectId
+          );
+          const triggerNameParts = triggerSuspect
+            ? triggerSuspect.name.toLowerCase().split(/\s+/)
+            : [];
+          const mentionsTriggerSuspect = triggerNameParts.some(
+            (part) => part.length > 2 && qLower.includes(part)
+          );
+
+          const denialKeywords = [
+            "yalan", "lie", "doğru değil", "not true", "birlikte değildik",
+            "never", "iftira", "asla", "sahte", "tamamen yalan", "kesinlikle yalan",
+            "yanımda değildi", "birlikte oturmadık", "şahitlik"
+          ];
+          const isDenialPresent =
+            denialKeywords.some((k) => replyLower.includes(k)) ||
+            (suspect.alibiDenial.tr && replyLower.includes(suspect.alibiDenial.tr.toLowerCase().slice(0, 25))) ||
+            (suspect.alibiDenial.en && replyLower.includes(suspect.alibiDenial.en.toLowerCase().slice(0, 25))) ||
+            input.actionType === "cross_examine" ||
+            mentionsTriggerSuspect ||
+            qLower.includes("çay") ||
+            qLower.includes("cay") ||
+            qLower.includes("akü") ||
+            qLower.includes("prova") ||
+            qLower.includes("kafe") ||
+            qLower.includes("birlikte") ||
+            qLower.includes("beraber") ||
+            qLower.includes("neredeydin") ||
+            qLower.includes("neredeydi") ||
+            qLower.includes("saat") ||
+            qLower.includes("alibi") ||
+            qLower.includes("doğru mu") ||
+            qLower.includes("is that true");
+
+          if (isDenialPresent) {
+            unlockedClueId = testimonyClue.id;
+            unlockedClueLabel = input.locale === "en" ? (testimonyClue.labelEn || testimonyClue.label) : testimonyClue.label;
+            if (mentionsTriggerSuspect && !denialKeywords.some((k) => replyLower.includes(k))) {
+              replyText = input.locale === "en" ? suspect.alibiDenial.en : suspect.alibiDenial.tr;
+            }
           }
         }
       }
@@ -315,7 +383,8 @@ export const vakaRouter = router({
         stress: deterministic.newStress,
         stressDelta: deterministic.stressDelta,
         confessed: deterministic.confessed,
-        unlockedClueId: deterministic.unlockedClueId,
+        unlockedClueId,
+        unlockedClueLabel: unlockedClueLabel || undefined,
         unlockedSuspectId,
         unlockedSuspectName,
         source,

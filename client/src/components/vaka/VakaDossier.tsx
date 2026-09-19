@@ -117,6 +117,55 @@ export default function VakaDossier({ vakaCase, locale }: Props) {
         </div>
       </div>
 
+      {/* Toplanan Deliller ve Resmi İfadeler */}
+      <div className="vaka-dossier-card">
+        <div className="vaka-card-badge">{isEn ? "EVIDENCE & WITNESS TESTIMONIES" : "TOPLANAN DELİLLER VE İFADE TUTANAKLARI"}</div>
+        <div className="vaka-dossier-clues-list" style={{ display: "grid", gap: "10px", marginTop: "8px" }}>
+          {vakaCase.clues.map((clue) => {
+            const isWitness = clue.category === "witness";
+            return (
+              <div
+                key={clue.id}
+                className="vaka-dossier-clue-item"
+                style={{
+                  background: "rgba(255, 255, 255, 0.03)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <b style={{ color: "#f8fafc", fontSize: "0.95rem" }}>
+                    {isWitness ? "📜" : "🔍"} {isEn ? clue.labelEn : clue.label}
+                  </b>
+                  <span
+                    style={{
+                      fontSize: "0.72rem",
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                      background: isWitness ? "rgba(245, 158, 11, 0.2)" : "rgba(59, 130, 246, 0.2)",
+                      color: isWitness ? "#fbbf24" : "#60a5fa",
+                      border: isWitness ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid rgba(59, 130, 246, 0.4)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {isWitness ? (isEn ? "WITNESS TESTIMONY" : "RESMİ İFADE") : (isEn ? "EVIDENCE" : "MADDİ DELİL")}
+                  </span>
+                </div>
+                <p style={{ margin: "0 0 4px 0", fontSize: "0.85rem", color: "#94a3b8", lineHeight: 1.4 }}>
+                  {isEn ? clue.detailEn : clue.detail}
+                </p>
+                {clue.significance && (
+                  <small style={{ color: "#38bdf8", fontSize: "0.78rem" }}>
+                    ⚖️ {isEn ? clue.significanceEn : clue.significance}
+                  </small>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Adli Analist Notu */}
       <div className="vaka-dossier-card vaka-analyst-card">
         <div className="vaka-card-badge">{isEn ? "LEAD FORENSIC ANALYST" : "BAŞ ADLİ ANALİST DEĞERLENDİRMESİ"}</div>

@@ -9,7 +9,7 @@ type CutShape = ReturnType<typeof generateCutLevel>["shapes"][number] & { cut: b
 
 export default function CutGame({ locale, seed, mastery, demo = false, soundOn = true, onFinish }: { locale: SiteLocale; seed: number; mastery: number; demo?: boolean; soundOn?: boolean; onFinish: (result: GameResult) => void }) {
   const level = useMemo(() => generateCutLevel(seed, mastery), [seed, mastery]);
-  const finish = useFinishOnce(onFinish);
+  const [finish, isFinished] = useFinishOnce(onFinish);
   const [cutsLeft, setCutsLeft] = useState(level.cuts);
   const [stains, setStains] = useState(0);
   const [line, setLine] = useState<{ a: Point; b: Point } | null>(null);
@@ -33,7 +33,7 @@ export default function CutGame({ locale, seed, mastery, demo = false, soundOn =
   }, [shapes]);
 
   const resolveCut = useCallback((cutLine: { a: Point; b: Point } | null) => {
-    if (!cutLine || cutsLeft <= 0) return;
+    if (isFinished || !cutLine || cutsLeft <= 0) return;
     const hit = shapes.filter(shape => !shape.cut && segmentDistance({ x: shape.x, y: shape.y }, cutLine.a, cutLine.b) < shape.size / 2 + 2);
     const targets = hit.filter(shape => shape.target);
     const decoys = hit.filter(shape => !shape.target);
@@ -105,6 +105,7 @@ export default function CutGame({ locale, seed, mastery, demo = false, soundOn =
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isFinished) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const num = parseInt(e.key, 10);
@@ -119,13 +120,13 @@ export default function CutGame({ locale, seed, mastery, demo = false, soundOn =
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [keyboardCut, shapes]);
+  }, [isFinished, keyboardCut, shapes]);
 
   return <div className="cut-game game-surface">
     <div className="game-hud">
-      <span>{locale === "en" ? "CUTS" : "KESİM"} <b>{cutsLeft}</b></span>
-      <span>{locale === "en" ? "STAINS" : "LEKE"} <b>{stains}/{level.stainLimit}</b></span>
-      <span>{locale === "en" ? "ISOLATE TARGETS" : "HEDEFLERİ AYIR"}</span>
+      <span>{locale === "en" ? "CUTOUT" : "KIRPIK"} <b>{cutsLeft}/{level.cuts}</b></span>
+      <span>{locale === "en" ? "CLEAN" : "TEMİZ"} <b>{shapes.filter(s => s.target && s.cut).length}/{shapes.filter(s => s.target).length}</b></span>
+      <span>{stains > 0 ? (locale === "en" ? `STAINS ${stains}/${level.stainLimit}` : `LEKE ${stains}/${level.stainLimit}`) : (locale === "en" ? "TRACE LINKED" : "HATTINI KORU")}</span>
     </div>
     <svg
       ref={svgRef}
@@ -134,6 +135,7 @@ export default function CutGame({ locale, seed, mastery, demo = false, soundOn =
       role="application"
       aria-label={locale === "en" ? "Cutout canvas. Drag to cut shapes." : "Kırpık tuvali. Şekilleri kesmek için sürükle."}
       onPointerDown={event => {
+        if (isFinished || cutsLeft <= 0) return;
         event.currentTarget.setPointerCapture(event.pointerId);
         const current = point(event);
         playSlice(soundOn);

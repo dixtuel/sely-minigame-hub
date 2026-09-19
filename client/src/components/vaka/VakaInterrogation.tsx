@@ -10,6 +10,7 @@ type Props = {
   soundOn: boolean;
   onOpenVerdict: (accusedId: string) => void;
   onSolved?: (score: number) => void;
+  isCaseSolved?: boolean;
 };
 
 function getInitialMessagesMap(vakaCase: VakaDetailedCase, isEn: boolean): Record<string, VakaInterrogationMessage[]> {
@@ -33,6 +34,7 @@ export default function VakaInterrogation({
   vakaCase,
   locale,
   soundOn,
+  isCaseSolved,
   onOpenVerdict,
   onSolved,
 }: Props) {
@@ -47,6 +49,39 @@ export default function VakaInterrogation({
     } catch {}
     return {};
   });
+
+  // Açılmış tanık delillerinin haritası (clueId -> boolean)
+  const [unlockedCluesMap, setUnlockedCluesMap] = useState<Record<string, boolean>>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`sely_vaka_unlocked_clues_${vakaCase.id}`);
+        if (saved) return JSON.parse(saved);
+      }
+    } catch {}
+    return {};
+  });
+
+  const [newlyUnlockedClueToast, setNewlyUnlockedClueToast] = useState<{ id: string; label: string } | null>(null);
+
+  const triggerClueUnlock = (clueId: string, clueLabel?: string) => {
+    const targetClue = vakaCase.clues.find((c) => c.id === clueId);
+    const label = clueLabel || (targetClue ? (isEn ? targetClue.labelEn : targetClue.label) : clueId);
+
+    setUnlockedCluesMap((prev) => {
+      const updated = { ...prev, [clueId]: true };
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`sely_vaka_unlocked_clues_${vakaCase.id}`, JSON.stringify(updated));
+        }
+      } catch {}
+      return updated;
+    });
+
+    setNewlyUnlockedClueToast({
+      id: clueId,
+      label,
+    });
+  };
 
   const isSuspectUnlocked = (s: VakaSuspect) => {
     if (!s.isInitiallyLocked) return true;
@@ -84,6 +119,9 @@ export default function VakaInterrogation({
     const textLower = text.toLowerCase();
     vakaCase.suspects.forEach((s) => {
       if (s.isInitiallyLocked && !unlockedMap[s.id] && s.unlockCondition) {
+        if (s.unlockCondition.triggerSuspectId && s.unlockCondition.triggerSuspectId !== selectedSuspectId) {
+          return;
+        }
         if (s.unlockCondition.keywords.some((kw) => textLower.includes(kw.toLowerCase()))) {
           triggerUnlock(s.id, s.name);
         }
@@ -263,7 +301,7 @@ function cleanInterrogationText(text: string): string {
       crossMode?: "ask_about" | "confront";
     }
   ) => {
-    if (interrogateMutation.isPending || solved) return;
+    if (interrogateMutation.isPending || solved || isCaseSolved) return;
 
     const clueId = customPayload?.clueId || (actionType === "present_evidence" ? selectedClueId : undefined);
     const crossId = customPayload?.crossId || (actionType === "cross_examine" ? crossSuspectId : undefined);
@@ -437,14 +475,18 @@ function cleanInterrogationText(text: string): string {
       if (res.unlockedSuspectId) {
         triggerUnlock(res.unlockedSuspectId, res.unlockedSuspectName);
       } else {
-        checkClientKeywordUnlock(`${userDisplayText} ${res.reply}`);
+        checkClientKeywordUnlock(res.reply);
+      }
+
+      if (res.unlockedClueId) {
+        triggerClueUnlock(res.unlockedClueId, (res as any).unlockedClueLabel);
       }
 
       if (isConfessed) {
         playContradiction(soundOn);
         setSolved(true);
         setVerdictText(vText);
-      } else if (res.stressDelta > 15) {
+      } else if (res.stressDelta > 15 || res.unlockedClueId) {
         playContradiction(soundOn);
       }
 
@@ -467,8 +509,8 @@ function cleanInterrogationText(text: string): string {
   };
 
   const getStressColor = (val: number) => {
-    if (val >= 75) return "#ef4444";
-    if (val >= 40) return "#f59e0b";
+    if (val >= 65) return "#ef4444";
+    if (val >= 30) return "#f59e0b";
     return "#10b981";
   };
 
@@ -522,6 +564,39 @@ function cleanInterrogationText(text: string): string {
         </div>
       )}
 
+      {/* Yeni Resmi İfade Tutanağı Eklendi Banner */}
+      {newlyUnlockedClueToast && (
+        <div className="vaka-unlock-banner vaka-clue-unlock-banner">
+          <div className="vaka-unlock-banner-content">
+            <span className="vaka-unlock-icon">📜</span>
+            <div>
+              <b>{isEn ? "NEW OFFICIAL TESTIMONY RECORDED:" : "YENİ RESMİ İFADE TUTANAĞI EKLENDİ:"} {newlyUnlockedClueToast.label}</b>
+              <p>{isEn ? "The witness officially denied the suspect's claim. This sworn testimony is now registered in your clues to confront the culprit." : "Tanık, şüphelinin mazeretini resmi tutanakla yalanladı. Bu ifade delillerinize eklendi, artık katili köşeye sıkıştırmak için kullanabilirsiniz."}</p>
+            </div>
+          </div>
+          <div className="vaka-unlock-banner-actions">
+            <button
+              type="button"
+              className="vaka-unlock-switch-btn"
+              onClick={() => {
+                setActiveActionTab("clues");
+                setSelectedClueId(newlyUnlockedClueToast.id);
+                setNewlyUnlockedClueToast(null);
+              }}
+            >
+              🔍 {isEn ? "Inspect Clue" : "Delili İncele"}
+            </button>
+            <button
+              type="button"
+              className="vaka-unlock-dismiss-btn"
+              onClick={() => setNewlyUnlockedClueToast(null)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Şüpheli Seçim Şeridi */}
       <div className="vaka-suspect-tabs">
         {visibleSuspects.map((suspect) => {
@@ -556,9 +631,9 @@ function cleanInterrogationText(text: string): string {
             <small>{isEn ? activeSuspect.relationshipToVictimEn : activeSuspect.relationshipToVictim}</small>
           </div>
           <b style={{ color: getStressColor(currentStress) }}>
-            {currentStress >= 75
+            {currentStress >= 65
               ? (isEn ? "CRACKING UNDER PRESSURE" : "KIRILMA NOKTASINDA")
-              : currentStress >= 40
+              : currentStress >= 30
               ? (isEn ? "NERVOUS & DEFENSIVE" : "HUZURSUZ / DEFANSİF")
               : (isEn ? "COMPOSED & GUARDED" : "SAKİN / KONTROLLÜ")}
             {" "}(%{currentStress})
@@ -687,19 +762,39 @@ function cleanInterrogationText(text: string): string {
               <div className="vaka-evidence-subpanel">
                 <label>{isEn ? "Tap a clue to confront the suspect:" : "Şüpheliyle yüzleştirmek için bir delile dokunun:"}</label>
                 <div className="vaka-evidence-pills">
-                  {vakaCase.clues.map((clue) => (
-                    <button
-                      key={clue.id}
-                      type="button"
-                      className={`vaka-evidence-pill ${selectedClueId === clue.id ? "is-selected" : ""}`}
-                      onClick={() => {
-                        setSelectedClueId(clue.id);
-                        dispatchAction("present_evidence", { clueId: clue.id });
-                      }}
-                    >
-                      🔍 {isEn ? clue.labelEn : clue.label}
-                    </button>
-                  ))}
+                  {vakaCase.clues.map((clue) => {
+                    const isNew = Boolean(unlockedCluesMap[clue.id]);
+                    return (
+                      <button
+                        key={clue.id}
+                        type="button"
+                        className={`vaka-evidence-pill ${selectedClueId === clue.id ? "is-selected" : ""} ${isNew ? "is-new-evidence" : ""}`}
+                        onClick={() => {
+                          setSelectedClueId(clue.id);
+                          dispatchAction("present_evidence", { clueId: clue.id });
+                        }}
+                      >
+                        {clue.category === "witness" ? "📜" : "🔍"} {isEn ? clue.labelEn : clue.label}
+                        {isNew && (
+                          <span
+                            className="vaka-new-clue-badge"
+                            style={{
+                              marginLeft: 6,
+                              fontSize: "0.7rem",
+                              background: "#f59e0b",
+                              color: "#000",
+                              padding: "1px 6px",
+                              borderRadius: 4,
+                              fontWeight: 700,
+                              letterSpacing: "0.5px"
+                            }}
+                          >
+                            {isEn ? "TESTIMONY" : "İFADE"}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -755,7 +850,7 @@ function cleanInterrogationText(text: string): string {
                 <button
                   type="button"
                   className="vaka-tactic-btn"
-                  disabled={interrogateMutation.isPending}
+                  disabled={Boolean(isCaseSolved) || interrogateMutation.isPending}
                   onClick={() => dispatchAction("stay_silent")}
                 >
                   🤫 {isEn ? "Stay Silent (Stare)" : "Sessiz Kal (Baskı Kur)"}
@@ -763,17 +858,18 @@ function cleanInterrogationText(text: string): string {
                 <button
                   type="button"
                   className="vaka-tactic-btn"
-                  disabled={interrogateMutation.isPending}
+                  disabled={Boolean(isCaseSolved) || interrogateMutation.isPending}
                   onClick={() => dispatchAction("bluff")}
                 >
                   🃏 {isEn ? "Tactical Bluff" : "Taktiksel Blöf"}
                 </button>
                 <button
                   type="button"
-                  className="vaka-tactic-btn vaka-tactic-accuse"
-                  onClick={() => onOpenVerdict(selectedSuspectId)}
+                  className={`vaka-tactic-btn vaka-tactic-accuse ${isCaseSolved ? "is-disabled" : ""}`}
+                  disabled={Boolean(isCaseSolved)}
+                  onClick={() => !isCaseSolved && onOpenVerdict(selectedSuspectId)}
                 >
-                  🏛️ {isEn ? "Indict in Court" : "Mahkemede Suçla"}
+                  🏛️ {isCaseSolved ? (isEn ? "Verdict Delivered" : "Hüküm Bağlandı") : (isEn ? "Indict in Court" : "Mahkemede Suçla")}
                 </button>
               </div>
             )}
@@ -781,65 +877,79 @@ function cleanInterrogationText(text: string): string {
         </div>
       )}
 
-      {/* Serbest Soru Metin Girişi - Yalnızca AI anahtarları mevcutken aktif */}
-      {!solved && hasLlm && (
-        <div className="vaka-input-row">
-          <input
-            type="text"
-            className="vaka-text-input"
-            value={inputText}
-            placeholder={
-              isEn
-                ? "Type a tailored question to interrogate via AI..."
-                : "Yapay zekâ ile şüpheliye özel sorunuzu yöneltin..."
-            }
-            disabled={interrogateMutation.isPending}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") dispatchAction("question");
-            }}
-          />
-          <button
-            type="button"
-            className="vaka-send-btn"
-            disabled={interrogateMutation.isPending || !inputText.trim()}
-            onClick={() => dispatchAction("question")}
-          >
-            {isEn ? "Ask Question" : "Soruyu Sor"}
-          </button>
-        </div>
-      )}
-
-      {!solved && !hasLlm && (
-        <div className="vaka-ai-gated-banner">
-          <span>⚖️</span>
+      {/* Vaka Çözüldüğünde / Arşivlendiğinde Bildirim */}
+      {isCaseSolved ? (
+        <div className="vaka-case-archived-banner" role="status">
+          <span>📜</span>
           <p>
             {isEn
-              ? "Tactical interrogation mode: Use the panels above (Prepared Questions, Evidence, Cross-Exam, and Tactics) to break the suspect."
-              : "Taktiksel sorgu modu: Şüpheliyi çözmek için yukarıdaki panelleri (Hazır Sorular, Deliller, Çapraz Sorgu ve Taktikler) kullanın."}
+              ? "This case has been resolved and officially recorded in the bureau archives. Transcripts and evidence are available for review."
+              : "Bu vaka başarıyla çözüldü ve resmi kayıtlara geçti. Sorgu tutanaklarını ve şüpheli ifadelerini inceleyebilirsiniz."}
           </p>
         </div>
-      )}
+      ) : (
+        <>
+          {/* Serbest Soru Metin Girişi - Yalnızca AI anahtarları mevcutken aktif */}
+          {!solved && hasLlm && (
+            <div className="vaka-input-row">
+              <input
+                type="text"
+                className="vaka-text-input"
+                value={inputText}
+                placeholder={
+                  isEn
+                    ? "Type a tailored question to interrogate via AI..."
+                    : "Yapay zekâ ile şüpheliye özel sorunuzu yöneltin..."
+                }
+                disabled={interrogateMutation.isPending}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") dispatchAction("question");
+                }}
+              />
+              <button
+                type="button"
+                className="vaka-send-btn"
+                disabled={interrogateMutation.isPending || !inputText.trim()}
+                onClick={() => dispatchAction("question")}
+              >
+                {isEn ? "Ask Question" : "Soruyu Sor"}
+              </button>
+            </div>
+          )}
 
-      {/* İtiraf Sonrası Dev İddianame Aksiyon Çubuğu */}
-      {solved && (
-        <div className="vaka-confession-footer-bar">
-          <div className="vaka-confession-footer-info">
-            <span>✨ {isEn ? "Suspect has cracked!" : "Şüpheli çözüldü ve teslim oldu!"}</span>
-            <p>
-              {isEn
-                ? "Submit the official four-pillar indictment to finalize the court verdict."
-                : "Hükmü kesinleştirmek için 4 ayaklı resmi iddianameyi mahkemeye sunun."}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="vaka-indict-giant-btn"
-            onClick={() => onOpenVerdict(selectedSuspectId)}
-          >
-            🏛️ {isEn ? "PROCEED TO FORMAL INDICTMENT" : "RESMİ MAHKEME SUÇLAMASINA GEÇ"}
-          </button>
-        </div>
+          {!solved && !hasLlm && (
+            <div className="vaka-ai-gated-banner">
+              <span>⚖️</span>
+              <p>
+                {isEn
+                  ? "Tactical interrogation mode: Use the panels above (Prepared Questions, Evidence, Cross-Exam, and Tactics) to break the suspect."
+                  : "Taktiksel sorgu modu: Şüpheliyi çözmek için yukarıdaki panelleri (Hazır Sorular, Deliller, Çapraz Sorgu ve Taktikler) kullanın."}
+              </p>
+            </div>
+          )}
+
+          {/* İtiraf Sonrası Dev İddianame Aksiyon Çubuğu */}
+          {solved && (
+            <div className="vaka-confession-footer-bar">
+              <div className="vaka-confession-footer-info">
+                <span>✨ {isEn ? "Suspect has cracked!" : "Şüpheli çözüldü ve teslim oldu!"}</span>
+                <p>
+                  {isEn
+                    ? "Submit the official four-pillar indictment to finalize the court verdict."
+                    : "Hükmü kesinleştirmek için 4 ayaklı resmi iddianameyi mahkemeye sunun."}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="vaka-indict-giant-btn"
+                onClick={() => onOpenVerdict(selectedSuspectId)}
+              >
+                🏛️ {isEn ? "PROCEED TO FORMAL INDICTMENT" : "RESMİ MAHKEME SUÇLAMASINA GEÇ"}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -103,7 +103,9 @@ ${suspect.isCulprit
   ? `- You know the detective caught you red-handed with this contradiction.
 - Do NOT repeat old denials like "I was somewhere else" or "I know nothing".
 - Adopt a broken, defeated, or cornered posture.
-- Either confess parts of your motive (desperation, debt, rage) or plead for a lighter charge, or defensively ask what happens to you now.`
+- Your true motive for the murder is: "${caseData?.correctMotiveEn || suspect.motiveEn || suspect.motive}".
+- Your confession is: "${suspect.confessionEn || suspect.confession}".
+- Confess with these exact facts in your own emotional voice, explaining why you did it matching your motive ("${caseData?.correctMotiveEn || suspect.motiveEn || suspect.motive}").`
   : `- Your minor secret or discrepancy was uncovered. Be embarrassed, admit that specific point, but firmly re-iterate you did not murder anyone.`}`
       : `\n## KRİTİK DİREKTİF - RESMİ ÇELİŞKİ AVI'NDA YALANIN VE ÇELİŞKİN YAKALANDI:
 Dedektif, resmi tutanaktaki yalanını somut delille çürüterek tutanağa geçirdi:
@@ -111,12 +113,14 @@ Dedektif, resmi tutanaktaki yalanını somut delille çürüterek tutanağa geç
 - Çürüten Delil: "${exposedContradictionInfo?.clue || 'Dava delili'}"
 ${exposedContradictionInfo?.explanation ? `- Resmi Tespit: "${exposedContradictionInfo.explanation}"` : ""}
 
-YAKALANDIĞINI BİLİYORSUN. SAVUNMAN VE NEREDEYDİM İDDİAN TAMAMEN ÇÖKTÜ.
+YAKALANDIĞINI BİLİYORSUN. SAVUNMAN VE MAZERETİN TAMAMEN ÇÖKTÜ.
 ${suspect.isCulprit
   ? `- Yalanının ortaya çıktığının ve köşeye sıkıştığının tamamen farkındasın.
   - "Ben yapmadım", "Odamdaydım", "Haberim yok" gibi eski inkar yalanlarına ASLA devam etme!
   - Yenilmiş, sarsılmış ve gardı düşmüş bir psikolojiyle konuş.
-  - Seni buna neyin ittiğini (borçlar, öfke, mecburiyet, tefeciler), nasıl yaptığını veya pişmanlığını kısaca dile getir ya da "Beni nasıl yakaladınız..." diyerek yenilgiyi kabul et.`
+  - Gerçek Cinayet Sebebin / Amacın: "${caseData?.correctMotive || suspect.motive}".
+  - İtirafın: "${suspect.confession}".
+  - Seni cinayete iten gerçek amacını ("${caseData?.correctMotive || suspect.motive}") ve suçunu bu doğrultuda itiraf et, uydurma borç/tefeci gibi başka sebepler uydurma!`
   : `- Sakladığın küçük sırrın veya ifade hatan ortaya çıktı. Mahcup ol, o noktayı kabul et ama cinayet işlemediğini ısrarla vurgula.`}`;
   }
 
@@ -182,14 +186,14 @@ ${suspect.isCulprit
     alibiDenialAlert = isEn
       ? `\n## CRITICAL OVERRIDE - YOU WERE USED AS A FALSE WITNESS:
 Someone in this case (such as your boss, colleague, or an accused suspect) has claimed they were with you or that you can vouch for their whereabouts.
-IF THE DETECTIVE ASKS IF YOU WERE WITH THEM OR ASKS ABOUT THEIR WHEREABOUTS:
+WHENEVER THE DETECTIVE ASKS IF YOU WERE WITH THEM, ASKS ABOUT THEIR WHEREABOUTS, OR PRESSES YOU:
 - YOU MUST FIRMLY AND EMPHATICALLY REJECT AND DENY IT! State clearly: "${suspect.alibiDenial.en}"
-- Tell the detective that you were NOT with them at the critical time and will not cover for their crime!`
-      : `\n## KRİTİK DİREKTİF - SAHTE ŞAHİTLİK VE NEREDEYDİM İDDİASINI YALANLAMA:
+- Tell the detective that you were NOT with them at the critical time and will not cover for their crime! Provide this as your official witness testimony.`
+      : `\n## KRİTİK DİREKTİF - SAHTE ŞAHİTLİK VE MAZERET İDDİASINI YALANLAMA:
 Bu vakadaki şüphelilerden biri (patronun, iş arkadaşın veya sanık) olay anında senin onunla birlikte olduğunu veya senin ona şahitlik edeceğini iddia etti.
-EĞER DEDEKTİF SANA ONUNLA OLUP OLMADIĞINI VEYA OLAY SAATİNDE NEREDE OLDUĞUNUZU SORARSA:
+DEDEKTİF SANA ONUNLA OLUP OLMADIĞINI, OLAY SAATİNDE NEREDE OLDUĞUNUZU VEYA OLAYI SORDUĞUNDA:
 - BU SAHTE İDDİAYI KESİNLİKLE VE KARARLILIKLA YALANLA! Açıkça söyle: "${suspect.alibiDenial.tr}"
-- O saatte onun yanında olmadığını, seni erkenden gönderdiğini veya onun tek başına olduğunu dedektife dürüstçe açıkla!`;
+- O saatte onun yanında olmadığını, seni erkenden gönderdiğini veya onun tek başına olduğunu dedektife dürüstçe resmi ifaden olarak açıkla!`;
   }
 
   // O vakada bu şüphelinin sahte şahit / mazeret olarak öne sürdüğü kilitli bir tanık/şüpheli var mı?
@@ -201,14 +205,14 @@ EĞER DEDEKTİF SANA ONUNLA OLUP OLMADIĞINI VEYA OLAY SAATİNDE NEREDE OLDUĞUN
     const witnessName = unlockableWitness.name;
     const witnessRole = isEn ? (unlockableWitness.roleEn || unlockableWitness.role) : unlockableWitness.role;
     witnessPrompt = isEn
-      ? `\n## WITNESS DEFLECTION (USE ONLY IF PRESSED ON YOUR WHEREABOUTS):
-In this case, you claim ${witnessName} (${witnessRole}) was with you or can vouch for your presence.
-- DO NOT blurt this out immediately or in casual greetings.
-- ONLY IF the detective specifically presses you on where you were, your timeline, or suspects you: name ${witnessName} to deflect suspicion (e.g., "I was with ${witnessName} at that time, go ask them yourself!").`
-      : `\n## MAZERET VE ŞAHİT GÖSTERME (YALNIZCA SIKIŞTIRILDIĞINDA VEYA NEREDE OLDUĞUN SORULDUĞUNDA KULLAN):
-Bu vakada, ${witnessName} (${witnessRole}) isimli kişinin olay anında seninle olduğunu veya sana şahitlik edeceğini iddia ediyorsun.
-- Bunu durduk yere veya ilk selamlaşmada pat diye söyleme!
-- YALNIZCA dedektif sana olay anında nerede olduğunu doğrudan sorduğunda veya seni köşeye sıkıştırdığında: kendini temize çıkarmak için ${witnessName}'in adını anarak ifade ver ("O saatte ${witnessName} ile birlikteydim, gidin ona sorun!") ve suçu/şüpheyi üzerinden atmaya çalış.`;
+      ? `\n## WITNESS DEFLECTION (MANDATORY WHEN ASKED ABOUT YOUR TIMELINE OR WHEREABOUTS):
+In this case, your primary defense is claiming you were with ${witnessName} (${witnessRole}).
+- DO NOT blurt this out on empty greetings like "hi" or "hello".
+- WHEN the detective asks where you were, questions your timeline, or suspects you: you MUST explicitly name ${witnessName} to back up your story (e.g. "I was with ${witnessName} at that time, go ask them yourself!"). Never omit their name when giving your defense.`
+      : `\n## MAZERET VE ŞAHİT GÖSTERME (NEREDE OLDUĞUN VEYA SAVUNMAN SORULDUĞUNDA ZORUNLU):
+Bu vakada en temel savunman ve mazeretin, olay anında ${witnessName} (${witnessRole}) ile birlikte olduğunu iddia etmendir.
+- Bunu selamlaşmada ("merhaba" vb.) durduk yere söyleme.
+- DEDEKTİF SANA NEREDE OLDUĞUNU, ZAMAN ÇİZELGENİ VEYA OLAY ANINI SORDUĞUNDA: Savunmanı yaparken ${witnessName}'in adını AÇIKÇA ve KESİNLİKLE zikret ("O saatte ${witnessName} ile birlikteydim, gidin ona sorun!"). ${witnessName}'in adını anmadan yarım savunma verme.`;
   }
 
   if (isEn) {
@@ -256,7 +260,10 @@ STRICT INTERROGATION RULES:
    - High Stress (71-100): Cornered, stammering, defensive, but denying guilt unless broken by physical evidence.
 7. CONFESSION THRESHOLD: Never confess to the murder unless presented with undeniable physical/forensic evidence directly disproving your story AND your stress is above 80.
 8. DIALOGUE MEMORY & PROGRESSIVE ACTION: Maintain strict continuity with previous messages in this conversation. If the detective repeats a question you already addressed, show irritation and call it out ("I already told you that, detective"). If the detective corners you with an earlier contradiction, falter or get defensive, but do not pretend this is a brand-new conversation.
-9. LANGUAGE: Respond strictly in English.`;
+9. DYNAMIC BLUFF & IMPROVISED ACCUSATION HANDLING: If the detective throws an improvised bluff, wild accusation, or claims someone saw you (e.g. "a passenger saw you climbing out a window", "we have secret camera footage", "someone saw you running"):
+   - IF YOU ARE THE KILLER: Feel a jolt of panic! You don't know if someone actually caught a glimpse of your crime. Stammer, get defensive, and try to poke holes in the claim while visibly sweating ("Wh-what window?! Who claims they saw that?! That's a lie, nobody was out there... I mean, I was inside all night! You have no proof!").
+   - IF YOU ARE INNOCENT: React with utter disbelief and indignant outrage at the absurdity of the lie ("Climbing out a window?! Detective, have you lost your mind? Do I look like an acrobat? Bring whoever told you that ridiculous fairy tale right here to face me!").
+10. LANGUAGE: Respond strictly in English.`;
   }
 
   // Türkçe
@@ -299,7 +306,10 @@ GERÇEKÇİ POLİS SORGUSU KURALLARI (BU KURALLARA KESİNLİKLE UY):
    - Yüksek Stres (71-100): Panikleyen, köşeye sıkışan, kesik konuşan ama delilsiz itiraf etmeyen.
 7. İTİRAF ŞARTI: Dedektif önüne göz ardı edilemez somut bir delil koymadıkça ve stresin 80'in üzerinde olmadıkça cinayeti asla kabul etme.
 8. DİYALOG HAFIZASI VE SÜREKLİLİK: Bu sorgudaki önceki konuşmaları kesinlikle hatırla. Dedektif daha önce yanıtladığın bir konuyu tekrar sorarsa bıkkınlığını göster ("Bunu az önce söyledim dedektif", "Aynı şeyi tekrarlatıp durmayın"). Önceki ifadelerinle tutarlı kal; dedektif seni geçmiş ifadenle köşeye sıkıştırdığında panikleyip toparlamaya çalış. Her soruyu yeni bir sohbete başlamış gibi karşılama.
-9. DİL: Yanıtını kesinlikle doğal bir Türkçe ile ver.`;
+9. DOĞAÇLAMA BLÖF VE UYDURMA SUÇLAMA TEPKİSİ: Dedektif serbestçe doğaçlama bir blöf, gizli şahit veya beklenmedik bir iddia ortaya atarsa (örneğin "seni pencereden camdan tırmanırken görmüşler", "gizli kamera kaydın çıktı", "bir yolcu seni koşarken görmüş"):
+   - EĞER KATİLSEN: Ani bir panik dalgası yaşa! Gerçekten bir izin mi yakalandığını yoksa dedektifin salladığını mı kestiremezsin. Bir an afalla, kekele ve tereddütle karşı saldırıya geç ("N-ne penceresi?! Hangi yolcu görmüş?! Yalan söylüyorlar, beni kimse dışarıda göremez... yani ben zaten içerideydim! Bana boş blöfler savurmayın!").
+   - EĞER MASUMSAN: İddianın absürtlüğü karşısında hayret, öfke ve aşağılamayla karşılık ver ("Pencereden tırmanmak mı?! Dedektif siz aklınızı mı kaçırdınız, sirk cambazı mıyım ben?! Hangi yalancı uydurduysa bunu getirin buraya yüzüme söylesin! Boş iddialarla vaktimi harcamayın!").
+10. DİL: Yanıtını kesinlikle doğal bir Türkçe ile ver.`;
 }
 
 export type LlmMessage = {

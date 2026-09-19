@@ -11,6 +11,7 @@ type Props = {
   onSolved?: (score: number) => void;
   onOpenVerdict?: (suspectId?: string) => void;
   onCaseCompleted?: (caseId: string, score: number) => void;
+  isCaseSolved?: boolean;
 };
 
 export default function VakaContradiction({
@@ -20,6 +21,7 @@ export default function VakaContradiction({
   onSolved,
   onOpenVerdict,
   onCaseCompleted,
+  isCaseSolved,
 }: Props) {
   const [unlockedMap] = useState<Record<string, boolean>>(() => {
     try {
@@ -207,7 +209,7 @@ export default function VakaContradiction({
           <button
             type="button"
             className="vaka-objection-btn"
-            disabled={!selectedSentenceId || !selectedClueId || contradictionMutation.isPending || solved}
+            disabled={!selectedSentenceId || !selectedClueId || contradictionMutation.isPending || solved || Boolean(isCaseSolved)}
             onClick={handlePresentObjection}
           >
             ⚖️ {locale === "en" ? "PRESENT CONTRADICTION!" : "ÇELİŞKİYİ SUN / İTİRAZ ET!"}
@@ -219,20 +221,22 @@ export default function VakaContradiction({
       {solved && onOpenVerdict && (
         <div className="vaka-confession-footer-bar">
           <div className="vaka-confession-footer-info">
-            <span>✨ {locale === "en" ? "Contradiction shattered the false defense!" : "Çelişki şüphelinin yalan savunmasını çökertti!"}</span>
+            <span>{isCaseSolved ? "✓ " : "✨ "}{isCaseSolved ? (locale === "en" ? "Contradiction Archived" : "Çelişki Arşivlendi") : (locale === "en" ? "Contradiction shattered the false defense!" : "Çelişki şüphelinin yalan savunmasını çökertti!")}</span>
             <p>
-              {locale === "en"
-                ? "Now present the formal court indictment to deliver justice."
-                : "Şimdi adaleti sağlamak için resmi mahkeme iddianamesini sunun."}
+              {isCaseSolved
+                ? (locale === "en" ? "The contradiction was formally recorded in the archives." : "Çelişki resmi tutanaklara geçti ve vaka sonuçlandırıldı.")
+                : (locale === "en" ? "Now present the formal court indictment to deliver justice." : "Şimdi adaleti sağlamak için resmi mahkeme iddianamesini sunun.")}
             </p>
           </div>
-          <button
-            type="button"
-            className="vaka-indict-giant-btn"
-            onClick={() => onOpenVerdict(selectedSuspectId)}
-          >
-            🏛️ {locale === "en" ? "PROCEED TO FORMAL INDICTMENT" : "RESMİ MAHKEME SUÇLAMASINA GEÇ"}
-          </button>
+          {!isCaseSolved && (
+            <button
+              type="button"
+              className="vaka-indict-giant-btn"
+              onClick={() => onOpenVerdict(selectedSuspectId)}
+            >
+              🏛️ {locale === "en" ? "PROCEED TO FORMAL INDICTMENT" : "RESMİ MAHKEME SUÇLAMASINA GEÇ"}
+            </button>
+          )}
         </div>
       )}
     </div>

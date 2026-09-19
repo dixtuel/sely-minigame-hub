@@ -39,6 +39,8 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
   const [started, setStarted] = useState(autoStart);
   const [runKey, setRunKey] = useState(0);
   const [result, setResult] = useState<GameResult | null>(null);
+  const [completedResult, setCompletedResult] = useState<GameResult | null>(null);
+  const [isResultDismissed, setIsResultDismissed] = useState(false);
   const [failureCount, setFailureCount] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [sparkHud, setSparkHud] = useState<{ score: number; voltage: number; speed: number } | null>(null);
@@ -59,6 +61,8 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
 
   const restart = () => {
     setResult(null);
+    setCompletedResult(null);
+    setIsResultDismissed(false);
     setSparkHud({ score: 0, voltage: 100, speed: 2.6 });
     setRunMastery(runMasteryFor(highScore, dailyDifficulty));
     setStarted(true);
@@ -67,6 +71,8 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
   };
   const continueToNext = () => {
     setResult(null);
+    setCompletedResult(null);
+    setIsResultDismissed(false);
     setFailureCount(0);
     onNextLevel();
     trackEvent("next_level", { game: game.id });
@@ -76,7 +82,10 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
     const finalScore = scoreFor(game.id, next.score);
     if (next.outcome === "success" || game.id === "spark") onScore(finalScore);
     setFailureCount(current => next.outcome === "failure" ? current + 1 : 0);
-    setResult({ ...next, score: finalScore });
+    const fullResult = { ...next, score: finalScore };
+    setResult(fullResult);
+    setCompletedResult(fullResult);
+    setIsResultDismissed(false);
     trackEvent("game_finish", { game: game.id, outcome: next.outcome });
   }, [game.id, onScore]);
 
@@ -113,6 +122,32 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
           )}
         </div>
         <div className="studio-actions">
+          {isResultDismissed && completedResult && (
+            <>
+              {resultActionsFor(completedResult.outcome, failureCount, game.id).canAdvance && (
+                <button
+                  type="button"
+                  className="ink-button studio-advance-mini-btn"
+                  onClick={continueToNext}
+                  title={locale === "en" ? "Advance to next level" : "Sonraki seviyeye geç"}
+                >
+                  {completedResult.outcome === "success"
+                    ? (locale === "en" ? "Next Level →" : "Sonraki Seviye →")
+                    : (locale === "en" ? "Next Route →" : "Sonraki Rota →")}
+                </button>
+              )}
+              {resultActionsFor(completedResult.outcome, failureCount, game.id).canRetry && !resultActionsFor(completedResult.outcome, failureCount, game.id).canAdvance && (
+                <button
+                  type="button"
+                  className="ink-button studio-advance-mini-btn"
+                  onClick={restart}
+                  title={locale === "en" ? "Try again" : "Tekrar dene"}
+                >
+                  {locale === "en" ? "Retry ↺" : "Tekrar Dene ↺"}
+                </button>
+              )}
+            </>
+          )}
           <span className="best-score">{locale === "en" ? "BEST" : "EN İYİ"} <b>{highScore.toLocaleString(locale === "en" ? "en-US" : "tr-TR")}</b></span>
           <button className="icon-button" onClick={onToggleSound} aria-label={soundOn ? (locale === "en" ? "Mute sound" : "Sesi kapat") : (locale === "en" ? "Enable sound" : "Sesi aç")}><Volume2 size={18} className={soundOn ? "" : "sound-muted"} /></button>
           <button className="icon-button" onClick={toggleFullscreen} aria-label={isFullscreen ? (locale === "en" ? "Exit fullscreen" : "Tam ekrandan çık") : (locale === "en" ? "Enter fullscreen" : "Tam ekrana al")}>{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}</button>
@@ -133,10 +168,50 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
           </div>
         ) : (
           <div className={`game-stage ${sparkActive ? "game-stage-spark" : ""}`}>
+            {isResultDismissed && completedResult && (
+              <div className="stage-completion-dock" role="status" aria-live="polite">
+                <div className="stage-completion-lead">
+                  <span className={`completion-dot ${completedResult.outcome === "success" ? "is-success" : "is-fail"}`}>
+                    {completedResult.outcome === "success" ? "✓" : "!"}
+                  </span>
+                  <div className="completion-copy">
+                    <strong>{completedResult.label}</strong>
+                    <span>
+                      {locale === "en" ? "Score: " : "Skor: "}
+                      <b>{completedResult.score.toLocaleString(locale === "en" ? "en-US" : "tr-TR")}</b>
+                    </span>
+                  </div>
+                </div>
+                <div className="stage-completion-controls">
+                  <button
+                    type="button"
+                    className="quiet-button dock-btn"
+                    onClick={() => {
+                      setResult(completedResult);
+                      setIsResultDismissed(false);
+                    }}
+                  >
+                    {locale === "en" ? "Scorecard" : "Sonuç Kartı"}
+                  </button>
+                  {resultActionsFor(completedResult.outcome, failureCount, game.id).canRetry && (
+                    <button type="button" className="quiet-button dock-btn" onClick={restart}>
+                      <RotateCcw size={14} /> {locale === "en" ? "Retry" : "Tekrar Dene"}
+                    </button>
+                  )}
+                  {resultActionsFor(completedResult.outcome, failureCount, game.id).canAdvance && (
+                    <button type="button" className="ink-button dock-btn is-advance" onClick={continueToNext}>
+                      {completedResult.outcome === "success"
+                        ? (locale === "en" ? "Next Level" : "Sonraki Seviyeye Geç")
+                        : (locale === "en" ? "Next Route" : "Sonraki Rota")} <ArrowRight size={15} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <GameRenderer key={runKey} game={game} locale={locale} dailySeed={game.id === "spark" ? ((dailySeed ^ ((runKey + 1) * 0x1f351f) ^ Math.imul(runKey + 7, 0x9e3779b9)) >>> 0) : game.id === "hane" ? (runKey === 0 ? dailySeed : ((dailySeed ^ ((runKey + 1) * 0x27d4eb2d) ^ Math.imul(runKey + 13, 0x1000193)) >>> 0)) : dailySeed} mastery={runMastery} demo={demo} soundOn={soundOn} onFinish={finish} onSparkHudChange={setSparkHud} />
             {result && (
               <div className="result-panel" role="dialog" aria-modal="true" aria-label={locale === "en" ? "Run result" : "Tur sonucu"}>
-                <button className="result-close" onClick={() => setResult(null)} aria-label={locale === "en" ? "Close result" : "Sonucu kapat"}><X size={18} /></button>
+                <button className="result-close" onClick={() => { setResult(null); setIsResultDismissed(true); }} aria-label={locale === "en" ? "Close result" : "Sonucu kapat"}><X size={18} /></button>
                 <span className="studio-kicker">{locale === "en" ? "RUN COMPLETE" : "TUR TAMAMLANDI"}</span>
                 <h2>{result.label}</h2>
                 {result.answer && (
