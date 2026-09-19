@@ -1,5 +1,3 @@
-import type { GameId } from "@/lib/catalog";
-
 export type OgParams = {
   game?: string;
   score?: number;
@@ -13,14 +11,104 @@ export type OgParams = {
   date?: string;
 };
 
-const GAME_META: Record<string, { title: string; titleEn: string; accent: string; bg: string; icon: string }> = {
-  echo: { title: "YANKI", titleEn: "ECHO", accent: "#38bdf8", bg: "#0c1929", icon: "◎" },
-  knot: { title: "DÜĞÜM", titleEn: "KNOT", accent: "#fbbf24", bg: "#231805", icon: "☍" },
-  cut: { title: "KESİT", titleEn: "CUTOUT", accent: "#c084fc", bg: "#1e0c2e", icon: "◧" },
-  shadow: { title: "GÖLGE", titleEn: "SHADOW", accent: "#fb923c", bg: "#251205", icon: "◐" },
-  hane: { title: "HANE", titleEn: "HANE", accent: "#4ade80", bg: "#082012", icon: "▦" },
-  spark: { title: "KIVILCIM", titleEn: "SPARK", accent: "#f87171", bg: "#270808", icon: "⚡" },
-  vaka: { title: "VAKA", titleEn: "CASE", accent: "#e2e8f0", bg: "#0f172a", icon: "⚖" },
+type GameTheme = {
+  num: string;
+  title: string;
+  titleEn: string;
+  eyebrow: string;
+  eyebrowEn: string;
+  motto: string;
+  mottoEn: string;
+  accent: string;
+  ink: string;
+  icon: string;
+};
+
+const GAME_CATALOG_META: Record<string, GameTheme> = {
+  echo: {
+    num: "01",
+    title: "YANKI ODASI",
+    titleEn: "ECHO ROOM",
+    eyebrow: "KEŞİF / RİSK",
+    eyebrowEn: "EXPLORE / RISK",
+    motto: "Yolu görme. Onu duy.",
+    mottoEn: "Do not see the path. Hear it.",
+    accent: "#E9563F", // Coral
+    ink: "#293B75",   // Indigo
+    icon: "◎",
+  },
+  knot: {
+    num: "02",
+    title: "DÜĞÜM",
+    titleEn: "KNOT",
+    eyebrow: "AKIŞ / BULMACA",
+    eyebrowEn: "FLOW / PUZZLE",
+    motto: "Bir düğüm at; bütün akışı değiştir.",
+    mottoEn: "Tie one knot; change the whole current.",
+    accent: "#293B75", // Indigo
+    ink: "#E9563F",   // Coral
+    icon: "☍",
+  },
+  cut: {
+    num: "03",
+    title: "KIRPIK",
+    titleEn: "CUTOUT",
+    eyebrow: "KESİM / RİTİM",
+    eyebrowEn: "CUT / RHYTHM",
+    motto: "Alan açmak için bir şeyi feda et.",
+    mottoEn: "Give something up to make space.",
+    accent: "#654169", // Plum
+    ink: "#1B1A1B",
+    icon: "◧",
+  },
+  shadow: {
+    num: "04",
+    title: "GÖLGE PAYI",
+    titleEn: "SHADOW SHARE",
+    eyebrow: "ZAMAN / EŞLEME",
+    eyebrowEn: "TIME / MATCH",
+    motto: "Geçmişteki adımın, şimdi kapıyı açar.",
+    mottoEn: "A step in the past opens a door now.",
+    accent: "#296A55", // Green
+    ink: "#E9563F",
+    icon: "◐",
+  },
+  vaka: {
+    num: "05",
+    title: "VAKA",
+    titleEn: "CASE",
+    eyebrow: "DEDEKTİFLİK / ÇIKARIM",
+    eyebrowEn: "DETECTIVE / DEDUCTION",
+    motto: "Sözü değil, kanıtı sun.",
+    mottoEn: "Present the evidence, not the word.",
+    accent: "#E5B341", // Mustard
+    ink: "#1B1A1B",
+    icon: "⚖",
+  },
+  hane: {
+    num: "06",
+    title: "HANE",
+    titleEn: "HANE",
+    eyebrow: "KAYIT / ÇIKARIM",
+    eyebrowEn: "RECORD / INFERENCE",
+    motto: "Kanıtı say; kayıt türünü sen seç.",
+    mottoEn: "Count the evidence; choose the record type.",
+    accent: "#E5B341", // Mustard
+    ink: "#293B75",
+    icon: "▦",
+  },
+  spark: {
+    num: "07",
+    title: "KIVILCIM",
+    titleEn: "SPARK",
+    eyebrow: "ARK / KAÇIŞ",
+    eyebrowEn: "ARC / ESCAPE",
+    motto: "Kıvılcım sönmez; yerçekimine diren.",
+    mottoEn: "The spark endures; resist the current.",
+    accent: "#E9563F", // Coral
+    ink: "#293B75",
+    icon: "⚡",
+  },
 };
 
 function escapeXml(unsafe: string): string {
@@ -33,186 +121,253 @@ function escapeXml(unsafe: string): string {
 }
 
 /**
- * Generates an ultra-crisp, zero-dependency SVG card (1200x630)
- * Works flawlessly in Node.js, Express, Docker, and Edge environments.
+ * Generates an authentic SELY editorial/brutalist SVG card (1200x630).
+ * Matches sely.tr's real design system: cream paper (#F6F0E3), deep ink (#1B1A1B),
+ * coral accent (#E9563F), harsh neo-brutalist shadows, and typography.
  */
 export function generateOgSvg(params: OgParams): string {
   const isEn = params.locale === "en";
   const gameKey = (params.game || "hub").toLowerCase();
-  const game = GAME_META[gameKey] || {
-    title: "SELY",
-    titleEn: "SELY",
-    accent: "#f59e0b",
-    bg: "#111827",
+  const theme = GAME_CATALOG_META[gameKey] || {
+    num: "00",
+    title: "SELY RETRO",
+    titleEn: "SELY RETRO",
+    eyebrow: "OYUN KATALOĞU",
+    eyebrowEn: "GAME CATALOGUE",
+    motto: "Küçük kural, büyük yankı.",
+    mottoEn: "Minimal rules, lasting echoes.",
+    accent: "#E9563F",
+    ink: "#1B1A1B",
     icon: "❖",
   };
 
-  const gameTitle = isEn ? game.titleEn : game.title;
-  const nick = escapeXml(params.nick ? params.nick.toUpperCase() : "OYUNCU");
+  const gameTitle = isEn ? theme.titleEn : theme.title;
+  const gameEyebrow = isEn ? theme.eyebrowEn : theme.eyebrow;
+  const gameMotto = isEn ? theme.mottoEn : theme.motto;
+  const nick = escapeXml(params.nick ? params.nick.toUpperCase() : (isEn ? "PLAYER" : "OYUNCU"));
   const scoreText = typeof params.score === "number" ? params.score.toLocaleString(isEn ? "en-US" : "tr-TR") : "";
   const dateStr = escapeXml(params.date || new Date().toISOString().slice(0, 10));
 
-  // Vaka Özel Tasarımı
+  // ==========================================
+  // ÖZEL VAKA GİZEMİ / POLİS ARŞİV DOSYASI ŞABLONU
+  // ==========================================
   if (gameKey === "vaka") {
     const isSolved = params.outcome === "solved" || params.outcome === "success";
-    const statusText = isSolved
-      ? isEn ? "CASE SOLVED" : "VAKA ÇÖZÜLDÜ"
-      : isEn ? "CASE DISMISSED" : "DAVA DÜŞTÜ";
-    const statusColor = isSolved ? "#22c55e" : "#ef4444";
     const grade = params.grade || (isSolved ? "S" : "C");
-    const caseName = escapeXml(params.caseTitle || (isEn ? "Confidential Bureau Dossier" : "Büro Gizli Dosyası"));
-    const suspectText = params.suspect ? escapeXml(params.suspect) : (isEn ? "Perpetrator Unmasked" : "Şüpheli Sorgulandı");
+    const stampColor = isSolved ? "#15803d" : "#b91c1c"; // Resmi yeşil mühür veya kırmızı ret mührü
+    const stampBg = isSolved ? "#dcfce7" : "#fee2e2";
+    const stampBorder = isSolved ? "#16a34a" : "#dc2626";
+    const stampText = isSolved
+      ? (isEn ? "CASE SOLVED" : "VAKA ÇÖZÜLDÜ")
+      : (isEn ? "CASE DISMISSED" : "DAVA DÜŞTÜ");
+    const stampSub = isSolved
+      ? (isEn ? "PERPETRATOR CONVICTED" : "SUÇLU İTİRAF ETTİ")
+      : (isEn ? "INSUFFICIENT EVIDENCE" : "DELİL YETERSİZLİĞİ");
 
-    return `
-<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+    const caseName = escapeXml(params.caseTitle || (isEn ? "Confidential Bureau Dossier" : "Gizli Büro Dosyası"));
+    const suspectText = params.suspect ? escapeXml(params.suspect) : (isEn ? "Key Suspect" : "Asıl Şüpheli");
+
+    return `<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="vakaGlow" cx="70%" cy="30%" r="80%">
-      <stop offset="0%" stop-color="#1e293b" />
-      <stop offset="100%" stop-color="#090d16" />
-    </radialGradient>
-    <linearGradient id="stampBorder" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="${statusColor}" stop-opacity="0.8"/>
-      <stop offset="100%" stop-color="${statusColor}" stop-opacity="0.3"/>
-    </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.6"/>
-    </filter>
+    <!-- Noktalı Saman Kağıdı Deseni -->
+    <pattern id="vakaDots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#1B1A1B" fill-opacity="0.09" />
+    </pattern>
   </defs>
 
-  <!-- Arka Plan -->
-  <rect width="1200" height="630" fill="url(#vakaGlow)"/>
+  <!-- Saman/Kraft Kağıt Zemin (Sely Kağıdı) -->
+  <rect width="1200" height="630" fill="#F4EBD9" />
+  <rect width="1200" height="630" fill="url(#vakaDots)" />
 
-  <!-- Izgara Doku Deseni -->
-  <g opacity="0.04" stroke="#ffffff" stroke-width="1">
-    <line x1="0" y1="105" x2="1200" y2="105"/>
-    <line x1="0" y1="210" x2="1200" y2="210"/>
-    <line x1="0" y1="315" x2="1200" y2="315"/>
-    <line x1="0" y1="420" x2="1200" y2="420"/>
-    <line x1="0" y1="525" x2="1200" y2="525"/>
-    <line x1="200" y1="0" x2="200" y2="630"/>
-    <line x1="400" y1="0" x2="400" y2="630"/>
-    <line x1="600" y1="0" x2="600" y2="630"/>
-    <line x1="800" y1="0" x2="800" y2="630"/>
-    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  <!-- Dış Çerçeve (Çift Çizgili Klasör Bordürü) -->
+  <rect x="24" y="24" width="1152" height="582" fill="none" stroke="#1B1A1B" stroke-width="3" />
+  <rect x="32" y="32" width="1136" height="566" fill="none" stroke="#1B1A1B" stroke-width="1" stroke-dasharray="8 4" opacity="0.4" />
+
+  <!-- Sol Dikey Polis Arşivi Şeridi -->
+  <g transform="translate(64, 60)">
+    <rect width="6" height="510" fill="#B91C1C" />
+    <text transform="rotate(-90)" x="-490" y="-14" font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#1B1A1B" letter-spacing="3">SELY POLİS SORGU BÜROSU · GİZLİ VAKA DEDEKTİF DOSYASI</text>
   </g>
 
-  <!-- Üst Logo & Damga -->
-  <g transform="translate(80, 80)">
-    <text font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800" fill="#94a3b8" letter-spacing="4">SELY.TR · POLİS SORGU BÜROSU</text>
-    <text y="48" font-family="Courier New, monospace" font-size="44" font-weight="800" fill="#ffffff" letter-spacing="1">DOSYA: ${caseName}</text>
+  <!-- Üst Başlık & Dosya Numarası -->
+  <g transform="translate(110, 75)">
+    <rect x="0" y="0" width="160" height="32" fill="#1B1A1B" />
+    <text x="80" y="21" text-anchor="middle" font-family="Courier New, monospace" font-size="13" font-weight="700" fill="#F4EBD9" letter-spacing="2">DOSYA NO: #05</text>
+    
+    <text x="180" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="800" fill="#B91C1C" letter-spacing="3">SELY.TR · ADLİ SORUŞTURMA</text>
+    <text x="0" y="82" font-family="Courier New, monospace" font-size="44" font-weight="800" fill="#1B1A1B" letter-spacing="-1">CİNAYET DOSYASI: ${caseName}</text>
   </g>
 
-  <!-- Mühür Damgası (Karar Rozeti) -->
-  <g transform="translate(80, 220)" filter="url(#shadow)">
-    <rect width="460" height="240" rx="16" fill="#131c2e" stroke="url(#stampBorder)" stroke-width="3"/>
-    
-    <text x="32" y="52" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="${statusColor}" letter-spacing="3">${statusText}</text>
-    <text x="32" y="110" font-family="system-ui, -apple-system, sans-serif" font-size="32" font-weight="800" fill="#f8fafc">${suspectText}</text>
-    
-    <g transform="translate(32, 140)">
-      <rect width="110" height="64" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
-      <text x="55" y="24" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#64748b" letter-spacing="1">DERECE</text>
-      <text x="55" y="52" text-anchor="middle" font-family="system-ui, sans-serif" font-size="26" font-weight="900" fill="${statusColor}">${grade}</text>
+  <!-- İki Parçalı Delil ve Karar Masası (Brutalist Kağıt Blokları) -->
+  <!-- 1. SOL BLOK: Resmi Mahkeme Hükmü ve Suçlu -->
+  <g transform="translate(110, 195)">
+    <!-- Brutalist Sert Siyah Gölge -->
+    <rect x="10" y="10" width="580" height="300" fill="#1B1A1B" />
+    <!-- Ana Beyaz Kart -->
+    <rect width="580" height="300" fill="#FFFCF5" stroke="#1B1A1B" stroke-width="2.5" />
+    <rect width="580" height="8" fill="#E5B341" />
+
+    <!-- Ataş Simgesi -->
+    <rect x="30" y="-12" width="24" height="40" rx="6" fill="none" stroke="#1B1A1B" stroke-width="3" />
+
+    <text x="40" y="55" font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#64748B" letter-spacing="2">RESMİ MAHKEME KARARI</text>
+    <text x="40" y="115" font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="900" fill="#1B1A1B" letter-spacing="-0.5">${suspectText}</text>
+    <text x="40" y="145" font-family="Courier New, monospace" font-size="14" fill="#475569">Sorgu tamamlandı · Delil çelişkisi kayda geçti</text>
+
+    <!-- Büyük Eğimli Mühür Damgası (Rubber Stamp Effect) -->
+    <g transform="translate(140, 200) rotate(-6)">
+      <rect x="-10" y="-10" width="340" height="75" rx="8" fill="${stampBg}" stroke="${stampBorder}" stroke-width="3.5" stroke-dasharray="6 2" />
+      <text x="160" y="30" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="${stampColor}" letter-spacing="3">${stampText}</text>
+      <text x="160" y="52" text-anchor="middle" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="${stampColor}" letter-spacing="2">${stampSub}</text>
+    </g>
+  </g>
+
+  <!-- 2. SAĞ BLOK: Dedektiflik Derecesi & Büro Puanı -->
+  <g transform="translate(730, 195)">
+    <!-- Brutalist Sert Siyah Gölge -->
+    <rect x="10" y="10" width="390" height="300" fill="#1B1A1B" />
+    <!-- Ana Krem Kart -->
+    <rect width="390" height="300" fill="#FFFCF5" stroke="#1B1A1B" stroke-width="2.5" />
+    <rect width="390" height="8" fill="#B91C1C" />
+
+    <text x="35" y="48" font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#64748B" letter-spacing="2">BAŞ DEDEKTİF</text>
+    <text x="35" y="90" font-family="Courier New, monospace" font-size="36" font-weight="900" fill="#1B1A1B">${nick}</text>
+    <line x1="35" y1="110" x2="355" y2="110" stroke="#1B1A1B" stroke-width="1.5" stroke-dasharray="4 2" />
+
+    <!-- Derece Rozeti -->
+    <g transform="translate(35, 135)">
+      <rect width="130" height="120" fill="#F4EBD9" stroke="#1B1A1B" stroke-width="2" />
+      <text x="65" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#1B1A1B" letter-spacing="1">DERECE</text>
+      <text x="65" y="95" text-anchor="middle" font-family="system-ui, sans-serif" font-size="64" font-weight="900" fill="${stampColor}">&gt;${grade}&lt;</text>
     </g>
 
-    ${scoreText ? `
-    <g transform="translate(160, 140)">
-      <rect width="160" height="64" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
-      <text x="80" y="24" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#64748b" letter-spacing="1">BÜRO SKORU</text>
-      <text x="80" y="52" text-anchor="middle" font-family="Courier New, monospace" font-size="24" font-weight="900" fill="#ffffff">${scoreText}</text>
+    <!-- Puan Kutusu -->
+    <g transform="translate(185, 135)">
+      <rect width="170" height="120" fill="#1B1A1B" />
+      <text x="85" y="36" text-anchor="middle" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="#E5B341" letter-spacing="2">BÜRO PUANI</text>
+      <text x="85" y="85" text-anchor="middle" font-family="system-ui, sans-serif" font-size="44" font-weight="900" fill="#FFFFFF">${scoreText || "0"}</text>
+      <text x="85" y="106" text-anchor="middle" font-family="Courier New, monospace" font-size="10" fill="#94A3B8">PUAN TESCİLİ</text>
     </g>
-    ` : ""}
   </g>
 
-  <!-- Sağ Taraf: Dedektif Kartı -->
-  <g transform="translate(680, 220)" filter="url(#shadow)">
-    <rect width="440" height="240" rx="16" fill="#0f172a" stroke="#334155" stroke-width="2"/>
-    <text x="36" y="52" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#64748b" letter-spacing="2">BAŞ DEDEKTİF</text>
-    <text x="36" y="105" font-family="Courier New, monospace" font-size="40" font-weight="900" fill="#f1f5f9">${nick}</text>
-    
-    <path d="M 36 135 L 404 135" stroke="#1e293b" stroke-width="2"/>
-    
-    <text x="36" y="175" font-family="system-ui, sans-serif" font-size="15" fill="#94a3b8">Kayıt Tarihi: <tspan fill="#f8fafc" font-weight="600">${dateStr}</tspan></text>
-    <text x="36" y="205" font-family="system-ui, sans-serif" font-size="14" fill="#64748b">sely.tr/play/vaka · Sorgu Odası</text>
+  <!-- Alt Bilgi / Sely İmzası -->
+  <g transform="translate(110, 555)">
+    <text font-family="Courier New, monospace" font-size="15" font-weight="700" fill="#1B1A1B">sely.tr/play/vaka</text>
+    <text x="180" font-family="system-ui, sans-serif" font-size="14" font-weight="500" fill="#64748B">· “Sözü değil, kanıtı sun.” · Tarih: ${dateStr}</text>
   </g>
-
-  <!-- Alt Bilgi Çubuğu -->
-  <g transform="translate(80, 550)">
-    <text font-family="system-ui, sans-serif" font-size="16" font-weight="600" fill="#475569">SELY.TR · 7 Özgün Mini Oyun · Küçük Kural, Büyük Yankı</text>
+  <g transform="translate(920, 555)">
+    <text font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#B91C1C">RESMİ MAHKEME DÖKÜMÜ ⚖</text>
   </g>
-</svg>
-`;
+</svg>`;
   }
 
-  // Genel Mini Oyun Tasarımı (Echo, Knot, Cut, Shadow, Hane, Spark)
-  return `
-<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  // ==========================================
+  // 7 MİNİ OYUN STANDART SELY EDİTORİAL KARTI
+  // (Echo, Knot, Cut, Shadow, Hane, Spark)
+  // ==========================================
+  const accent = theme.accent;
+  const ink = theme.ink;
+
+  return `<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="gameGlow" cx="80%" cy="20%" r="75%">
-      <stop offset="0%" stop-color="${game.accent}" stop-opacity="0.25" />
-      <stop offset="60%" stop-color="${game.bg}" stop-opacity="0.9" />
-      <stop offset="100%" stop-color="#0a0a0f" />
-    </radialGradient>
-    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.7"/>
-    </filter>
+    <!-- Sely Orijinal Noktalı Kağıt Deseni (background-image: radial-gradient) -->
+    <pattern id="dotGrid" width="14" height="14" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.1" fill="#1B1A1B" fill-opacity="0.13" />
+    </pattern>
   </defs>
 
-  <!-- Zemin Rengi -->
-  <rect width="1200" height="630" fill="url(#gameGlow)"/>
+  <!-- Sely Orijinal Sıcak Kağıt Zemin (#F6F0E3) -->
+  <rect width="1200" height="630" fill="#F6F0E3" />
+  <rect width="1200" height="630" fill="url(#dotGrid)" />
 
-  <!-- Vurgulu Dekoratif Daireler -->
-  <circle cx="1080" cy="120" r="280" fill="${game.accent}" opacity="0.08"/>
-  <circle cx="1080" cy="120" r="160" fill="none" stroke="${game.accent}" stroke-width="2" opacity="0.2"/>
+  <!-- Dış Keskin Mürekkep Çerçevesi -->
+  <rect x="28" y="28" width="1144" height="574" fill="none" stroke="#1B1A1B" stroke-width="2.5" />
 
-  <!-- Üst Logo -->
-  <g transform="translate(80, 75)">
-    <text font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" fill="#ffffff" letter-spacing="3">SELY.TR</text>
-    <text x="110" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="500" fill="#9ca3af">· MINIGAME HUB</text>
-  </g>
-
-  <!-- Ana Skor ve Başarı Kartı -->
-  <g transform="translate(80, 160)" filter="url(#cardShadow)">
-    <rect width="1040" height="350" rx="24" fill="#141824" fill-opacity="0.85" stroke="#2a3045" stroke-width="2"/>
+  <!-- ÜST MASTHEAD ÇUBUĞU (Brand Lockup) -->
+  <g transform="translate(70, 75)">
+    <!-- SELY.TR Logo & Coral Artı Simgesi -->
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="900" fill="#1B1A1B" letter-spacing="-1">SELY<tspan fill="#E9563F">✛</tspan></text>
+    <text x="115" y="-3" font-family="Courier New, monospace" font-size="13" font-weight="700" fill="#1B1A1B" letter-spacing="2">· GÜNLÜK SEFER DÖKÜMÜ</text>
     
-    <!-- Oyun İkonu ve Başlık -->
-    <g transform="translate(60, 60)">
-      <rect width="64" height="64" rx="14" fill="${game.accent}" fill-opacity="0.2" stroke="${game.accent}" stroke-width="2"/>
-      <text x="32" y="44" text-anchor="middle" font-family="system-ui, sans-serif" font-size="34" fill="${game.accent}">${game.icon}</text>
-      
-      <text x="86" y="28" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="${game.accent}" letter-spacing="3">${isEn ? "DAILY RUN COMPLETE" : "GÜNLÜK TUR TAMAMLANDI"}</text>
-      <text x="86" y="60" font-family="system-ui, sans-serif" font-size="36" font-weight="900" fill="#ffffff" letter-spacing="1">${gameTitle}</text>
+    <!-- Sağ Pul / Tarih ve Oyun No -->
+    <g transform="translate(870, -18)">
+      <rect width="180" height="34" fill="#1B1A1B" />
+      <text x="90" y="22" text-anchor="middle" font-family="Courier New, monospace" font-size="13" font-weight="700" fill="#F6F0E3" letter-spacing="2">№ ${theme.num} · ${dateStr}</text>
     </g>
+  </g>
 
-    <!-- Skor Bölümü -->
-    <g transform="translate(60, 160)">
-      <text font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#64748b" letter-spacing="2">${isEn ? "RECORDED SCORE" : "KAYDEDİLEN SKOR"}</text>
-      <text y="70" font-family="system-ui, -apple-system, sans-serif" font-size="76" font-weight="900" fill="#f8fafc">${scoreText || "0"} <tspan font-size="28" font-weight="600" fill="#64748b">${isEn ? "PTS" : "PUAN"}</tspan></text>
-    </g>
+  <!-- İnce Ayırıcı Mürekkep Çizgisi -->
+  <line x1="70" y1="108" x2="1120" y2="108" stroke="#1B1A1B" stroke-width="1.5" />
 
-    <!-- Sağ Taraf: Oyuncu ve Sıralama Bilgisi -->
-    <g transform="translate(680, 60)">
-      <rect width="300" height="230" rx="16" fill="#0c101c" stroke="#1e2538" stroke-width="1.5"/>
+  <!-- ORTA BÖLÜM: Sely Neo-Brutalist Oyun Kartı -->
+  <g transform="translate(70, 145)">
+    <!-- 1. Brutalist Sert Siyah Gölge (box-shadow: 10px 10px 0 var(--ink)) -->
+    <rect x="12" y="12" width="1050" height="375" fill="#1B1A1B" />
+    
+    <!-- 2. Kartın Kendisi (Card Paper: #FFFAF0) -->
+    <rect width="1050" height="375" fill="#FFFAF0" stroke="#1B1A1B" stroke-width="2.5" />
+    
+    <!-- 3. Üst Oyun Vurgu Şeridi -->
+    <rect width="1050" height="10" fill="${accent}" />
+
+    <!-- SOL KOLON: Oyun Başlığı, İkon ve Motto -->
+    <g transform="translate(55, 55)">
+      <!-- Oyun İkon Rozeti -->
+      <rect width="56" height="56" fill="${accent}" stroke="#1B1A1B" stroke-width="2" />
+      <text x="28" y="41" text-anchor="middle" font-family="system-ui, sans-serif" font-size="32" fill="#FFFFFF">${theme.icon}</text>
+
+      <!-- Eyebrow & Oyun Adı -->
+      <text x="76" y="24" font-family="Courier New, monospace" font-size="13" font-weight="700" fill="${ink}" letter-spacing="3">${gameEyebrow}</text>
+      <text x="76" y="68" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="900" fill="#1B1A1B" letter-spacing="-1.5">${gameTitle}</text>
       
-      <g transform="translate(30, 35)">
-        <text font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#64748b" letter-spacing="2">${isEn ? "PLAYER" : "OYUNCU"}</text>
-        <text y="40" font-family="system-ui, sans-serif" font-size="36" font-weight="900" fill="#f1f5f9">${nick}</text>
+      <!-- Motto -->
+      <g transform="translate(0, 120)">
+        <rect width="460" height="42" fill="#F6F0E3" stroke="#1B1A1B" stroke-width="1.5" stroke-dasharray="4 2" />
+        <text x="20" y="26" font-family="system-ui, sans-serif" font-size="16" font-style="italic" font-weight="600" fill="#1B1A1B">“${gameMotto}”</text>
       </g>
 
-      <path d="M 30 115 L 270 115" stroke="#1e2538" stroke-width="1.5"/>
+      <!-- Durum Rozeti -->
+      <g transform="translate(0, 195)">
+        <rect width="180" height="44" fill="${accent}" stroke="#1B1A1B" stroke-width="2" />
+        <text x="90" y="27" text-anchor="middle" font-family="Courier New, monospace" font-size="13" font-weight="800" fill="#FFFFFF" letter-spacing="1">TUR TAMAMLANDI</text>
+      </g>
+    </g>
 
-      <g transform="translate(30, 145)">
-        <text font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#64748b" letter-spacing="2">${isEn ? "DATE" : "TARİH"}</text>
-        <text y="30" font-family="Courier New, monospace" font-size="20" font-weight="700" fill="#94a3b8">${dateStr}</text>
+    <!-- Dikey Ayırıcı Çizgi -->
+    <line x1="570" y1="40" x2="570" y2="340" stroke="#1B1A1B" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.5" />
+
+    <!-- SAĞ KOLON: Skor Plakası ve Oyuncu Kartı -->
+    <g transform="translate(620, 50)">
+      <!-- Skor Bölümü -->
+      <text font-family="Courier New, monospace" font-size="13" font-weight="700" fill="#64748B" letter-spacing="2">KAYDEDİLEN SKOR</text>
+      
+      <g transform="translate(0, 20)">
+        <rect width="380" height="110" fill="#F6F0E3" stroke="#1B1A1B" stroke-width="2" />
+        <!-- Skor Sayısı (Bricolage Grotesque / Bold Display) -->
+        <text x="30" y="78" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="900" fill="#1B1A1B" letter-spacing="-1">${scoreText || "0"}</text>
+        <text x="350" y="74" text-anchor="end" font-family="Courier New, monospace" font-size="20" font-weight="700" fill="${accent}">PUAN</text>
+      </g>
+
+      <!-- Oyuncu Rumuzu ve Tescil Damgası -->
+      <g transform="translate(0, 160)">
+        <rect width="380" height="95" fill="#1B1A1B" />
+        <text x="25" y="34" font-family="Courier New, monospace" font-size="11" font-weight="700" fill="#94A3B8" letter-spacing="2">SEFERİ TAMAMLAYAN OYUNCU</text>
+        <text x="25" y="75" font-family="Courier New, monospace" font-size="34" font-weight="900" fill="#F6F0E3" letter-spacing="1">${nick}</text>
+        <!-- Onay Rozeti -->
+        <circle cx="335" cy="48" r="24" fill="${accent}" />
+        <text x="335" y="55" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" font-weight="900" fill="#FFFFFF">✓</text>
       </g>
     </g>
   </g>
 
-  <!-- Alt Link & İmza -->
-  <g transform="translate(80, 560)">
-    <text font-family="system-ui, sans-serif" font-size="18" font-weight="700" fill="${game.accent}">sely.tr/play/${gameKey}</text>
-    <text x="240" font-family="system-ui, sans-serif" font-size="16" font-weight="500" fill="#475569">· Reklamsız, kayıt gerektirmeyen retro web oyunları</text>
+  <!-- ALT BİLGİ & FOOTER (Editorial Footer) -->
+  <g transform="translate(70, 565)">
+    <text font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#1B1A1B">sely.tr/play/${gameKey}</text>
+    <text x="220" font-family="system-ui, sans-serif" font-size="14" font-weight="500" fill="#64748B">· Reklamsız, kayıt gerektirmeyen retro web oyunları</text>
   </g>
-</svg>
-`;
+
+  <g transform="translate(850, 565)">
+    <text font-family="Courier New, monospace" font-size="12" font-weight="700" fill="#1B1A1B">KÜÇÜK KURAL, BÜYÜK YANKI ✛</text>
+  </g>
+</svg>`;
 }

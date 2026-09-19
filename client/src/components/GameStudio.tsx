@@ -8,6 +8,7 @@ import { trackEvent } from "@/lib/analytics";
 
 
 
+import { getPlayerNick } from "@/lib/playerNick";
 import {
   runMasteryFor,
   resultActionsFor,
@@ -133,6 +134,7 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
                       gameId: game.id,
                       gameTitle: game.title,
                       score: result.score,
+                      nick: getPlayerNick(locale),
                       outcome: result.outcome === "success" ? "success" : "failure",
                       locale,
                     }}

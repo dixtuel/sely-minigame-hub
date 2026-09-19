@@ -83,7 +83,7 @@ describe("OG Image and Dynamic Social Sharing Routes", () => {
     expect(svg).toContain("POLİS SORGU BÜROSU");
     expect(svg).toContain("Gece Vardiyası");
     expect(svg).toContain("DERECE");
-    expect(svg).toContain(">S<");
+    expect(svg).toContain("&gt;S&lt;");
     expect(svg).toContain("VAKA ÇÖZÜLDÜ");
     expect(svg).toContain("Kerem");
   });

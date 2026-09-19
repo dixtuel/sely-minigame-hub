@@ -4,6 +4,7 @@ import type { VakaDetailedCase } from "@shared/vakaTypes";
 import type { SiteLocale } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import { playAccuse, playContradiction, playHit } from "@/lib/sfx";
+import { getPlayerNick } from "@/lib/playerNick";
 import ShareResultModal from "@/components/ShareResultModal";
 
 type Props = {
@@ -272,6 +273,7 @@ export default function VakaVerdictModal({
                   gameId: "vaka",
                   gameTitle: isEn ? (vakaCase.titleEn || vakaCase.title) : vakaCase.title,
                   score: result.score,
+                  nick: getPlayerNick(locale),
                   outcome: result.success ? "solved" : "dismissed",
                   grade: result.grade,
                   caseTitle: isEn ? (vakaCase.titleEn || vakaCase.title) : vakaCase.title,
