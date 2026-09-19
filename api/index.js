@@ -5916,7 +5916,7 @@ function generateOgSvg(params) {
   <g transform="translate(110, 195)">
     <rect x="10" y="10" width="400" height="300" fill="#1B1A1B" />
     <rect width="400" height="300" fill="#FFFCF5" stroke="#1B1A1B" stroke-width="2.5" />
-    <image href="${theme.poster}" x="0" y="0" width="400" height="300" preserveAspectRatio="xMidYMid slice" />
+    <image href="${posterDataUri}" x="0" y="0" width="400" height="300" preserveAspectRatio="xMidYMid slice" />
     <rect width="400" height="8" fill="#E5B341" />
   </g>
 
@@ -6224,6 +6224,7 @@ function handleOgImageRequest(req, res) {
     const params = parseOgParams(req.query);
     const svg = generateOgSvg(params);
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader(
       "Cache-Control",
       "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400"

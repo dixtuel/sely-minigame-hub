@@ -284,7 +284,7 @@ export function generateOgSvg(params: OgParams): string {
   <g transform="translate(110, 195)">
     <rect x="10" y="10" width="400" height="300" fill="#1B1A1B" />
     <rect width="400" height="300" fill="#FFFCF5" stroke="#1B1A1B" stroke-width="2.5" />
-    <image href="${theme.poster}" x="0" y="0" width="400" height="300" preserveAspectRatio="xMidYMid slice" />
+    <image href="${posterDataUri}" x="0" y="0" width="400" height="300" preserveAspectRatio="xMidYMid slice" />
     <rect width="400" height="8" fill="#E5B341" />
   </g>
 

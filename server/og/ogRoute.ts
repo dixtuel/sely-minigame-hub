@@ -43,6 +43,7 @@ export function handleOgImageRequest(req: Request, res: Response) {
 
     // High performance CDN caching: 24h client, 7 days edge CDN
     res.setHeader("Content-Type", "image/svg+xml; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader(
       "Cache-Control",
       "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400"
