@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { Share2 } from "lucide-react";
 import type { VakaDetailedCase } from "@shared/vakaTypes";
 import type { SiteLocale } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
 import { playAccuse, playContradiction, playHit } from "@/lib/sfx";
+import ShareResultModal from "@/components/ShareResultModal";
 
 type Props = {
   vakaCase: VakaDetailedCase;
@@ -40,6 +42,7 @@ export default function VakaVerdictModal({
   );
   const [methodText, setMethodText] = useState("");
   const [motiveText, setMotiveText] = useState("");
+  const [shareVisualOpen, setShareVisualOpen] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
     grade: "S" | "A" | "B" | "C";
@@ -235,10 +238,48 @@ export default function VakaVerdictModal({
 
             <div className="vaka-share-box">
               <pre>{result.shareCard}</pre>
-              <button type="button" className="vaka-copy-btn" onClick={copyShareCard}>
-                📋 {isEn ? "Copy Scorecard" : "Karneni Kopyala"}
-              </button>
+              <div style={{ display: "flex", gap: "0.5rem", width: "100%", marginTop: "0.5rem" }}>
+                <button type="button" className="vaka-copy-btn" onClick={copyShareCard} style={{ flex: 1 }}>
+                  📋 {isEn ? "Copy Scorecard" : "Karneni Kopyala"}
+                </button>
+                <button
+                  type="button"
+                  className="vaka-copy-btn"
+                  onClick={() => setShareVisualOpen(true)}
+                  style={{
+                    flex: 1,
+                    background: "var(--color-primary, #b91c1c)",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  <Share2 size={16} /> {isEn ? "Share Visual Card" : "Görsel Kartı Paylaş"}
+                </button>
+              </div>
             </div>
+
+            {shareVisualOpen && (
+              <ShareResultModal
+                isOpen={shareVisualOpen}
+                onClose={() => setShareVisualOpen(false)}
+                data={{
+                  gameId: "vaka",
+                  gameTitle: isEn ? (vakaCase.titleEn || vakaCase.title) : vakaCase.title,
+                  score: result.score,
+                  outcome: result.success ? "solved" : "dismissed",
+                  grade: result.grade,
+                  caseTitle: isEn ? (vakaCase.titleEn || vakaCase.title) : vakaCase.title,
+                  suspect: result.culpritName,
+                  locale,
+                }}
+              />
+            )}
 
             <div className="vaka-verdict-actions-grid">
               {result.success ? (

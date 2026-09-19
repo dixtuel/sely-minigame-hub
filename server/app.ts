@@ -10,6 +10,8 @@ import { getLeaderboardHandler, submitLeaderboardHandler } from "./leaderboard";
 import { getGlobalConfigHandler } from "./globalConfig";
 import { createRateLimiter, securityHeaders } from "./_core/security";
 import { registerSeoAndVerificationRoutes } from "./seoRoutes";
+import { handleOgImageRequest } from "./og/ogRoute";
+import { handleShareBridgeRequest } from "./og/shareRoute";
 import { logger } from "./_core/logger";
 
 // tRPC procedures that never depend on session/cookie state and are therefore safe to cache
@@ -41,6 +43,14 @@ export function createApp() {
   app.get("/api/leaderboard", getLeaderboardHandler);
   app.post("/api/leaderboard", leaderboardLimiter, submitLeaderboardHandler);
   app.get("/api/config", getGlobalConfigHandler);
+
+  // Dynamic Open Graph Social Image & Share Bridge
+  app.get("/api/og", handleOgImageRequest);
+  app.get("/share/:game", handleShareBridgeRequest);
+  app.get("/en/share/:game", (req, res) => {
+    req.query.locale = "en";
+    handleShareBridgeRequest(req, res);
+  });
 
   // Scheduled endpoints (supports GET for Vercel Cron and POST for VDS crontab)
   const scheduledLimiter = createRateLimiter({ max: 8, windowMs: 60_000 });

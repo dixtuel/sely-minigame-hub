@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Maximize, Minimize, RotateCcw, Volume2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Maximize, Minimize, RotateCcw, Share2, Volume2, X } from "lucide-react";
 import AdSenseResultUnit from "@/components/AdSenseResultUnit";
+import ShareResultModal from "@/components/ShareResultModal";
 import type { GameMeta } from "@/lib/catalog";
 import { local, type SiteLocale } from "@/lib/i18n";
 import { trackEvent } from "@/lib/analytics";
@@ -38,6 +39,7 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
   const [runKey, setRunKey] = useState(0);
   const [result, setResult] = useState<GameResult | null>(null);
   const [failureCount, setFailureCount] = useState(0);
+  const [shareOpen, setShareOpen] = useState(false);
   const displayMastery = runMasteryFor(highScore, dailyDifficulty);
   const [runMastery, setRunMastery] = useState(() => displayMastery);
   const sparkActive = game.id === "spark" && started;
@@ -118,10 +120,24 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
                 <div className="result-actions">
                   {resultActionsFor(result.outcome, failureCount, game.id).canRetry && <button className="ink-button" onClick={restart}>{game.id === "hane" ? (locale === "en" ? "New word" : "Yeni kelimeyle oyna") : (locale === "en" ? "Try again" : "Tekrar dene")} <RotateCcw size={16} /></button>}
                   {resultActionsFor(result.outcome, failureCount, game.id).canAdvance && <button className="ink-button" onClick={continueToNext}>{result.outcome === "success" ? (locale === "en" ? "Continue" : "Devam et") : (locale === "en" ? "Next level" : "Sonraki seviyeye geç")} <ArrowRight size={16} /></button>}
+                  <button className="ink-button ink-button-share" onClick={() => setShareOpen(true)}>{locale === "en" ? "Share score" : "Skoru paylaş"} <Share2 size={16} /></button>
                   <button className="quiet-button" onClick={onBack}>{locale === "en" ? "Choose a route" : "Rota seç"}</button>
                 </div>
                 {game.id !== "spark" && result.outcome === "failure" && failureCount >= 3 && <p className="result-nudge">{locale === "en" ? "A new route is available after three attempts." : "Üç denemeden sonra yeni rota açıldı."}</p>}
                 <AdSenseResultUnit locale={locale} />
+                {shareOpen && (
+                  <ShareResultModal
+                    isOpen={shareOpen}
+                    onClose={() => setShareOpen(false)}
+                    data={{
+                      gameId: game.id,
+                      gameTitle: game.title,
+                      score: result.score,
+                      outcome: result.outcome === "success" ? "success" : "failure",
+                      locale,
+                    }}
+                  />
+                )}
               </div>
             )}
           </div>

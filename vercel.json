@@ -126,6 +126,14 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/share/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/en/share/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
       "source": "/storage/(.*)",
       "destination": "/storage/$1"
     },
