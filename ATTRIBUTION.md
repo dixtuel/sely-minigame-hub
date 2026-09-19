@@ -142,11 +142,7 @@ Aşağıdaki tablo, projede kullanılan doğrudan kod kütüphanelerini, sürüm
 | `express` | `^4.21.2` | `MIT` | StrongLoop, Inc. & contributors | HTTP sunucusu ve REST yönlendirme katmanı |
 | `zod` | `^4.1.12` | `MIT` | Colin McDonnell | Tip güvenli şema ve girdi doğrulama kütüphanesi |
 | `sonner` | `^2.0.7` | `MIT` | Emil Kowalski | Erişilebilir bildirim (toast) bileşeni |
-| `cmdk` | `^1.1.1` | `MIT` | Paco Coursey | Hızlı komut ve arama paleti arayüzü |
-| `recharts` | `^2.15.2` | `MIT` | Recharts Group | Performans ve istatistik veri grafikleri |
-| `embla-carousel-react` | `^8.6.0` | `MIT` | Petter Hedman | Dokunmatik karusel bileşeni |
-| `vaul` | `^1.1.2` | `MIT` | Emil Kowalski | Mobil alt çekmece (drawer) bileşeni |
-| `@radix-ui/react-*` | `1.x` | `MIT` | WorkOS | WAI-ARIA uyumlu ilkel UI bileşenleri |
+| `@radix-ui/react-slot` & `tooltip` | `1.x` | `MIT` | WorkOS | İlkel erişilebilir buton ve araç ipucu bileşenleri |
 | `clsx` & `tailwind-merge` | `2.x / 3.x` | `MIT` | Luke Edwards / Dany Castillo | Dinamik Tailwind sınıf birleştirme araçları |
 | `date-fns` | `^4.1.0` | `MIT` | Sasha Koss & Lesha Koss | Tarih ve tohum formatlama araçları |
 | `nanoid` | `^5.1.5` | `MIT` | Andrey Sitnik | Kriptografik güvenli benzersiz kimlik üretimi |
