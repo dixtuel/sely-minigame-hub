@@ -54,8 +54,9 @@ export class GameWorld {
   private listenerWait = 0;
   private listenerState: "patrol" | "investigate" = "patrol";
   private investigateTarget: Vector3 = new Vector3(0, 0, 0);
+  private listenerFacingYaw = 0;
   private listenerInvestigateTimer = 0;
-  private listenerPingTimer = 0;
+  private listenerPingTimer = 2.0;
   private hudTicker = 0;
   private gateHintCooldown = 0;
   private demoTime = 0;
@@ -465,21 +466,25 @@ export class GameWorld {
   }
 
   private updateListener(delta: number) {
-    // 1. Emit terrifying dual-frequency red acoustic warning shockwave every 1.8s
+    const isInvestigating = this.listenerState === "investigate";
+
+    // 1. Emit terrifying dual-frequency red acoustic warning shockwave:
+    // When investigating: every 2.8s. During normal patrol: every 5.2s (calibrated for atmosphere and tension, not spamming)
+    const pingInterval = isInvestigating ? 2.8 : 5.2;
     this.listenerPingTimer += delta;
-    if (this.listenerPingTimer >= 1.8) {
+    if (this.listenerPingTimer >= pingInterval) {
       this.listenerPingTimer = 0;
       this.spawnPulse(this.listener.position, true);
     }
 
-    // 2. High noise detection (player running / high noise meter alerted the listener)
-    if (this.state.noise > 70 && this.distanceTo(this.listener.position) < 10.0) {
+    // 2. Noise detection: running or loud actions alert the listener from afar
+    if (this.state.noise > 65 && this.distanceTo(this.listener.position) < 12.0) {
       if (this.listenerState !== "investigate") {
         this.listenerState = "investigate";
         this.emit({ type: "toast", message: "Dinleyici adımlarını duydu!" });
       }
       this.investigateTarget.copyFrom(this.player.position);
-      this.listenerInvestigateTimer = 5.0;
+      this.listenerInvestigateTimer = 5.5;
     }
 
     const route = this.environment.listenerPath;
@@ -494,41 +499,62 @@ export class GameWorld {
       if (distance < 0.6 || this.listenerInvestigateTimer <= 0) {
         // Investigation target reached or timer expired; resume normal patrol
         this.listenerState = "patrol";
+        // Seamlessly rejoin the nearest waypoint on the connected patrol route
+        let bestIdx = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < route.length; i++) {
+          const d = Math.hypot(route[i].x - this.listener.position.x, route[i].z - this.listener.position.z);
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+          }
+        }
+        this.listenerIndex = bestIdx;
       } else {
         const pace = 1.75; // Faster investigation pace
         const stepX = (dx / distance) * pace * delta;
         const stepZ = (dz / distance) * pace * delta;
-        const resolved = this.environment.resolveMove(this.listener.position.x, this.listener.position.z, stepX, stepZ, 0.4);
+        const resolved = this.environment.resolveMove(this.listener.position.x, this.listener.position.z, stepX, stepZ, 0.38);
         this.listener.position.x = resolved.x;
         this.listener.position.z = resolved.z;
-        this.listener.rotation.y = Math.atan2(dx, dz);
+        this.listenerFacingYaw = stepFacingYaw(this.listenerFacingYaw, dx, dz, delta, 9.0);
+        this.listener.rotation.y = this.listenerFacingYaw;
       }
     } else {
-      // Normal Patrol along procedural route
+      // Normal continuous patrol along connected maze corridor waypoints
       const current = route[this.listenerIndex];
       const dx = current.x - this.listener.position.x;
       const dz = current.z - this.listener.position.z;
       const distance = Math.hypot(dx, dz);
-      if (distance < 0.35) {
-        this.listenerWait += delta;
-        if (this.listenerWait >= 1.6) {
-          this.listenerWait = 0;
-          this.listenerIndex = (this.listenerIndex + 1) % route.length;
-        }
+      if (distance < 0.42) {
+        // Advanced to next cell in corridor patrol loop
+        this.listenerIndex = (this.listenerIndex + 1) % route.length;
       } else {
-        const pace = 1.1;
+        const pace = 1.15; // Smooth patrolling pace through corridors
         const stepX = (dx / distance) * pace * delta;
         const stepZ = (dz / distance) * pace * delta;
-        const resolved = this.environment.resolveMove(this.listener.position.x, this.listener.position.z, stepX, stepZ, 0.4);
+        const resolved = this.environment.resolveMove(this.listener.position.x, this.listener.position.z, stepX, stepZ, 0.38);
+        const moved = Math.hypot(resolved.x - this.listener.position.x, resolved.z - this.listener.position.z) > 0.0001;
         this.listener.position.x = resolved.x;
         this.listener.position.z = resolved.z;
-        this.listener.rotation.y = Math.atan2(dx, dz);
+        this.listenerFacingYaw = stepFacingYaw(this.listenerFacingYaw, dx, dz, delta, 7.5);
+        this.listener.rotation.y = this.listenerFacingYaw;
+
+        // If unexpectedly held up on a sharp corner edge for more than 0.8s, advance to next waypoint
+        if (!moved) {
+          this.listenerWait += delta;
+          if (this.listenerWait > 0.8) {
+            this.listenerWait = 0;
+            this.listenerIndex = (this.listenerIndex + 1) % route.length;
+          }
+        } else {
+          this.listenerWait = 0;
+        }
       }
     }
 
     // 3. Dynamic animation of the menacing 3D creature
     this.listenerClock += delta;
-    const isInvestigating = this.listenerState === "investigate";
     const hoverOffset = Math.sin(this.listenerClock * 2.8) * 0.08;
     if (this.listenerCoreMesh) this.listenerCoreMesh.position.y = 1.2 + hoverOffset;
     if (this.listenerShroudMesh) this.listenerShroudMesh.position.y = 0.86 + hoverOffset * 0.6;

@@ -92,4 +92,29 @@ describe("proceduralLevel (maze-based 3D Echo Room)", () => {
     }
     expect(totalHidden).toBeGreaterThan(0);
   });
+
+  it("produces a connected, obstacle-free corridor patrol loop for the listener starting far from the player", () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const layout = generate3DEchoLayout(seed * 3307, 1);
+      const path = layout.listenerPath;
+
+      // Ensure substantial waypoints for a rich patrol cycle
+      expect(path.length).toBeGreaterThanOrEqual(10);
+
+      // Starting position of listener must be safely away from the player spawn (> 8.0m)
+      const distFromStart = Math.hypot(path[0].x - layout.startPoint.x, path[0].z - layout.startPoint.z);
+      expect(distFromStart).toBeGreaterThan(8.0);
+
+      // Verify each waypoint is not inside a wall
+      for (const p of path) {
+        expect(pointBlockedByWalls(p.x, p.z, layout.walls)).toBe(false);
+      }
+
+      // Verify consecutive waypoints form smooth adjacent corridor steps
+      for (let i = 0; i < path.length - 1; i++) {
+        const stepDist = Math.hypot(path[i + 1].x - path[i].x, path[i + 1].z - path[i].z);
+        expect(stepDist).toBeLessThanOrEqual(layout.cellSize * 1.5);
+      }
+    }
+  });
 });

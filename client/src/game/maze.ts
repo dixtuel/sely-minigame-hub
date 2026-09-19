@@ -311,3 +311,55 @@ export function generateMaze(
     rooms,
   };
 }
+
+/**
+ * Breadth-first search pathfinding over the open maze corridor graph.
+ * Returns the sequence of adjacent cell coordinates from start to target (inclusive),
+ * or null if no path exists.
+ */
+export function findMazePath(
+  maze: Pick<MazeResult, "cells" | "cols" | "rows">,
+  start: { col: number; row: number },
+  target: { col: number; row: number },
+  forbidden?: Set<string>
+): { col: number; row: number }[] | null {
+  const startKey = `${start.col},${start.row}`;
+  const targetKey = `${target.col},${target.row}`;
+  if (startKey === targetKey) return [{ col: start.col, row: start.row }];
+
+  const parent = new Map<string, { col: number; row: number } | null>();
+  parent.set(startKey, null);
+  const queue: { col: number; row: number }[] = [{ col: start.col, row: start.row }];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const currentKey = `${current.col},${current.row}`;
+    if (currentKey === targetKey) break;
+
+    const cell = maze.cells[current.row][current.col];
+    const neighbors: { col: number; row: number }[] = [];
+    if (!cell.north && current.row > 0) neighbors.push({ col: current.col, row: current.row - 1 });
+    if (!cell.south && current.row < maze.rows - 1) neighbors.push({ col: current.col, row: current.row + 1 });
+    if (!cell.east && current.col < maze.cols - 1) neighbors.push({ col: current.col + 1, row: current.row });
+    if (!cell.west && current.col > 0) neighbors.push({ col: current.col - 1, row: current.row });
+
+    for (const neighbor of neighbors) {
+      const nKey = `${neighbor.col},${neighbor.row}`;
+      if (forbidden && forbidden.has(nKey)) continue;
+      if (!parent.has(nKey)) {
+        parent.set(nKey, current);
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  if (!parent.has(targetKey)) return null;
+
+  const path: { col: number; row: number }[] = [];
+  let curr: { col: number; row: number } | null | undefined = target;
+  while (curr) {
+    path.push({ col: curr.col, row: curr.row });
+    curr = parent.get(`${curr.col},${curr.row}`);
+  }
+  return path.reverse();
+}

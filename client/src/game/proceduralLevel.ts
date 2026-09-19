@@ -1,5 +1,5 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { cellCenter, generateMaze, type MazeResult, type MazeWall } from "./maze";
+import { cellCenter, findMazePath, generateMaze, type MazeResult, type MazeWall } from "./maze";
 
 export type WallPlacement = [number, number, number, number, number]; // x, z, width, depth, height
 
@@ -258,7 +258,50 @@ export function generate3DEchoLayout(seed: number, mastery: number): Echo3DLayou
     traps.push([+p.x.toFixed(2), +p.z.toFixed(2), 0.75]);
   }
 
-  const listenerPath = maze.rooms.map((room) => new Vector3(+room.cx.toFixed(2), 0, +room.cz.toFixed(2)));
+  // Construct a closed continuous corridor patrol cycle for the Listener.
+  // 1. Sort the 4 quadrant rooms by distance from maze.startCell, so the Listener
+  // starts far across the facility from the player rather than on top of them.
+  const sortedRooms = [...maze.rooms].sort((a, b) => {
+    const da = Math.hypot(a.col - maze.startCell.col, a.row - maze.startCell.row);
+    const db = Math.hypot(b.col - maze.startCell.col, b.row - maze.startCell.row);
+    return db - da; // farthest first
+  });
+
+  // 2. Order the hubs in a logical tour (nearest neighbor loop starting from farthest room)
+  const orderedHubs: { col: number; row: number }[] = [{ col: sortedRooms[0].col, row: sortedRooms[0].row }];
+  const remainingHubs = sortedRooms.slice(1);
+  while (remainingHubs.length > 0) {
+    const last = orderedHubs[orderedHubs.length - 1];
+    remainingHubs.sort((a, b) => {
+      const da = Math.hypot(a.col - last.col, a.row - last.row);
+      const db = Math.hypot(b.col - last.col, b.row - last.row);
+      return da - db;
+    });
+    const next = remainingHubs.shift()!;
+    orderedHubs.push({ col: next.col, row: next.row });
+  }
+
+  // 3. Connect all hubs via corridor BFS into a seamless loop of adjacent cells
+  const forbiddenGate = new Set<string>([cellKey(maze.gateCell.col, maze.gateCell.row)]);
+  const patrolCells: { col: number; row: number }[] = [];
+
+  for (let i = 0; i < orderedHubs.length; i++) {
+    const from = orderedHubs[i];
+    const to = orderedHubs[(i + 1) % orderedHubs.length];
+    const leg = findMazePath(maze, from, to, forbiddenGate);
+    if (leg && leg.length > 1) {
+      // Append all except the last one to avoid duplicating consecutive hub cells
+      for (let j = 0; j < leg.length - 1; j++) {
+        patrolCells.push(leg[j]);
+      }
+    }
+  }
+
+  const patrolSource = patrolCells.length >= 4 ? patrolCells : sortedRooms;
+  const listenerPath = patrolSource.map((cell) => {
+    const p = "cx" in cell ? { x: (cell as any).cx, z: (cell as any).cz } : cellCenter(maze, cell.col, cell.row);
+    return new Vector3(+p.x.toFixed(2), 0, +p.z.toFixed(2));
+  });
 
   return {
     seed,
