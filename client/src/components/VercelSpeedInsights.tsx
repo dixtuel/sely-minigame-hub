@@ -1,34 +1,36 @@
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { useCookieConsent } from "@/contexts/CookieConsentContext";
 import { useLocation } from "wouter";
 import { useMemo } from "react";
 
 /**
- * Checks whether Vercel Speed Insights is explicitly enabled via environment variable.
- * Opt-in only and zero hardcoded IDs: clones and local environments emit no performance beacons.
+ * Checks whether Vercel Speed Insights is enabled.
+ * Enabled if explicitly set via env or running in Vercel production deployment.
  */
 export function isSpeedInsightsEnabled(): boolean {
   if (typeof window === "undefined") return false;
+  if (import.meta.env.VITE_ENABLE_VERCEL_SPEED_INSIGHTS === "false") return false;
   return (
     import.meta.env.VITE_ENABLE_VERCEL_SPEED_INSIGHTS === "true" ||
-    import.meta.env.VITE_ENABLE_VERCEL_SPEED_INSIGHTS === "1"
+    import.meta.env.VITE_ENABLE_VERCEL_SPEED_INSIGHTS === "1" ||
+    window.location.hostname === "sely.tr" ||
+    window.location.hostname.endsWith(".vercel.app")
   );
 }
 
 /**
  * Computes canonical route template for Speed Insights.
- * Maps dynamic game paths (/play/:game) to /play/[game]
- * so Vercel Speed Insights clusters metrics by route cleanly on mobile and desktop.
+ * Maps dynamic game paths (/play/:game and /en/play/:game) to /play/[game]
+ * so Vercel Speed Insights clusters metrics by route cleanly on mobile and desktop devices.
  */
 function getCanonicalRoute(pathname: string): string {
-  const path = pathname || "/";
-  if (/^\/play\/[^/]+$/.test(path)) {
+  const cleanPath = (pathname || "/").split("?")[0].split("#")[0] || "/";
+  if (/^\/play\/[^/]+$/.test(cleanPath)) {
     return "/play/[game]";
   }
-  if (/^\/en\/play\/[^/]+$/.test(path)) {
+  if (/^\/en\/play\/[^/]+$/.test(cleanPath)) {
     return "/en/play/[game]";
   }
-  return path;
+  return cleanPath;
 }
 
 /**
@@ -44,14 +46,14 @@ function getSampleRate(): number | undefined {
 
 /**
  * VercelSpeedInsights component:
- * - Monitors Core Web Vitals (LCP, INP, CLS) across desktop and mobile devices.
- * - Dynamic route tracking for mobile and desktop SPA navigations (/play/[game]).
- * - Configurable sampleRate for Free tier / Hobby plan quota management without hardcoded numbers.
- * - Respects Cookie Consent preferences: drops vitals if cookies/tracking rejected.
- * - Safely no-ops when not explicitly enabled via VITE_ENABLE_VERCEL_SPEED_INSIGHTS.
+ * - Real User Monitoring (RUM) for Core Web Vitals (LCP, INP, CLS, FCP, FID, TTFB).
+ * - Fully compatible with both Mobile and Desktop viewports.
+ * - Dynamic route clustering for SPA navigations (/play/[game], /en/play/[game]).
+ * - Privacy-compliant by design: Does NOT use cookies or collect personal data,
+ *   hence operates independently from advertising cookie consent.
+ * - Excludes non-user-facing and API routes via beforeSend.
  */
 export default function VercelSpeedInsights() {
-  const { status } = useCookieConsent();
   const [pathname] = useLocation();
   const route = useMemo(() => getCanonicalRoute(pathname), [pathname]);
   const sampleRate = useMemo(() => getSampleRate(), []);
@@ -66,11 +68,8 @@ export default function VercelSpeedInsights() {
       sampleRate={sampleRate}
       debug={import.meta.env.DEV}
       beforeSend={(event) => {
-        if (status === "rejected") {
-          return null;
-        }
-        // Filter non-user-facing or API endpoints from metrics
-        if (event.url && (event.url.includes("/api/") || event.url.includes("/admin"))) {
+        // Exclude internal endpoints or non-user pages
+        if (event.url && (event.url.includes("/api/") || event.url.includes("/admin") || event.url.includes("/health"))) {
           return null;
         }
         return event;
