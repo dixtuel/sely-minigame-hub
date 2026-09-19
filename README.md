@@ -243,6 +243,7 @@ Tüm ortam değişkenleri opsiyoneldir. Herhangi bir veritabanı bağlantısı s
 | `YANDEX_SITE_VERIFICATION`| Hayır | `undefined` | Yandex Webmaster doğrulama kodu. |
 | `VITE_ADSENSE_CLIENT_ID`  | Hayır | `undefined` | Google AdSense yayıncı kimliği (`ca-pub-...`). Tanımsızsa reklamlar gizlenir. |
 | `VITE_ADSENSE_RESULT_SLOT_ID` | Hayır | `undefined` | Oyun sonu panelindeki reklam alanı kimliği. |
+| `VITE_ENABLE_VERCEL_ANALYTICS` | Hayır | `false` | Vercel Web Analytics'i etkinleştirir (`true`/`false`). Hardcoded ID içermez, sıfır çerezli gizlilik dostudur. |
 
 ---
 

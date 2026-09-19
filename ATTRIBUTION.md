@@ -149,6 +149,9 @@ Aşağıdaki tablo, projede kullanılan doğrudan kod kütüphanelerini, sürüm
 | `vitest` | `^2.1.4` | `MIT` | Anthony Fu & Vitest contributors | Birim ve entegrasyon test koşucusu |
 | `typescript` | `5.9.3` | `Apache-2.0` | Microsoft Corporation | Statik tip denetimi ve geliştirme araç seti |
 | `esbuild` | `^0.25.0` | `MIT` | Evan Wallace | Hızlı sunucu derleme ve paketleme aracı |
+| `@vercel/analytics` | `^2.0.1` | `MIT` | Vercel, Inc. | Opsiyonel web analitiği ve sayfa görüntüleme ölçümü (`VITE_ENABLE_VERCEL_ANALYTICS` bayrağıyla opt-in; hardcoded kimlik barındırmaz) |
+
+*Not: `@vercel/analytics` entegrasyonu tamamen opsiyoneldir (opt-in). Kod tabanında hiçbir analitik kimliği sabit kodlanmamıştır (zero hardcoded ID). Yalnızca `VITE_ENABLE_VERCEL_ANALYTICS=true` ortam değişkeni açık olduğunda ve kullanıcı çerez/gizlilik iznini reddetmediğinde devreye girer; bağımsız barındırılan veya yerel çalışan kurulumlarda hiçbir veri göndermez (no-op).*
 
 ---
 
