@@ -50,16 +50,22 @@ export function getTodayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// 1. VDS / Self-Hosted TCP Redis Client (ioredis)
+// 1. VDS / Self-Hosted TCP Redis Client (ioredis) — also used for Vercel Marketplace "Redis" (Redis Cloud)
 let tcpRedisInstance: IORedis | null = null;
-function getTcpRedisClient(): IORedis | null {
+let tcpRedisConnecting: Promise<void> | null = null;
+async function getTcpRedisClient(): Promise<IORedis | null> {
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) return null;
 
   if (!tcpRedisInstance) {
     try {
       tcpRedisInstance = new IORedis(redisUrl, {
-        lazyConnect: false,
+        // Explicit connect (not lazy): on a cold serverless invocation the pipeline in
+        // getTopScores/submitScore must not fire before the handshake finishes — with
+        // enableOfflineQueue disabled that would reject instantly and silently fall through
+        // to the next storage strategy. Awaiting `tcpRedisConnecting` below fixes that while
+        // warm (Fluid Compute-reused) instances skip straight to the cached, ready client.
+        lazyConnect: true,
         maxRetriesPerRequest: 1,
         connectTimeout: 3000,
         commandTimeout: 3000,
@@ -73,9 +79,19 @@ function getTcpRedisClient(): IORedis | null {
       tcpRedisInstance.on("error", (err) => {
         console.warn("[Leaderboard:VDS-Redis] Connection error:", err.message);
       });
+
+      tcpRedisConnecting = tcpRedisInstance.connect().catch((err) => {
+        console.warn("[Leaderboard:VDS-Redis] Initial connect failed:", err.message);
+        tcpRedisInstance = null;
+        tcpRedisConnecting = null;
+      });
     } catch {
       tcpRedisInstance = null;
     }
+  }
+
+  if (tcpRedisConnecting) {
+    await tcpRedisConnecting;
   }
   return tcpRedisInstance;
 }
@@ -119,7 +135,7 @@ export async function getTopScores(gameId: GameId, dateStr: string = getTodayIso
   const key = `lb:${gameId}:${dateStr}`;
 
   // Strategy A: VDS / Self-Hosted Native TCP Redis (Preferred on VPS environments)
-  const tcpRedis = getTcpRedisClient();
+  const tcpRedis = await getTcpRedisClient();
   if (tcpRedis) {
     try {
       // Pipelined retrieval: 1 network roundtrip for both top range and card
@@ -302,7 +318,7 @@ export async function submitScore(
   }
 
   // Strategy A: VDS / Self-Hosted Native TCP Redis (Pipelined: 1 roundtrip for zadd GT, expire, zrevrank)
-  const tcpRedis = getTcpRedisClient();
+  const tcpRedis = await getTcpRedisClient();
   if (tcpRedis) {
     try {
       const pipe = tcpRedis.pipeline();
