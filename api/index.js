@@ -312,6 +312,23 @@ async function upsertTursoUser(user) {
   }
 }
 
+// server/storage/dbUrl.ts
+function isCloudPostgresUrl(url) {
+  return url.includes("sslmode=require") || url.includes("neon.tech") || url.includes("vercel-storage.com") || url.includes("aws.connect");
+}
+var warnedCallers = /* @__PURE__ */ new Set();
+function warnIfDatabaseUrlSchemeMismatch(callerLabel, expectedSchemes) {
+  const url = process.env.DATABASE_URL;
+  if (!url || warnedCallers.has(callerLabel)) return;
+  const matches = expectedSchemes.some((scheme) => url.startsWith(scheme));
+  if (!matches) {
+    warnedCallers.add(callerLabel);
+    console.warn(
+      `[Storage:${callerLabel}] DATABASE_URL is set but doesn't match the expected scheme(s) (${expectedSchemes.join(", ")}) \u2014 it will be ignored here and fall through to the next storage strategy.`
+    );
+  }
+}
+
 // server/storage/db.ts
 var { Pool } = pg;
 var _mysqlDb = null;
@@ -322,6 +339,7 @@ function getPostgresUrl() {
   if (url && (url.startsWith("postgres://") || url.startsWith("postgresql://"))) {
     return url;
   }
+  warnIfDatabaseUrlSchemeMismatch("db.ts:getPostgresUrl", ["postgres://", "postgresql://"]);
   return null;
 }
 function getPgPool() {
@@ -329,7 +347,7 @@ function getPgPool() {
   if (!url) return null;
   if (!_pgPool) {
     try {
-      const isCloud = url.includes("sslmode=require") || url.includes("neon.tech") || url.includes("vercel-storage.com") || url.includes("aws.connect");
+      const isCloud = isCloudPostgresUrl(url);
       const isServerless = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
       _pgPool = new Pool({
         connectionString: url,
@@ -1134,7 +1152,7 @@ function getDailyStore() {
     }
   }
   if ((provider === "postgres" || !provider) && postgresUrl && /^(postgres|postgresql):\/\//.test(postgresUrl)) {
-    const isCloud = postgresUrl.includes("sslmode=require") || postgresUrl.includes("neon.tech") || postgresUrl.includes("vercel-storage.com") || postgresUrl.includes("aws.connect");
+    const isCloud = isCloudPostgresUrl(postgresUrl);
     store = new PostgresStore(
       new Pool2({
         connectionString: postgresUrl,
@@ -1145,6 +1163,7 @@ function getDailyStore() {
     );
     return store;
   }
+  warnIfDatabaseUrlSchemeMismatch("dailyContentStore.ts:getDailyStore", ["postgres://", "postgresql://"]);
   store = new MemoryStore();
   return store;
 }

@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users } from "../../drizzle/schema";
 import { ENV } from "../_core/env";
 import { isTursoConfigured, getTursoUserByOpenId, upsertTursoUser } from "./turso";
+import { isCloudPostgresUrl, warnIfDatabaseUrlSchemeMismatch } from "./dbUrl";
 
 const { Pool } = pg;
 
@@ -22,6 +23,7 @@ function getPostgresUrl(): string | null {
   if (url && (url.startsWith("postgres://") || url.startsWith("postgresql://"))) {
     return url;
   }
+  warnIfDatabaseUrlSchemeMismatch("db.ts:getPostgresUrl", ["postgres://", "postgresql://"]);
   return null;
 }
 
@@ -31,11 +33,7 @@ function getPgPool(): pg.Pool | null {
 
   if (!_pgPool) {
     try {
-      const isCloud =
-        url.includes("sslmode=require") ||
-        url.includes("neon.tech") ||
-        url.includes("vercel-storage.com") ||
-        url.includes("aws.connect");
+      const isCloud = isCloudPostgresUrl(url);
 
       const isServerless =
         process.env.VERCEL === "1" ||

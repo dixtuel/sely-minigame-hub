@@ -3,6 +3,7 @@ import { deflateRawSync, inflateRawSync } from "node:zlib";
 import type { Client } from "@libsql/client";
 import { Pool } from "pg";
 import { getTursoClient, isTursoConfigured } from "./turso";
+import { isCloudPostgresUrl, warnIfDatabaseUrlSchemeMismatch } from "./dbUrl";
 
 export const DAILY_GAMES = ["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"] as const;
 export type DailyGameId = (typeof DAILY_GAMES)[number];
@@ -154,11 +155,7 @@ export function getDailyStore(): DailyStore {
     postgresUrl &&
     /^(postgres|postgresql):\/\//.test(postgresUrl)
   ) {
-    const isCloud =
-      postgresUrl.includes("sslmode=require") ||
-      postgresUrl.includes("neon.tech") ||
-      postgresUrl.includes("vercel-storage.com") ||
-      postgresUrl.includes("aws.connect");
+    const isCloud = isCloudPostgresUrl(postgresUrl);
 
     store = new PostgresStore(
       new Pool({
@@ -172,6 +169,7 @@ export function getDailyStore(): DailyStore {
   }
 
   // 3. Fallback: Deterministic In-Memory store
+  warnIfDatabaseUrlSchemeMismatch("dailyContentStore.ts:getDailyStore", ["postgres://", "postgresql://"]);
   store = new MemoryStore();
   return store;
 }
