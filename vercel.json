@@ -1,6 +1,16 @@
 {
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist/public",
+  "crons": [
+    {
+      "path": "/api/scheduled/daily-content",
+      "schedule": "5 0 * * *"
+    },
+    {
+      "path": "/api/scheduled/daily-cleanup",
+      "schedule": "15 0 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

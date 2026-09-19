@@ -34,4 +34,38 @@ describe("daily content schedule endpoint", () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).toMatchObject({ ok: true, retentionDays: 90 });
   });
+
+  it("accepts Vercel Cron Authorization Bearer header", async () => {
+    const secret = "test-vercel-cron-secret";
+    process.env.CRON_SECRET = secret;
+    const response: { statusCode: number; body?: unknown } = { statusCode: 200 };
+    const req = {
+      header: (name: string) => name === "authorization" ? `Bearer ${secret}` : undefined,
+      headers: {},
+    } as any;
+    const res = {
+      status: (code: number) => { response.statusCode = code; return res; },
+      json: (body: unknown) => { response.body = body; return res; },
+    } as any;
+
+    await dailyContentHandler(req, res);
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({ ok: true, generated: 7 });
+  });
+
+  it("rejects unauthorized cron requests with 403", async () => {
+    const response: { statusCode: number; body?: unknown } = { statusCode: 200 };
+    const req = {
+      header: () => undefined,
+      headers: {},
+    } as any;
+    const res = {
+      status: (code: number) => { response.statusCode = code; return res; },
+      json: (body: unknown) => { response.body = body; return res; },
+    } as any;
+
+    await dailyContentHandler(req, res);
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toMatchObject({ error: "cron-only" });
+  });
 });

@@ -23,11 +23,11 @@ export function createApp() {
   registerStorageProxy(app);
   registerOAuthRoutes(app);
 
-  // Scheduled endpoints
+  // Scheduled endpoints (supports GET for Vercel Cron and POST for VDS crontab)
   const scheduledLimiter = createRateLimiter({ max: 8, windowMs: 60_000 });
   const publicApiLimiter = createRateLimiter({ max: 90, windowMs: 60_000 });
-  app.post("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);
-  app.post("/api/scheduled/daily-cleanup", scheduledLimiter, dailyCleanupHandler);
+  app.all("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);
+  app.all("/api/scheduled/daily-cleanup", scheduledLimiter, dailyCleanupHandler);
 
   // Edge Caching Hook for read-only tRPC requests to minimize Function Invocations & compute units
   app.use("/api/trpc", (req, res, next) => {

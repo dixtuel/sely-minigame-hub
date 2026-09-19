@@ -244,6 +244,8 @@ Tüm ortam değişkenleri opsiyoneldir. Herhangi bir veritabanı bağlantısı s
 | `VITE_ADSENSE_CLIENT_ID`  | Hayır | `undefined` | Google AdSense yayıncı kimliği (`ca-pub-...`). Tanımsızsa reklamlar gizlenir. |
 | `VITE_ADSENSE_RESULT_SLOT_ID` | Hayır | `undefined` | Oyun sonu panelindeki reklam alanı kimliği. |
 | `VITE_ENABLE_VERCEL_ANALYTICS` | Hayır | `false` | Vercel Web Analytics'i etkinleştirir (`true`/`false`). Hardcoded ID içermez, sıfır çerezli gizlilik dostudur. |
+| `CRON_SECRET`             | Hayır | `undefined` | Vercel Cron Jobs otomatik çağrıları için `Bearer` yetkilendirme anahtarı. |
+| `DAILY_JOB_TOKEN`         | Hayır | `undefined` | VDS crontab çağrıları (`x-sely-cron-token`) için yetkilendirme anahtarı. |
 
 ---
 
