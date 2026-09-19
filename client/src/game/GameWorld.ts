@@ -4,6 +4,8 @@ import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
 import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder";
+import { CreateIcoSphere } from "@babylonjs/core/Meshes/Builders/icoSphereBuilder";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import type { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
@@ -36,9 +38,16 @@ export class GameWorld {
   private readonly playerLamp: StandardMaterial;
   private readonly listener = new TransformNode("listener-root", this.scene);
   private readonly listenerMaterial: StandardMaterial;
+  private readonly listenerShards: ReturnType<typeof CreateCylinder>[] = [];
+  private listenerVortexOuter?: ReturnType<typeof CreateTorus>;
+  private listenerVortexInner?: ReturnType<typeof CreateTorus>;
+  private listenerCoreMesh?: ReturnType<typeof CreateIcoSphere>;
+  private listenerShroudMesh?: ReturnType<typeof CreateCylinder>;
+  private listenerClock = 0;
   private readonly heading = new Vector3(0.62, 0, 0.78);
   private facingYaw = movementYaw(0.62, 0.78);
   private readonly pulses: PulseRing[];
+
   private readonly coarsePointer: boolean;
   private state: GameSnapshot = createInitialSnapshot();
   private listenerIndex = 0;
@@ -156,52 +165,112 @@ export class GameWorld {
 
   private createListener() {
     const obsidian = new StandardMaterial("listener-obsidian", this.scene);
-    obsidian.diffuseColor = Color3.FromHexString("#141118");
-    obsidian.emissiveColor = Color3.FromHexString("#0a060d");
-    obsidian.specularColor = Color3.Black();
+    obsidian.diffuseColor = Color3.FromHexString("#0d0914");
+    obsidian.emissiveColor = Color3.FromHexString("#190620");
+    obsidian.specularColor = Color3.FromHexString("#441126");
 
     const eyeMaterial = new StandardMaterial("listener-eye", this.scene);
-    eyeMaterial.diffuseColor = Color3.FromHexString("#ff2233");
-    eyeMaterial.emissiveColor = Color3.FromHexString("#ff1122");
+    eyeMaterial.diffuseColor = Color3.FromHexString("#ff1133");
+    eyeMaterial.emissiveColor = Color3.FromHexString("#ff002b");
     eyeMaterial.specularColor = Color3.White();
 
-    const eye = CreateSphere("listener-core", { diameter: 0.58, segments: 12 }, this.scene);
-    eye.parent = this.listener;
-    eye.position.y = 1.0;
-    eye.material = eyeMaterial;
+    // 1. Shroud / Phantom Torso (Tapered, faceted obsidian body hovering above ground)
+    const shroud = CreateCylinder(
+      "listener-shroud",
+      { height: 1.52, diameterTop: 0.22, diameterBottom: 0.86, tessellation: 8 },
+      this.scene,
+    );
+    shroud.parent = this.listener;
+    shroud.position.y = 0.86;
+    shroud.material = obsidian;
+    this.listenerShroudMesh = shroud;
 
-    const ring1 = CreateTorus("listener-ring1", { diameter: 1.05, thickness: 0.05, tessellation: 24 }, this.scene);
-    ring1.parent = this.listener;
-    ring1.position.y = 1.0;
-    ring1.rotation.x = Math.PI / 3;
-    ring1.material = obsidian;
+    // 2. Pulsing Resonator Heart / Eye of Agony (Icosahedron faceted ruby crystal)
+    const core = CreateIcoSphere(
+      "listener-core",
+      { radius: 0.29, subdivisions: 2 },
+      this.scene,
+    );
+    core.parent = this.listener;
+    core.position.y = 1.2;
+    core.material = eyeMaterial;
+    this.listenerCoreMesh = core;
 
-    const ring2 = CreateTorus("listener-ring2", { diameter: 1.25, thickness: 0.035, tessellation: 24 }, this.scene);
-    ring2.parent = this.listener;
-    ring2.position.y = 1.0;
-    ring2.rotation.z = Math.PI / 4;
-    ring2.material = obsidian;
+    // 3. Floating Acoustic Shards / Resonance Horns (Levitating obelisks forming a sinister crown)
+    const shards: ReturnType<typeof CreateCylinder>[] = [];
+    const shardAngles = [0.42, -0.42, 1.88, -1.88];
+    shardAngles.forEach((ang, idx) => {
+      const shard = CreateCylinder(
+        `listener-shard-${idx}`,
+        { height: 0.68, diameterTop: 0.015, diameterBottom: 0.08, tessellation: 5 },
+        this.scene,
+      );
+      shard.parent = this.listener;
+      shard.material = obsidian;
+      const rad = 0.44;
+      shard.position.set(Math.cos(ang) * rad, 1.66, Math.sin(ang) * rad);
+      shard.rotation.z = Math.cos(ang) * 0.35;
+      shard.rotation.x = Math.sin(ang) * 0.35;
+      shards.push(shard);
+    });
+    this.listenerShards.push(...shards);
 
-    const aura = CreateTorus("listener-threat-ring", { diameter: 1.55, thickness: 0.03, tessellation: 24 }, this.scene);
-    aura.parent = this.listener;
-    aura.position.y = 0.05;
-    aura.rotation.x = Math.PI / 2;
-    aura.material = eyeMaterial;
+    // 4. Acoustic Rib Spines / Sensor Claws (3 pairs of menacing rib tendrils)
+    const ribs: ReturnType<typeof CreateBox>[] = [];
+    for (let r = 0; r < 3; r++) {
+      const ribY = 0.68 + r * 0.25;
+      const ribLeft = CreateBox(`listener-rib-l-${r}`, { width: 0.42, height: 0.038, depth: 0.07 }, this.scene);
+      ribLeft.parent = this.listener;
+      ribLeft.position.set(-0.3, ribY, 0.04);
+      ribLeft.rotation.z = 0.3;
+      ribLeft.rotation.y = 0.22;
+      ribLeft.material = obsidian;
 
-    // Register each component with a dynamic pointGetter so echo waves find the moving enemy!
-    [eye, ring1, ring2, aura].forEach((mesh) => {
+      const ribRight = CreateBox(`listener-rib-r-${r}`, { width: 0.42, height: 0.038, depth: 0.07 }, this.scene);
+      ribRight.parent = this.listener;
+      ribRight.position.set(0.3, ribY, 0.04);
+      ribRight.rotation.z = -0.3;
+      ribRight.rotation.y = -0.22;
+      ribRight.material = obsidian;
+      ribs.push(ribLeft, ribRight);
+    }
+
+    // 5. Swirling Abyssal Ground Void (Dual-layer shadow vortex at feet)
+    const vortexOuter = CreateTorus("listener-vortex-outer", { diameter: 1.8, thickness: 0.042, tessellation: 32 }, this.scene);
+    vortexOuter.parent = this.listener;
+    vortexOuter.position.y = 0.035;
+    vortexOuter.material = obsidian;
+    this.listenerVortexOuter = vortexOuter;
+
+    const vortexInner = CreateTorus("listener-vortex-inner", { diameter: 1.2, thickness: 0.038, tessellation: 24 }, this.scene);
+    vortexInner.parent = this.listener;
+    vortexInner.position.y = 0.045;
+    vortexInner.material = eyeMaterial;
+    this.listenerVortexInner = vortexInner;
+
+    // Register all components with dynamic reveal so echo pulses illuminate the whole creature
+    const allMeshes: (AbstractMesh | ReturnType<typeof CreateCylinder> | ReturnType<typeof CreateBox> | ReturnType<typeof CreateTorus>)[] = [
+      shroud,
+      core,
+      ...shards,
+      ...ribs,
+      vortexOuter,
+      vortexInner,
+    ];
+
+    allMeshes.forEach((mesh) => {
       this.environment.registerDynamicReveal(
         mesh,
         () => this.listener.position,
         1,
         {
-          proximityRadius: 3.5,
-          proximityCap: 0.75,
+          proximityRadius: 3.8,
+          proximityCap: 0.85,
           apply: (reveal) => {
             const glow = Math.max(0.12, reveal);
             mesh.visibility = glow;
-            eyeMaterial.emissiveColor = Color3.FromHexString("#ff1122").scale(glow * 1.5);
-            obsidian.emissiveColor = Color3.FromHexString("#220810").scale(glow * 0.8);
+            eyeMaterial.emissiveColor = Color3.FromHexString("#ff002b").scale(glow * 1.6);
+            obsidian.emissiveColor = Color3.FromHexString("#220810").scale(glow * 0.9);
           },
         },
       );
@@ -212,22 +281,36 @@ export class GameWorld {
 
   private createPulsePool(): PulseRing[] {
     const rings: PulseRing[] = [];
-    // 4 player pulses + 2 listener acoustic warning footprint ripples
-    for (let index = 0; index < 6; index += 1) {
+    // 4 player pulses (indices 0-3) + 4 enemy acoustic shockwave ripples (indices 4-7)
+    for (let index = 0; index < 8; index += 1) {
       const isEnemyRing = index >= 4;
+      const isHarmonicSecondary = index >= 6;
       const material = new StandardMaterial(`pulse-ring-${index}`, this.scene);
-      material.diffuseColor = isEnemyRing ? Color3.FromHexString("#ff2233") : Color3.FromHexString("#c9824a");
-      material.emissiveColor = isEnemyRing ? Color3.FromHexString("#ff3344") : Color3.FromHexString("#f0c38d");
+      material.diffuseColor = isEnemyRing
+        ? (isHarmonicSecondary ? Color3.FromHexString("#ff0055") : Color3.FromHexString("#ff1122"))
+        : Color3.FromHexString("#c9824a");
+      material.emissiveColor = isEnemyRing
+        ? (isHarmonicSecondary ? Color3.FromHexString("#ff2277") : Color3.FromHexString("#ff0033"))
+        : Color3.FromHexString("#f0c38d");
       material.alpha = 0;
       material.backFaceCulling = false;
-      const mesh = CreateTorus(`pulse-mesh-${index}`, { diameter: 1.6, thickness: 0.045, tessellation: 24 }, this.scene);
-      mesh.position.y = 0.08;
+      const mesh = CreateTorus(
+        `pulse-mesh-${index}`,
+        {
+          diameter: isEnemyRing ? (isHarmonicSecondary ? 1.3 : 1.9) : 1.6,
+          thickness: isEnemyRing ? 0.058 : 0.045,
+          tessellation: 32,
+        },
+        this.scene,
+      );
+      mesh.position.y = isHarmonicSecondary ? 0.09 : 0.08;
       mesh.material = material;
       mesh.isPickable = false;
       rings.push({ mesh, material, age: 99 });
     }
     return rings;
   }
+
 
   setVirtualMove(x: number, z: number) {
     this.input.setVirtualMove(x, z);
@@ -258,14 +341,35 @@ export class GameWorld {
   }
 
   private spawnPulse(pos: Vector3, isEnemy = false) {
-    const availableRings = isEnemy ? this.pulses.slice(4) : this.pulses.slice(0, 4);
-    const ring = availableRings.find((item) => item.age > 3.0) || availableRings[0];
-    ring.age = 0;
-    ring.mesh.position.copyFrom(pos);
-    ring.mesh.position.y = 0.08;
-    ring.mesh.scaling.setAll(1);
-    ring.material.alpha = isEnemy ? 0.6 : 0.78;
+    if (isEnemy) {
+      // Dual-frequency acoustic shockwave: primary sharp wave + trailing harmonic resonance ring
+      const primaryRings = this.pulses.slice(4, 6);
+      const harmonicRings = this.pulses.slice(6, 8);
+
+      const r1 = primaryRings.find((item) => item.age > 2.2) || primaryRings[0];
+      r1.age = 0;
+      r1.mesh.position.copyFrom(pos);
+      r1.mesh.position.y = 0.08;
+      r1.mesh.scaling.setAll(1);
+      r1.material.alpha = 0.9;
+
+      const r2 = harmonicRings.find((item) => item.age > 2.2) || harmonicRings[0];
+      r2.age = -0.12; // slight phase lag for multi-frequency echo effect
+      r2.mesh.position.copyFrom(pos);
+      r2.mesh.position.y = 0.09;
+      r2.mesh.scaling.setAll(0.7);
+      r2.material.alpha = 0.7;
+    } else {
+      const playerRings = this.pulses.slice(0, 4);
+      const ring = playerRings.find((item) => item.age > 3.0) || playerRings[0];
+      ring.age = 0;
+      ring.mesh.position.copyFrom(pos);
+      ring.mesh.position.y = 0.08;
+      ring.mesh.scaling.setAll(1);
+      ring.material.alpha = 0.78;
+    }
   }
+
 
   update(delta: number) {
     this.environment.update(delta, this.player.position.x, this.player.position.z);
@@ -361,7 +465,7 @@ export class GameWorld {
   }
 
   private updateListener(delta: number) {
-    // 1. Emit faint red acoustic warning footprint ripple every 1.8s
+    // 1. Emit terrifying dual-frequency red acoustic warning shockwave every 1.8s
     this.listenerPingTimer += delta;
     if (this.listenerPingTimer >= 1.8) {
       this.listenerPingTimer = 0;
@@ -422,9 +526,28 @@ export class GameWorld {
       }
     }
 
-    const pulseIntensity = this.listenerState === "investigate" ? 1.5 : 0.8;
+    // 3. Dynamic animation of the menacing 3D creature
+    this.listenerClock += delta;
+    const isInvestigating = this.listenerState === "investigate";
+    const hoverOffset = Math.sin(this.listenerClock * 2.8) * 0.08;
+    if (this.listenerCoreMesh) this.listenerCoreMesh.position.y = 1.2 + hoverOffset;
+    if (this.listenerShroudMesh) this.listenerShroudMesh.position.y = 0.86 + hoverOffset * 0.6;
+    if (this.listenerVortexOuter) this.listenerVortexOuter.rotation.y += delta * (isInvestigating ? 1.8 : 0.8);
+    if (this.listenerVortexInner) this.listenerVortexInner.rotation.y -= delta * (isInvestigating ? 2.5 : 1.2);
+
+    this.listenerShards.forEach((shard, idx) => {
+      shard.position.y = 1.66 + hoverOffset + Math.sin(this.listenerClock * 3.4 + idx * 1.2) * 0.05;
+      shard.rotation.y += delta * (idx % 2 === 0 ? 0.7 : -0.7);
+      const flare = isInvestigating ? 1.22 : 1.0;
+      shard.scaling.set(flare, flare, flare);
+    });
+
+    const pulseIntensity = isInvestigating ? 2.2 : 0.9;
+    const pulseSpeed = isInvestigating ? 12.0 : 4.5;
     this.listenerMaterial.emissiveColor.copyFrom(
-      Color3.FromHexString("#ff1122").scale(pulseIntensity + Math.sin(Date.now() * 0.008) * 0.3),
+      Color3.FromHexString(isInvestigating ? "#ff0044" : "#ff1122").scale(
+        pulseIntensity + Math.sin(this.listenerClock * pulseSpeed) * 0.35,
+      ),
     );
 
     if (!this.isDemo && this.distanceTo(this.listener.position) < 0.86) {
@@ -491,14 +614,23 @@ export class GameWorld {
   }
 
   private updatePulses(delta: number) {
-    this.pulses.forEach((pulse) => {
+    this.pulses.forEach((pulse, index) => {
       pulse.age += delta;
       if (pulse.age < 0) return;
-      const growth = 1 + pulse.age * 5.4;
-      pulse.mesh.scaling.set(growth, growth, growth);
-      pulse.material.alpha = Math.max(0, 0.78 - pulse.age * 0.33);
+      const isEnemy = index >= 4;
+      if (isEnemy) {
+        // Fast, menacing acoustic shockwave that sweeps across corridors
+        const growth = 1 + Math.pow(pulse.age, 0.85) * 8.6;
+        pulse.mesh.scaling.set(growth, growth, growth);
+        pulse.material.alpha = Math.max(0, 0.88 - pulse.age * 0.42);
+      } else {
+        const growth = 1 + pulse.age * 5.4;
+        pulse.mesh.scaling.set(growth, growth, growth);
+        pulse.material.alpha = Math.max(0, 0.78 - pulse.age * 0.33);
+      }
     });
   }
+
 
   private finish(phase: "won" | "failed", message: string) {
     if (this.state.phase !== "explore") return;

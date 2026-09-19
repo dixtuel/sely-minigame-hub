@@ -149,26 +149,69 @@ export function generateMaze(
   }
   const gateWall = parentEdge.get(key(gateCell.col, gateCell.row))!;
 
-  // Markers: greedy farthest-point sampling among cells reachable WITHOUT crossing the gate.
+  // Markers: 3 distinct, well-separated, accessible cells across distinct sectors of the maze
   const reachablePreGate: { col: number; row: number; d: number }[] = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (c === gateCell.col && r === gateCell.row) continue;
-      reachablePreGate.push({ col: c, row: r, d: dist[r][c] });
+      if (c === startCol && r === startRow) continue;
+      // Exclude immediate 1-step neighbors of start and gate so keys don't spawn on top of player or gate
+      if (Math.abs(c - startCol) + Math.abs(r - startRow) <= 1) continue;
+      if (Math.abs(c - gateCell.col) + Math.abs(r - gateCell.row) <= 1) continue;
+      if (dist[r][c] >= 2) {
+        reachablePreGate.push({ col: c, row: r, d: dist[r][c] });
+      }
     }
   }
-  reachablePreGate.sort((a, b) => b.d - a.d);
+
+  // To guarantee the 3 keys are in completely different parts of the maze,
+  // we partition candidate cells into 3 distinct spatial sectors based on angle from maze center:
+  const midC = cols / 2;
+  const midR = rows / 2;
+  const sectorOf = (c: number, r: number): number => {
+    const angle = Math.atan2(r - midR, c - midC);
+    if (angle < -Math.PI / 3) return 0; // Sector 0 (North / North-West)
+    if (angle < Math.PI / 3) return 1;  // Sector 1 (East / North-East)
+    return 2;                           // Sector 2 (South / South-West)
+  };
+
+  const sectors: { col: number; row: number; d: number }[][] = [[], [], []];
+  reachablePreGate.forEach((cell) => {
+    sectors[sectorOf(cell.col, cell.row)].push(cell);
+  });
+  // Sort each sector by distance (favoring deeper, atmospheric maze rooms/pockets)
+  sectors.forEach((sec) => sec.sort((a, b) => b.d - a.d));
+
   const markerCells: { col: number; row: number }[] = [];
-  const minSeparation = Math.max(2, Math.floor(Math.min(cols, rows) / 4));
+  const minSeparation = 4.0; // in grid units (~9.2m in 3D space)
+
+  // Pick the best separated cell from each of the 3 sectors
+  for (let s = 0; s < 3; s++) {
+    const candidates = sectors[s];
+    const picked = candidates.find((cand) =>
+      markerCells.every((m) => Math.hypot(m.col - cand.col, m.row - cand.row) >= minSeparation)
+    ) || candidates[0];
+    if (picked && !markerCells.some((m) => m.col === picked.col && m.row === picked.row)) {
+      markerCells.push({ col: picked.col, row: picked.row });
+    }
+  }
+
+  // Fallback if any sector was sparse: furthest-point selection
+  reachablePreGate.sort((a, b) => b.d - a.d);
   for (const candidate of reachablePreGate) {
     if (markerCells.length >= 3) break;
-    if (candidate.col === startCol && candidate.row === startRow) continue;
-    const farEnough = markerCells.every((m) => Math.abs(m.col - candidate.col) + Math.abs(m.row - candidate.row) >= minSeparation);
+    const farEnough = markerCells.every(
+      (m) => Math.hypot(m.col - candidate.col, m.row - candidate.row) >= 3.0
+    );
     if (farEnough) markerCells.push({ col: candidate.col, row: candidate.row });
   }
-  while (markerCells.length < 3) {
-    const fallback = reachablePreGate[markerCells.length + 3] ?? reachablePreGate[reachablePreGate.length - 1];
-    markerCells.push({ col: fallback.col, row: fallback.row });
+
+  while (markerCells.length < 3 && reachablePreGate.length >= 3) {
+    const fallback = reachablePreGate.find(
+      (cand) => !markerCells.some((m) => m.col === cand.col && m.row === cand.row)
+    );
+    if (fallback) markerCells.push({ col: fallback.col, row: fallback.row });
+    else break;
   }
 
   // Braiding: remove some dead-end walls to add loops/branches. More mastery -> more open.

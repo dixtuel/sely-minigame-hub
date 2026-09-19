@@ -100,10 +100,40 @@ export function computeCriticalCells(maze: MazeResult): Set<string> {
  */
 export function selectHiddenWalls(maze: MazeResult, prng: () => number, chance = 0.22): MazeWall[] {
   const criticalCells = computeCriticalCells(maze);
-  return maze.walls.filter((wall) => {
+  const eligible = maze.walls.filter((wall) => {
     const onCriticalPath = criticalCells.has(cellKey(wall.cellA.col, wall.cellA.row)) || criticalCells.has(cellKey(wall.cellB.col, wall.cellB.row));
-    return !onCriticalPath && prng() < chance;
+    return !onCriticalPath;
   });
+
+  // Spatial distribution: prevent clustering in a single corner/corridor.
+  // We shuffle candidates and enforce a minimum Euclidean distance between secret doors.
+  const shuffled = [...eligible].sort(() => prng() - 0.5);
+  const selected: MazeWall[] = [];
+  const minSeparation = 2.2 * maze.cellSize; // ~5.0 meters apart in 3D world space
+
+  for (const wall of shuffled) {
+    if (selected.length >= 6) break;
+    const wx = (wall.x1 + wall.x2) / 2;
+    const wz = (wall.z1 + wall.z2) / 2;
+    const isFar = selected.every((other) => {
+      const ox = (other.x1 + other.x2) / 2;
+      const oz = (other.z1 + other.z2) / 2;
+      return Math.hypot(wx - ox, wz - oz) >= minSeparation;
+    });
+
+    if (isFar) {
+      if (selected.length < 2 || prng() < chance + 0.1) {
+        selected.push(wall);
+      }
+    }
+  }
+
+  // Guaranteed at least one if eligible walls exist
+  if (selected.length === 0 && eligible.length > 0) {
+    selected.push(eligible[Math.floor(prng() * eligible.length)]);
+  }
+
+  return selected;
 }
 
 function cellFreePoint(maze: MazeResult, col: number, row: number, prng: () => number, margin = 0.55) {
@@ -150,16 +180,16 @@ export function generate3DEchoLayout(seed: number, mastery: number): Echo3DLayou
 
   const walls = maze.walls.map((wall) => wallToPlacement(wall, prng));
 
-  // Hidden "trap" walls: pulse-only, and only ever picked from walls where BOTH
-  // bordering cells are off the critical path — the route to every marker and
-  // to the gate always stays ambiently visible, so there's always a legible way through.
-  const criticalCells = computeCriticalCells(maze);
-  const hiddenChance = 0.22;
-  const hiddenWalls: WallPlacement[] = [];
-  maze.walls.forEach((wall, index) => {
-    const onCriticalPath = criticalCells.has(cellKey(wall.cellA.col, wall.cellA.row)) || criticalCells.has(cellKey(wall.cellB.col, wall.cellB.row));
-    if (!onCriticalPath && prng() < hiddenChance) hiddenWalls.push(walls[index]);
-  });
+  // Hidden secret doors: evenly distributed across different wings of the maze,
+  // never clustering into a single pocket, and always off the critical path.
+  const chosenHiddenWalls = selectHiddenWalls(maze, prng, 0.22);
+  const hiddenKeys = new Set(
+    chosenHiddenWalls.map((w) => `${+((w.x1 + w.x2) / 2).toFixed(2)},${+((w.z1 + w.z2) / 2).toFixed(2)}`)
+  );
+  const hiddenWalls: WallPlacement[] = walls.filter(([wx, wz]) => hiddenKeys.has(`${wx},${wz}`));
+  if (hiddenWalls.length === 0 && chosenHiddenWalls.length > 0) {
+    hiddenWalls.push(wallToPlacement(chosenHiddenWalls[0], prng));
+  }
 
   // Initial heading: point toward the first open neighbor of the start cell.
   const startCellData = maze.cells[maze.startCell.row][maze.startCell.col];
