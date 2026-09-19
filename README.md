@@ -2,20 +2,21 @@
 
 # SELY.TR — MiniGame Hub
 
-**Günlük prosedürel 7 mini oyun platformu: tek tohum ve ustalık sistemi, matematiksel çözülebilirlik güvencesi, risograph editoryal görsel dili, sıfır takip çerezi.**
+**Günlük prosedürel 7 mini oyun platformu: tek tohum ve ustalık dereceleri, matematiksel çözülebilirlik güvencesi, risograph editoryal görsel dili, sıfır takip çerezi.**
 
 [![Canlı Demo](https://img.shields.io/badge/canlı_demo-sely.tr-F38020?style=flat-square&logo=vercel&logoColor=white)](https://sely.tr)
 [![Lisans: AGPL v3](https://img.shields.io/badge/lisans-AGPL--3.0-blue?style=flat-square)](LICENSE)
-[![Çalışma Ortamı](https://img.shields.io/badge/runtime-Vercel%20Edge%20%2B%20Serverless-black?style=flat-square&logo=vercel)](https://sely.tr)
+[![Çalışma Ortamı](https://img.shields.io/badge/runtime-Vercel%20Edge%20%7C%20Docker%20%7C%20Node.js%2022-black?style=flat-square&logo=node.js)](https://sely.tr)
 [![3D Motoru](https://img.shields.io/badge/3D-Babylon.js%20v9-bb464b?style=flat-square)](https://www.babylonjs.com/)
-[![Testler](https://img.shields.io/badge/testler-86%20geçti%20(9.3k%20assert)-brightgreen?style=flat-square&logo=vitest)](https://vitest.dev/)
+[![Veritabanı](https://img.shields.io/badge/database-PostgreSQL%20%7C%20Turso%20libSQL-00E599?style=flat-square&logo=sqlite&logoColor=white)](https://turso.tech)
+[![Testler](https://img.shields.io/badge/testler-107%20geçti%20(14.3k%20assert)-brightgreen?style=flat-square&logo=vitest)](https://vitest.dev/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.9%20strict-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
 <br/>
 
 Her sabah saat 00:00'da tüm dünya için tek bir günlük tohumdan (seed) deterministik olarak yeni bir "günün seti" üretilir. Oyuncunun ustalık seviyesi (1–4) arttıkça turlar karmaşıklaşır; ancak üretilen her labirent, akış rotası, çokgen kesimi ve dedektiflik delil grafı üretim anında **matematiksel çözücüler (BFS, Dijkstra, Spanning Tree, Evidence Graph Solvers)** tarafından taranarak **kesinlikle çözülebilir** olduğu doğrulanır.
 
-[Canlı Demo](https://sely.tr) • [Neden SELY?](#neden-sely-minigame-hub) • [Oyun Kataloğu](#oyun-kataloğu-ve-motor-mimarisi) • [Çözülebilirlik Güvenceleri](#matematiksel-çözülebilirlik-güvenceleri) • [Kontroller](#kontroller-ve-erişilebilirlik) • [Sistem Mimarisi](#sistem-mimarisi) • [Teknoloji Yığını](#teknoloji-yığını) • [Güvenlik ve Gizlilik](#güvenlik-ve-gizlilik) • [Yerel Geliştirme](#yerel-geliştirme) • [Lisans](#lisans-ve-marka)
+[Canlı Demo](https://sely.tr) • [Neden SELY?](#neden-sely-minigame-hub) • [Oyun Kataloğu](#oyun-kataloğu-ve-motor-mimarisi) • [Çözülebilirlik Güvenceleri](#matematiksel-çözülebilirlik-güvenceleri) • [Kontroller](#kontroller-ve-erişilebilirlik) • [Sistem Mimarisi](#sistem-mimarisi) • [Teknoloji Yığını](#teknoloji-yığını) • [Kendi Sunucunda Host Etme](#kendi-sunucunda-host-etme-self-hosting) • [Ortam Değişkenleri](#ortam-değişkenleri) • [Gizlilik & Güvenlik](#güvenlik-ve-gizlilik) • [Lisans](#lisans-ve-marka)
 
 </div>
 
@@ -23,14 +24,15 @@ Her sabah saat 00:00'da tüm dünya için tek bir günlük tohumdan (seed) deter
 
 ## Neden SELY MiniGame Hub?
 
-İnternet üzerindeki çoğu web oyunu ya agresif reklam ağlarıyla sarılmış, kullanıcıyı kayıt olmaya zorlayan veya prosedürel seviye üretiminde imkânsız/çıkmaz durumları test etmeyen yüzeysel kopyalardan ibarettir. **SELY MiniGame Hub**, bağımsız web oyunculuğuna ve algoritmik bulmaca tasarımına radikal bir alternatif sunar:
+İnternet üzerindeki çoğu web oyunu ya agresif reklam ağlarıyla sarılmış, kullanıcıyı hesap açmaya zorlayan veya prosedürel seviye üretiminde imkânsız/çıkmaz durumları test etmeyen yüzeysel kopyalardan ibarettir. **SELY MiniGame Hub**, bağımsız web oyunculuğuna ve algoritmik bulmaca tasarımına radikal bir alternatif sunar:
 
 * **Deterministik ve Eşit Günlük Set:** Her sabah üretilen günlük set, tüm dünyadaki oyuncular için aynı tohumu paylaşır. Günlük rekabette şans faktörü asgari düzeye indirilir.
 * **Sıfır İmkânsız Bölüm Garantisi:** "Rastgele" üretilen hiçbir seviye oyuncuya doğrudan sunulmaz. Arka plandaki matematiksel çözücüler bölümün geçerli bir çıkış yolu olduğunu kanıtlamadan tur başlamaz.
 * **Sıfır Harici Ses Varlığı (Pure Web Audio):** Megabaytlarca MP3/WAV dosyası indirilmez. Tüm ses efektleri (tıklama, kesim, motor sesi, harmonik çanlar) tarayıcının yerel Web Audio API osilatörleriyle (`sine`, `sawtooth`, `triangle`, filtrelenmiş gürültü) gerçek zamanlı sentezlenir.
-* **Radikal Veri Minimizasyonu:** Kayıt olma, parola girme veya e-posta bırakma zorunluluğu yoktur. Skorlar ve ustalık dereceleri yalnızca oyuncunun kendi tarayıcısında (`localStorage`) saklanır.
+* **Radikal Veri Minimizasyonu & Sıfır Takip:** Kayıt olma, parola girme veya e-posta bırakma zorunluluğu yoktur. Skorlar ve ustalık dereceleri yalnızca oyuncunun kendi tarayıcısında (`localStorage`) saklanır.
 * **Risograph Editoryal Estetik:** 20. yüzyıl ortası bağımsız baskı atölyelerinden, kâğıt dokularından ve editoryal poster tipografisinden esinlenen özgün görsel kimlik.
 * **Çift Dilli Altyapı:** Tarayıcı dilini otomatik tespit eden, tam yalıtımlı Türkçe (`/`) ve İngilizce (`/en`) rotaları.
+* **Çift Çalışma Modu (Vercel Serverless + Standalone Self-Host):** İster Vercel Edge CDN üzerinde 0 maliyetle çalıştırın, ister kendi VPS/VDS veya Docker konteynerinizde sıfır konfigürasyonlu yerel SQLite (`sely.db`) ile host edin.
 
 ---
 
@@ -49,7 +51,7 @@ Platformda yedi bağımsız mini oyun bulunur. Ortak paydaları; günlük tohum 
 | **Kıvılcım** | 2D Arcade Uçuş Fiziği | Canvas + Web Audio | [Oyna](https://sely.tr/?play=daily&game=spark) | Delta-time bağımsız uçuş adımı, dinamik pilon aralıkları |
 
 ### 1. Yankı Odası (Echo Room)
-* **Görsel ve Atmosfer:** Zifiri karanlık ortam, yalnızca oyuncunun ve düşmanın yaydığı ses dalgalarıyla aydınlanan duvarlar, hacimsel sis perdesi ve Poisson dağılımlı taş kemer gizli kapılar.
+* **Görsel ve Atmosfer:** Zifiri karanlık ortam, yalnızca oyuncunun ve düşmanın yaydığı ses dalgalarıyla anlık aydınlanan duvarlar, hacimsel sis perdesi ve Poisson dağılımlı taş kemer gizli kapılar.
 * **Akustik Düşman (The Umbral Stalker):** Konik obsidyen örtü, göğüs kafesinde parıldayan fasetli kristal çekirdek ve havada asılı 4 rezonans dikitinden oluşan 3D fantom varlık.
 * **Dinamik Sonar:** Normal devriyede **5.2 saniyede bir**, oyuncu gürültü yaptığında veya tuzağa bastığında ise **2.8 saniyede bir** çift frekanslı kızıl akustik şok dalgası (`#ff1122` ve `#ff0055`) yayar.
 * **Koridor Devriyesi:** `maze.ts` içerisindeki koridor BFS algoritması (`findMazePath`) ile 4 oda arasında 20–40 adımlık kapalı bir döngüde kesintisiz devriye gezer; duvara çarpıp kilitlenmez.
@@ -124,8 +126,8 @@ Platform hem tam masaüstü klavye donanımını hem de dokunmatik mobil cihazla
 
 ```mermaid
 graph TD
-    Client([Kullanıcı / Tarayıcı]) -->|Edge CDN Önbelleği| VercelCDN[Vercel Edge Network<br/>dist/public - 30 gün / 1 yıl Immutable Cache]
-    Client -->|/api/* & tRPC| VercelFn[Vercel Serverless Function<br/>api/index.js - Node.js ESM]
+    Client([Kullanıcı / Tarayıcı]) -->|Edge CDN Önbelleği| VercelCDN[Vercel Edge Network<br/>dist/public - Immutable Cache]
+    Client -->|/api/* & tRPC| AppRouter[Express Application Router<br/>Vercel Serverless / Standalone Node]
 
     subgraph "İstemci Katmanı (Vite + React 19 + TypeScript)"
         Router[Wouter Router] --> Home[Home.tsx - Katalog & Skor Defteri]
@@ -144,14 +146,16 @@ graph TD
         GameStudio --> Honeypot[ProtectedIdentity - Anti-Scraper Honeypot]
     end
 
-    subgraph "Sunucu & Veri Hattı"
-        VercelFn --> Security[Security Headers & Kayan Pencereli Rate Limiter]
-        VercelFn --> SEORoutes[Dinamik SEO & Arama Motoru Doğrulama]
-        VercelFn --> tRPC[tRPC v11 Tip-Güvenli Router]
+    subgraph "Sunucu & Güvenlik Hattı"
+        AppRouter --> Security[Security Headers & Memory Rate Limiter]
+        AppRouter --> Logger[Privacy-Safe Logger - Zero-Noise & Sanitized]
+        AppRouter --> SEORoutes[Dinamik SEO & Sitemap]
+        AppRouter --> tRPC[tRPC v11 Tip-Güvenli Router]
         
         tRPC --> DailyService[DailyContent Servisi]
-        DailyService --> Postgres[(PostgreSQL 16 - Drizzle ORM)]
-        DailyService -.->|Fallback| Memory[(Deterministik Bellek-İçi Fallback)]
+        DailyService --> Postgres[(PostgreSQL 16 / Neon)]
+        DailyService --> Turso[(Turso libSQL / Yerel SQLite sely.db)]
+        DailyService -.->|Çevrimdışı Fallback| Memory[(Deterministik Bellek-İçi Fallback)]
     end
 ```
 
@@ -175,14 +179,38 @@ graph TD
 
 ---
 
-## Güvenlik ve Gizlilik
+## Kendi Sunucunda Host Etme (Self-Hosting)
 
-* **Radikal Veri Minimizasyonu:** Oyuncuların kişisel bilgileri, e-postaları veya parolaları toplanmaz. Tüm başarı ve skor verileri oyuncunun kendi cihazındaki `localStorage` alanında kalır.
-* **Sıfır İzinsiz Takip Çerezi:** Varsayılan durumda hiçbir analiz veya reklam çerezi yerleştirilmez.
-* **Google Consent Mode v2:** `ad_storage`, `ad_personalization` ve `analytics_storage` izinleri varsayılan olarak `denied` durumundadır. Kullanıcı onay verdiğinde sinyaller dinamik olarak güncellenir; Footer'daki "Çerez Ayarları" üzerinden her an geri çekilebilir.
-* **Anti-Scraper Kimlik Koruması (`ProtectedIdentity`):** İletişim e-posta adresi ve veri sorumlusu adı kaynak kodda veya ham HTML'de düz metin olarak yer almaz. Çalışma zamanında karakter dizilerinden çözülür; DOM üzerindeki görünmez tuzak elemanlarıyla (`.bot-decoy`) otomatik e-posta toplayıcı botlar yanıltılır.
-* **Otomatik `audit:public` CI Kapısı:** Her dağıtım öncesinde depoda hiçbir gizli anahtar, doğrulama dosyası veya kişisel kimlik sızıntısı kalmadığı otomatik olarak denetlenir (`pnpm audit:public`).
-* **Sertleştirilmiş Sunucu Başlıkları:** Vercel Serverless fonksiyonlarında kayan pencereli hız sınırlayıcı (rate limiter), katı İçerik Güvenlik Politikası (CSP), `X-Content-Type-Options: nosniff` ve `X-Frame-Options: DENY` başlıkları zorunludur.
+SELY MiniGame Hub, hem **Vercel Serverless** üzerinde sıfır maliyetle çalışacak hem de dileyen herkesin kendi **PC, VPS, VDS veya Docker** sunucusunda **%100 bağımsız ve sıfır konfigürasyonla** host edebileceği şekilde tasarlanmıştır.
+
+### Seçenek A: Docker Compose ile Tek Komutla Kurulum
+Herhangi bir harici veritabanı kurmanıza gerek yoktur. Yerel SQLite (`./data/sely.db`) otomatik olarak oluşturulur ve kullanılır:
+
+```bash
+# 1. Depoyu klonlayın
+git clone https://github.com/dixtuel/sely-minigame-hub.git
+cd sely-minigame-hub
+
+# 2. Container'ı arka planda ayağa kaldırın
+docker compose up -d
+
+# Uygulama http://localhost:3000 üzerinde hazırdır!
+```
+
+### Seçenek B: Standalone Node.js / Bun Sunucusu
+```bash
+# 1. Bağımlılıkları kurun ve üretim derlemesini yapın
+pnpm install
+pnpm build
+
+# 2. Sunucuyu başlatın
+pnpm start
+# http://localhost:3000 üzerinde hem statik varlıklar hem de API sunulur.
+```
+
+* **Sıfır Konfigürasyon SQLite:** `DATABASE_URL` veya `TURSO_DATABASE_URL` tanımlanmadığında sunucu otomatik olarak `./data/sely.db` yerel SQLite dosyasını kullanır.
+* **Otomatik İçerik Hazırlığı (Pre-warm):** Sunucu başladığında günün tohum içeriği hafızada önceden hazırlanır; oyuncular gecikmesiz başlar.
+* **Yüksek Sinyalli Gizlilik Odaklı Loglar:** IP adresleri ve veritabanı parolaları loglarda maskelenir; üretimde kota tüketen gereksiz gürültü engellenir.
 
 ---
 
@@ -214,7 +242,7 @@ pnpm dev
 pnpm check
 # ya da: bun run check
 
-# Çözücü ve birim test paketi (18 dosya, 106 test, 14.3k+ assertion)
+# Çözücü ve birim test paketi (19 dosya, 107 test, 14.3k+ assertion)
 pnpm test
 # ya da: bun test
 
@@ -227,106 +255,61 @@ pnpm build
 
 ---
 
-## Kendi Sunucunda Host Etme (Self-Hosting)
-
-Platform, **Vercel Serverless & Edge CDN** üzerinde sıfır maliyetle çalışabildiği gibi; dileyen herkesin kendi **PC, VPS, VDS veya Docker** sunucusunda **%100 bağımsız ve sıfır konfigürasyonla** host edebileceği hibrit mimaride tasarlanmıştır.
-
-### Seçenek A: Docker Compose ile Tek Komutla Kurulum
-Herhangi bir veritabanı veya Redis kurmanıza gerek yoktur. Yerel SQLite (`data/sely.db`) otomatik olarak devreye girer:
-
-```bash
-# 1. Konfigürasyon dosyasını oluşturun (isteğe bağlı)
-cp .env.example .env
-
-# 2. Container'ı arka planda başlatın
-docker compose up -d
-
-# Uygulama http://localhost:3000 üzerinde hazırdır.
-```
-
-### Seçenek B: Standalone Node.js / Bun Sunucusu
-```bash
-# 1. Bağımlılıkları kurun ve derleyin
-pnpm install
-pnpm build
-
-# 2. Üretim sunucusunu başlatın
-pnpm start
-# http://localhost:3000 üzerinde hem statik varlıklar hem de API sunulur.
-```
-
-* **Sıfır Konfigürasyon SQLite:** Harici PostgreSQL veya Turso tanımlanmazsa, sunucu verileri otomatik olarak `./data/sely.db` yerel SQLite dosyasında kalıcılaştırır.
-* **Otomatik İçerik Hazırlığı (Pre-warm):** Sunucu başladığında günün oyun içerikleri deterministik olarak önceden üretilir ve önbelleğe alınır.
-* **Yüksek Sinyalli Gizlilik Odaklı Loglar:** IP adresleri ve veritabanı şifreleri loglarda otomatik maskelenir; gereksiz bilgi gürültüsü engellenir.
-
----
-
 ## Ortam Değişkenleri
 
-Tüm ortam değişkenleri opsiyoneldir. Herhangi bir veritabanı bağlantısı sağlanmadığında sistem bellek-içi deterministik tohum üretimiyle sorunsuz çalışır. Başlamak için `.env.example` dosyasını `.env` olarak kopyala:
+Tüm ortam değişkenleri opsiyoneldir. Herhangi bir değişken sağlanmadığında sistem yerel SQLite / bellek-içi tohum üretimiyle sıfır hatayla çalışır. Başlamak için `.env.example` dosyasını `.env` olarak kopyalayabilirsiniz:
 
 ```bash
 cp .env.example .env
 ```
 
-#### Veritabanı — günlük içerik & skor arşivi
+#### Veritabanı — Günlük İçerik & Skor Arşivi
 
 | Değişken | Varsayılan | Açıklama |
 | :--- | :---: | :--- |
-| `TURSO_DATABASE_URL` | `undefined` | Turso / libSQL bağlantı dizesi. Birincil depo — tanımsızsa `DATABASE_URL`'e, o da yoksa belleğe düşer. Yerel/sıfır kurulum: `file:./data/sely.db`. Bulut (ücretsiz): [turso.tech](https://turso.tech) üzerinden DB oluştur. |
-| `TURSO_AUTH_TOKEN` | `undefined` | Turso Cloud yetkilendirme anahtarı ("Create Token" ile üretilir; yerel `file:...` modunda gerekmez). |
-| `DATABASE_URL` | `undefined` | PostgreSQL 16 bağlantı dizesi (Neon / yerel) — kullanıcı/OAuth hesap kayıtları için, içerik deposundan bağımsız. |
+| `TURSO_DATABASE_URL` | `undefined` | Turso / libSQL bağlantı dizesi (`libsql://...`). Tanımsızsa yerel SQLite (`file:./data/sely.db`) veya PostgreSQL'e düşer. |
+| `TURSO_AUTH_TOKEN` | `undefined` | Turso Cloud yetkilendirme anahtarı (yerel `file:...` modunda gerekmez). |
+| `DATABASE_URL` | `undefined` | PostgreSQL 16 bağlantı dizesi (Neon / yerel Postgres) — kullanıcı/OAuth kayıtları için. |
 
-#### Redis — liderlik tablosu önbelleği
+#### Redis — Liderlik Tablosu Önbelleği
 
 | Değişken | Varsayılan | Açıklama |
 | :--- | :---: | :--- |
-| `REDIS_URL` | `undefined` | ioredis uyumlu herhangi bir Redis (`redis://...`) — yerel/Docker, VDS veya yönetilen bir servis (örn. Redis Cloud'un ücretsiz 30MB planı). Tanımsızsa Turso'ya, o da yoksa belleğe düşer. Her key 48 saatlik TTL ile kendiliğinden temizlenir, elle silme gerekmez. |
+| `REDIS_URL` | `undefined` | ioredis uyumlu standart Redis URL'i (`redis://...`). Tanımsızsa Turso'ya, o da yoksa bellek-içi önbelleğe düşer. |
 
-#### Güvenlik — zamanlanmış görev (cron) yetkilendirmesi
+#### Güvenlik — Zamanlanmış Görev (Cron) Yetkilendirmesi
 
-Her ikisi için de rastgele, tahmin edilemez bir değer üret: `openssl rand -hex 32`
+Rastgele, tahmin edilemez bir değer üretmek için: `openssl rand -hex 32`
 
 | Değişken | Varsayılan | Açıklama |
 | :--- | :---: | :--- |
 | `CRON_SECRET` | `undefined` | Vercel Cron'un gönderdiği `Authorization: Bearer <değer>` başlığıyla doğrulanır. |
 | `DAILY_JOB_TOKEN` | `undefined` | VDS crontab'ının gönderdiği `x-sely-cron-token` başlığıyla doğrulanır. |
 
-#### Vercel — Global Config, Analytics, Speed Insights
+#### Vercel & Yapılandırma
 
 | Değişken | Varsayılan | Açıklama |
 | :--- | :---: | :--- |
-| `GLOBAL_CONFIG_ID` | `undefined` | [Global Config (Edge Config)](https://vercel.com/docs/storage/edge-config) mağaza kimliği. Deploy atmadan dinamik duyuru banner'ı veya bakım modu yönetimi sağlar. |
-| `VITE_ENABLE_VERCEL_ANALYTICS` | `false` | Vercel Web Analytics'i etkinleştirir (`true`/`false`). Hardcoded ID içermez, sıfır çerezli gizlilik dostudur. |
-| `VITE_ENABLE_VERCEL_SPEED_INSIGHTS` | `false` | Vercel Speed Insights (RUM / Core Web Vitals) takibini etkinleştirir (`true`/`false`). Hardcoded ID içermez. |
-| `VITE_VERCEL_SPEED_INSIGHTS_SAMPLE_RATE` | `1.0` | Speed Insights için örnekleme oranı (`0.0`–`1.0`). Free tier 10k kota kontrolü için düşürülebilir. |
+| `GLOBAL_CONFIG_ID` | `undefined` | Dinamik duyuru banner'ı veya bakım modu yönetimi için Edge Config kimliği. |
+| `PRIMARY_DOMAIN` | `sely.tr` | Kanonik alan adı — SEO etiketleri ve sitemap üretimi için kullanılır. |
+| `DEBUG` | `false` | Ayrıntılı hata ayıklama loglarını etkinleştirir (`true`/`1`). |
 
-#### SEO — arama motoru doğrulama kodları
+---
 
-| Değişken | Varsayılan | Açıklama |
-| :--- | :---: | :--- |
-| `GOOGLE_SITE_VERIFICATION` | `undefined` | Google Search Console doğrulama kodu. |
-| `BING_SITE_VERIFICATION` | `undefined` | Bing Webmaster Tools doğrulama kodu. |
-| `YANDEX_SITE_VERIFICATION` | `undefined` | Yandex Webmaster doğrulama kodu. |
+## Güvenlik ve Gizlilik
 
-#### Reklam — Google AdSense
-
-| Değişken | Varsayılan | Açıklama |
-| :--- | :---: | :--- |
-| `VITE_ADSENSE_CLIENT_ID` | `undefined` | Google AdSense yayıncı kimliği (`ca-pub-...`). Tanımsızsa reklam bileşeni hiç render edilmez. |
-| `VITE_ADSENSE_RESULT_SLOT_ID` | `undefined` | Oyun sonu panelindeki reklam alanı kimliği. |
-
-#### Genel
-
-| Değişken | Varsayılan | Açıklama |
-| :--- | :---: | :--- |
-| `PRIMARY_DOMAIN` | `sely.tr` | Kanonik alan adı — SEO etiketleri ve sitemap için kullanılır. |
+* **Radikal Veri Minimizasyonu:** Oyuncuların kişisel bilgileri, e-postaları veya parolaları toplanmaz. Başarılar ve skorlar yalnızca oyuncunun tarayıcısındaki `localStorage` alanında kalır.
+* **Sıfır İzinsiz Takip Çerezi:** Varsayılan durumda hiçbir analiz veya reklam çerezi yerleştirilmez.
+* **Google Consent Mode v2:** `ad_storage`, `ad_personalization` ve `analytics_storage` izinleri varsayılan olarak `denied` durumundadır. Kullanıcı onay verdiğinde sinyaller dinamik olarak güncellenir; Footer'daki "Çerez Ayarları" üzerinden her an geri çekilebilir.
+* **Anti-Scraper Kimlik Koruması (`ProtectedIdentity`):** İletişim e-posta adresi ham HTML'de düz metin olarak yer almaz. DOM üzerindeki görünmez tuzak elemanlarıyla (`.bot-decoy`) otomatik e-posta toplayıcı botlar yanıltılır.
+* **Yüksek Sinyalli Gizlilik Odaklı Logger:** Terminal ve Vercel loglarında IP adresleri ve veritabanı kimlik bilgileri otomatik maskelenir; gereksiz bilgi spam'i engellenerek kota korunur.
+* **Otomatik `audit:public` CI Kapısı:** Her dağıtım öncesinde depoda hiçbir gizli anahtar, doğrulama dosyası veya kişisel kimlik sızıntısı kalmadığı otomatik olarak denetlenir (`pnpm audit:public`).
 
 ---
 
 ## Açık Kaynak Atıfları
 
-Babylon.js, React, Tailwind CSS, Lucide simgeleri, Radix UI, tRPC, Drizzle ORM ve TDK Türkçe sözlük tarayıcısının açık kaynak lisans bildirimleri için **[ATTRIBUTION.md](ATTRIBUTION.md)** belgesini inceleyebilirsiniz.
+Babylon.js, React, Tailwind CSS, Lucide simgeleri, Radix UI, tRPC ve TDK Türkçe sözlük tarayıcısının açık kaynak lisans bildirimleri için **[ATTRIBUTION.md](ATTRIBUTION.md)** belgesini inceleyebilirsiniz.
 
 ---
 
