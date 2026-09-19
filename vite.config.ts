@@ -71,7 +71,7 @@ export default defineConfig(({ mode }) => {
       target: ["es2020", "chrome87", "safari14", "firefox78", "edge88"],
       cssTarget: "chrome80",
       cssCodeSplit: true,
-      chunkSizeWarningLimit: 1200,
+      chunkSizeWarningLimit: 1800,
       rollupOptions: {
         output: {
           manualChunks(id) {
