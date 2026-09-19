@@ -215,8 +215,6 @@ Sely varsayılan olarak hesap, parola veya e-posta istemeden oynanabilir. Yerel 
 
 İzleme ve reklam entegrasyonları varsayılan olarak kapalıdır. Analytics, Speed Insights ve AdSense değişkenleri ayrıca etkinleştirilmedikçe ilgili bileşenler çalışmaz. Public release denetimi `pnpm audit:public` komutuyla hassas dosya ve bilgi sızıntılarını kontrol eder.
 
-Bu açıklama teknik davranışı özetler; hukuki metinler için uygulamadaki [Legal](https://sely.tr/legal) sayfasını ve ilgili proje dosyalarını esas al.
-
 ## Katkıda bulunma
 
 Hata bildirmek, yeni bir oyun fikri önermek veya mevcut bir mekaniği geliştirmek için [issue](https://github.com/dixtuel/sely-minigame-hub/issues) açabilirsin. Kod değişikliklerinde şu akış önerilir:
