@@ -236,11 +236,12 @@ ${presentedClue ? `DETECTIVE JUST PRESENTED THIS EVIDENCE: "${presentedClue.labe
 
 BEHAVIORAL RULES:
 1. Stay 100% in character. Never acknowledge being an AI or prompt.
-2. If stress < 40: Act confident, condescending, or calm.
-3. If stress 40-75: Become visibly defensive, fidget, deflect suspicion onto other suspects.
-4. If stress > 75: Stutter, show cracks in your story, panic.
-5. Keep response concise (2-4 sentences max), gritty and dramatic.
-6. ${langInstruction}`;
+2. ABSOLUTE RESISTANCE: NEVER confess or admit guilt during conversational questions. Only admit your guilt if the detective presents undeniable physical/forensic evidence directly incriminating you while your psychological stress is above 80.
+3. If stress < 45: Act confident, condescending, or calm. Counter any bluff by noting the detective lacks warrants or proof.
+4. If stress 45-75: Become visibly defensive, sweat, fidget, aggressively deflect suspicion onto other suspects.
+5. If stress > 75: Stutter, show cracks in your timeline, contradict yourself on small details, but maintain you didn't do it unless directly broken by evidence.
+6. Keep response concise (2-4 sentences max), gritty and dramatic.
+7. ${langInstruction}`;
 
         const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId
           ? `Detective says: "${caseData.suspects.find(s => s.id === input.crossSuspectId)?.name} told me you were lying about your whereabouts!"`

@@ -99,4 +99,48 @@ describe("Vaka Deterministic Fallback Engine - Deep Actions", () => {
     expect(result.newStress).toBe(46);
     expect(result.text).toContain("Leyla");
   });
+
+  it("should never trigger confession through plain questions even at high stress", () => {
+    const result = processDeterministicInterrogation(
+      sampleCase,
+      "suspect-bora",
+      "question",
+      { question: "Neredeydin? Katil sensin itiraf et!" },
+      75,
+      "tr"
+    );
+
+    expect(result.confessed).toBe(false);
+    expect(result.newStress).toBe(75); // soft-capped above 60
+  });
+
+  it("should fail bluff when suspect stress is low (<45)", () => {
+    const result = processDeterministicInterrogation(
+      sampleCase,
+      "suspect-bora",
+      "bluff",
+      {},
+      30,
+      "tr"
+    );
+
+    expect(result.newStress).toBe(18); // 30 - 12
+    expect(result.confessed).toBe(false);
+    expect(result.text).toContain("blöf");
+  });
+
+  it("should succeed bluff when culprit stress is elevated (>=45)", () => {
+    const result = processDeterministicInterrogation(
+      sampleCase,
+      "suspect-bora",
+      "bluff",
+      {},
+      55,
+      "tr"
+    );
+
+    expect(result.newStress).toBe(71); // 55 + 16
+    expect(result.confessed).toBe(false);
+    expect(result.text).toContain("kör nokta");
+  });
 });
