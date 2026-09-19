@@ -16,7 +16,7 @@
 
 Her sabah saat 00:00'da tüm dünya için tek bir günlük tohumdan (seed) deterministik olarak yeni bir "günün seti" üretilir. Oyuncunun ustalık seviyesi (1–4) arttıkça turlar karmaşıklaşır; ancak üretilen her labirent, akış rotası, çokgen kesimi ve dedektiflik delil grafı üretim anında **matematiksel çözücüler (BFS, Dijkstra, Spanning Tree, Evidence Graph Solvers)** tarafından taranarak **kesinlikle çözülebilir** olduğu doğrulanır.
 
-[🎮 Canlı Oyna](https://sely.tr) • [✨ Neden SELY?](#neden-sely-minigame-hub) • [🕹️ Oyun Kataloğu](#oyun-kataloğu-ve-motor-mimarisi) • [📐 Çözülebilirlik Güvenceleri](#matematiksel-çözülebilirlik-güvenceleri) • [⌨️ Kontroller](#kontroller-ve-erişilebilirlik) • [🏗️ Mimari](#sistem-mimarisi) • [🚀 Kurulum & Self-Host](#kurulum-ve-self-hosting) • [⚙️ Ortam Değişkenleri](#ortam-değişkenleri) • [🛡️ Gizlilik](#güvenlik-ve-gizlilik) • [📜 Lisans](#lisans-ve-marka)
+[Canlı Oyna](https://sely.tr) • [Neden SELY?](#neden-sely-minigame-hub) • [Oyun Kataloğu](#oyun-kataloğu-ve-motor-mimarisi) • [Çözülebilirlik Güvenceleri](#matematiksel-çözülebilirlik-güvenceleri) • [Kontroller](#kontroller-ve-erişilebilirlik) • [Sistem Mimarisi](#sistem-mimarisi) • [Kurulum & Self-Host](#kurulum-ve-self-hosting) • [Ortam Değişkenleri](#ortam-değişkenleri) • [Gizlilik](#güvenlik-ve-gizlilik) • [Lisans](#lisans-ve-marka)
 
 </div>
 
@@ -24,15 +24,15 @@ Her sabah saat 00:00'da tüm dünya için tek bir günlük tohumdan (seed) deter
 
 ## Neden SELY MiniGame Hub?
 
-İnternet üzerindeki çoğu web oyunu ya agresif reklam ağlarıyla çevrelenmiş, kullanıcıyı kayıt olmaya zorlayan veya prosedürel seviye üretiminde imkânsız/çıkmaz durumları test etmeyen yüzeysel kopyalardan ibarettir. **SELY MiniGame Hub**, bağımsız web oyunculuğuna ve algoritmik bulmaca tasarımına radikal bir alternatif sunar:
+İnternet üzerindeki çoğu web oyunu ya agresif reklam ağlarıyla çevrelenmiş, kullanıcıyı kayıt olmaya zorlayan veya prosedürel seviye üretiminde imkânsız/çıkmaz durumları test etmeyen yüzeysel kopyalardan ibarettir. **SELY MiniGame Hub**, bağımsız web oyunculuğuna ve algoritmik bulmaca tasarımına alternatif bir mühendislik yaklaşımı sunar:
 
-* 🎯 **Deterministik ve Eşit Günlük Set:** Her sabah üretilen günlük set, tüm dünyadaki oyuncular için aynı tohumu paylaşır. Günlük rekabette şans faktörü asgari düzeye indirilir.
-* 🛡️ **Sıfır İmkânsız Bölüm Garantisi:** "Rastgele" üretilen hiçbir seviye oyuncuya doğrudan sunulmaz. Arka plandaki matematiksel çözücüler bölümün geçerli bir çıkış yolu olduğunu kanıtlamadan tur başlamaz.
-* 🔊 **Sıfır Harici Ses Varlığı (Pure Web Audio):** Megabaytlarca MP3/WAV dosyası indirilmez. Tüm ses efektleri (tıklama, kesim, motor sesi, harmonik çanlar) tarayıcının yerel Web Audio API osilatörleriyle (`sine`, `sawtooth`, `triangle`, filtrelenmiş gürültü) gerçek zamanlı sentezlenir.
-* 🔒 **Radikal Veri Minimizasyonu:** Kayıt olma, parola girme veya e-posta bırakma zorunluluğu yoktur. Skorlar ve ustalık dereceleri yalnızca oyuncunun kendi tarayıcısında (`localStorage`) saklanır.
-* 🎨 **Risograph Editoryal Estetik:** 20. yüzyıl ortası bağımsız baskı atölyelerinden, kâğıt dokularından ve editoryal poster tipografisinden esinlenen özgün görsel kimlik.
-* 🌐 **Çift Dilli Altyapı:** Tarayıcı dilini otomatik tespit eden, tam yalıtımlı Türkçe (`/`) ve İngilizce (`/en`) rotaları.
-* ⚡ **Çift Çalışma Modu (Dual-Runtime):** İster Vercel Serverless + Edge CDN üzerinde küresel ölçekte sıfır maliyetle, ister kendi sunucunuzda (PC, VPS, VDS, Docker) sıfır konfigürasyonlu yerel SQLite ile çalıştırın.
+* **Deterministik ve Eşit Günlük Set:** Her sabah üretilen günlük set, tüm dünyadaki oyuncular için aynı tohumu paylaşır. Günlük rekabette şans faktörü asgari düzeye indirilir.
+* **Sıfır İmkânsız Bölüm Garantisi:** "Rastgele" üretilen hiçbir seviye oyuncuya doğrudan sunulmaz. Arka plandaki matematiksel çözücüler bölümün geçerli bir çıkış yolu olduğunu kanıtlamadan tur başlamaz.
+* **Sıfır Harici Ses Varlığı (Pure Web Audio):** Harici MP3 veya WAV varlıkları indirilmez. Tüm ses efektleri (tıklama, kesim, motor sesi, harmonik çanlar) tarayıcının yerel Web Audio API osilatörleriyle (`sine`, `sawtooth`, `triangle`, filtrelenmiş gürültü) gerçek zamanlı sentezlenir.
+* **Radikal Veri Minimizasyonu:** Kayıt olma, parola girme veya e-posta bırakma zorunluluğu yoktur. Skorlar ve ustalık dereceleri yalnızca oyuncunun kendi tarayıcısında (`localStorage`) saklanır.
+* **Risograph Editoryal Estetik:** 20. yüzyıl ortası bağımsız baskı atölyelerinden, kâğıt dokularından ve editoryal poster tipografisinden esinlenen özgün görsel kimlik.
+* **Çift Dilli Altyapı:** Tarayıcı dilini otomatik tespit eden, tam yalıtımlı Türkçe (`/`) ve İngilizce (`/en`) rotaları.
+* **Çift Çalışma Modu (Dual-Runtime):** İster Vercel Serverless + Edge CDN üzerinde küresel ölçekte sıfır maliyetle, ister kendi sunucunuzda (PC, VPS, VDS, Docker) sıfır konfigürasyonlu yerel SQLite ile çalıştırılabilir.
 
 ---
 
@@ -60,7 +60,7 @@ Platformda yedi bağımsız mini oyun bulunur. Ortak paydaları; günlük tohum 
 ### 2. Düğüm (Knot)
 * **Mekanik:** Randomized DFS Spanning Tree üzerinden yönlendirilen akış rotası. 16 karo döndürülerek kaynak (`S`) ile hedef (`H`/`T`) arasındaki enerji hattı birleştirilir.
 * **Erişilebilirlik:** Ok tuşları veya WASD ile serbest karo seçimi, Boşluk/Enter ile döndürme, M ile akışı mühürleme ve Z ile hamle geri alma.
-* **Çözücü Güvencesi:** Her seviye üretildikten sonra `isKnotLevelSolvable` BFS algoritması ile taranır (900/900 tohumda %100 çözülebilir).
+* **Çözücü Güvencesi:** Her seviye üretildikten sonra `isKnotLevelSolvable` BFS algoritması ile taranır (900/900 test tohumunda %100 çözülebilir).
 
 ### 3. Kırpık (Cutout)
 * **Mekanik:** Rejection-sampling ile üretilen hareketli kâğıt katmanları. Sınırlı kesim enerjisiyle tehlikeli leke sınırlarına çarpmadan hedef şekilleri dilimleme.
@@ -108,7 +108,7 @@ SELY MiniGame Hub'ın temel ilkesi: **Hiçbir oyuncu imkânsız bir prosedürel 
 
 ## Kontroller ve Erişilebilirlik
 
-Platform hem tam masaüstü klavye donanımını hem de dokunmatik mobil cihazları birinci sınıf yurttaş olarak destekler:
+Platform hem masaüstü klavye donanımını hem de dokunmatik mobil cihazları birinci sınıf yurttaş olarak destekler:
 
 | Oyun | Klavye Kısayolları | Dokunmatik / Mobil Etkileşim |
 | :--- | :--- | :--- |
@@ -243,9 +243,9 @@ pnpm start
 # http://localhost:3000 üzerinde hem statik varlıklar hem de API sunulur.
 ```
 
-* 📦 **Sıfır Konfigürasyon SQLite:** Harici PostgreSQL veya Turso tanımlanmazsa, sunucu verileri otomatik olarak `./data/sely.db` yerel SQLite dosyasında kalıcılaştırır.
-* ⚡ **Otomatik İçerik Hazırlığı (Pre-warm):** Standalone sunucu başladığında günün oyun içerikleri deterministik olarak önceden üretilir ve önbelleğe alınır.
-* 🛡️ **Yüksek Sinyalli Gizlilik Odaklı Loglar:** IP adresleri ve veritabanı şifreleri loglarda otomatik maskelenir; gereksiz bilgi gürültüsü engellenir.
+* **Sıfır Konfigürasyon SQLite:** Harici PostgreSQL veya Turso tanımlanmazsa, sunucu verileri otomatik olarak `./data/sely.db` yerel SQLite dosyasında kalıcılaştırır.
+* **Otomatik İçerik Hazırlığı (Pre-warm):** Standalone sunucu başladığında günün oyun içerikleri deterministik olarak önceden üretilir ve önbelleğe alınır.
+* **Yüksek Sinyalli Gizlilik Odaklı Loglar:** IP adresleri ve veritabanı şifreleri loglarda otomatik maskelenir; gereksiz bilgi gürültüsü engellenir.
 
 ---
 
@@ -298,12 +298,12 @@ cp .env.example .env
 
 ## Güvenlik ve Gizlilik
 
-* 🔒 **Radikal Veri Minimizasyonu:** Oyuncuların kişisel bilgileri, e-postaları veya parolaları toplanmaz. Tüm başarı ve skor verileri oyuncunun kendi cihazındaki `localStorage` alanında kalır.
-* 🍪 **Sıfır İzinsiz Takip Çerezi:** Varsayılan durumda hiçbir analiz veya reklam çerezi yerleştirilmez.
-* 🛡️ **Google Consent Mode v2:** `ad_storage`, `ad_personalization` ve `analytics_storage` izinleri varsayılan olarak `denied` durumundadır. Kullanıcı onay verdiğinde sinyaller dinamik olarak güncellenir; Footer'daki "Çerez Ayarları" üzerinden her an geri çekilebilir.
-* 🪤 **Anti-Scraper Kimlik Koruması (`ProtectedIdentity`):** İletişim e-posta adresi ve veri sorumlusu adı kaynak kodda veya ham HTML'de düz metin olarak yer almaz. Çalışma zamanında karakter dizilerinden çözülür; DOM üzerindeki görünmez tuzak elemanlarıyla (`.bot-decoy`) otomatik e-posta toplayıcı botlar yanıltılır.
-* 🔍 **Yüksek Sinyalli Gizlilik Odaklı Günlükleme (`logger.ts`):** Veritabanı bağlantı dizesindeki şifreler, kimlik doğrulama token'ları ve IP adresleri loglarda otomatik maskelenir. Normal anonim ziyaretçiler için uyarı üretilmez, Vercel log kotaları korunur.
-* 🚨 **Otomatik `audit:public` CI Kapısı:** Her dağıtım öncesinde depoda hiçbir gizli anahtar, doğrulama dosyası veya kişisel kimlik sızıntısı kalmadığı otomatik olarak denetlenir (`pnpm audit:public`).
+* **Radikal Veri Minimizasyonu:** Oyuncuların kişisel bilgileri, e-postaları veya parolaları toplanmaz. Tüm başarı ve skor verileri oyuncunun kendi cihazındaki `localStorage` alanında kalır.
+* **Sıfır İzinsiz Takip Çerezi:** Varsayılan durumda hiçbir analiz veya reklam çerezi yerleştirilmez.
+* **Google Consent Mode v2:** `ad_storage`, `ad_personalization` ve `analytics_storage` izinleri varsayılan olarak `denied` durumundadır. Kullanıcı onay verdiğinde sinyaller dinamik olarak güncellenir; Footer'daki "Çerez Ayarları" üzerinden her an geri çekilebilir.
+* **Anti-Scraper Kimlik Koruması (`ProtectedIdentity`):** İletişim e-posta adresi ve veri sorumlusu adı kaynak kodda veya ham HTML'de düz metin olarak yer almaz. Çalışma zamanında karakter dizilerinden çözülür; DOM üzerindeki görünmez tuzak elemanlarıyla (`.bot-decoy`) otomatik e-posta toplayıcı botlar yanıltılır.
+* **Yüksek Sinyalli Gizlilik Odaklı Günlükleme (`logger.ts`):** Veritabanı bağlantı dizesindeki şifreler, kimlik doğrulama token'ları ve IP adresleri loglarda otomatik maskelenir. Normal anonim ziyaretçiler için uyarı üretilmez, Vercel log kotaları korunur.
+* **Otomatik `audit:public` CI Kapısı:** Her dağıtım öncesinde depoda hiçbir gizli anahtar, doğrulama dosyası veya kişisel kimlik sızıntısı kalmadığı otomatik olarak denetlenir (`pnpm audit:public`).
 
 ---
 
