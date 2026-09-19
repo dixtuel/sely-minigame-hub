@@ -337,6 +337,24 @@ export function processDeterministicInterrogation(
     };
   }
 
+  // Gayriciddi veya selamlama soruları (naber, selam, nasılsın vb.)
+  const greetings = ["naber", "selam", "merhaba", "nasılsın", "günaydın", "iyi akşamlar", "hey", "hi", "hello", "how are you", "sup"];
+  const isGreeting = greetings.some((g) => qLower === g || qLower.startsWith(g + " ") || qLower.endsWith(" " + g));
+
+  if (isGreeting) {
+    const greetReply = isEn
+      ? "We're not here for casual chit-chat, detective. If you have an actual question regarding the case, ask it."
+      : "Buraya çay sohbetine gelmedik dedektif. Olayla ilgili soracağınız gerçek bir soru varsa sorun, vaktimi çalmayın.";
+
+    return {
+      text: greetReply,
+      behavioralCue: getCue(stress),
+      newStress: stress,
+      stressDelta: 0,
+      confessed: false,
+    };
+  }
+
   let gain = 3;
   if (touchesSecret) {
     // Sırra veya kurbanla olan çatışmaya dokunursa yüksek stres
