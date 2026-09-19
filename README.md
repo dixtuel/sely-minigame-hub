@@ -241,20 +241,4 @@ Kaynak kodu [GNU Affero General Public License v3.0](LICENSE) kapsamında lisans
 
 `SELY.TR`, `dixtuel` markası, özgün oyun adları, oyun konseptleri, logoları ve görsel kimlik varlıkları ayrıca korunur. Telif hakkı © 2026 dixtuel.
 
-## Referanslar
 
-[1]: https://github.com/dixtuel/sely-minigame-hub "SELY MiniGame Hub repository"
-
-[2]: https://sely.tr "SELY.TR live demo"
-
-[3]: https://github.com/dixtuel/sely-minigame-hub/blob/main/.env.example "SELY environment variable examples"
-
-[4]: https://github.com/dixtuel/sely-minigame-hub/blob/main/docs/ATTRIBUTION.md "SELY third-party attribution notices"
-
-[5]: https://github.com/dixtuel/sely-minigame-hub/blob/main/LICENSE "SELY AGPL-3.0 license"
-
-<div align="center">
-
-[![GitHub](https://img.shields.io/badge/GitHub-dixtuel%2Fsely--minigame--hub-181717?style=flat-square&logo=github)](https://github.com/dixtuel/sely-minigame-hub)
-
-</div>
