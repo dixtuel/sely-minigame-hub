@@ -28,7 +28,8 @@ var decodeOAuthState = (state) => {
 // server/_core/oauth.ts
 import { parse as parseCookieHeader2 } from "cookie";
 
-// server/db.ts
+// server/storage/db.ts
+import pg from "pg";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 
@@ -63,7 +64,7 @@ var ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
 };
 
-// server/turso.ts
+// server/storage/turso.ts
 import { createClient } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
@@ -304,88 +305,199 @@ async function upsertTursoUser(user) {
   }
 }
 
-// server/db.ts
-var _db = null;
-async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+// server/storage/db.ts
+var { Pool } = pg;
+var _mysqlDb = null;
+var _pgPool = null;
+var _pgSchemaInitialized = false;
+function getPostgresUrl() {
+  const url = process.env.POSTGRES_URL || process.env.DATABASE_URL || null;
+  if (url && (url.startsWith("postgres://") || url.startsWith("postgresql://"))) {
+    return url;
+  }
+  return null;
+}
+function getPgPool() {
+  const url = getPostgresUrl();
+  if (!url) return null;
+  if (!_pgPool) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const isCloud = url.includes("sslmode=require") || url.includes("neon.tech") || url.includes("vercel-storage.com") || url.includes("aws.connect");
+      _pgPool = new Pool({
+        connectionString: url,
+        max: 10,
+        idleTimeoutMillis: 3e4,
+        connectionTimeoutMillis: 5e3,
+        ssl: isCloud ? { rejectUnauthorized: false } : void 0
+      });
+      _pgPool.on("error", (err) => {
+        console.warn("[Database:PostgreSQL] Unexpected error on idle client:", err.message);
+      });
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
+      console.warn("[Database:PostgreSQL] Failed to initialize pool:", error);
+      _pgPool = null;
     }
   }
-  return _db;
+  return _pgPool;
+}
+async function ensurePgSchema(pool) {
+  if (_pgSchemaInitialized) return true;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        open_id VARCHAR(64) NOT NULL UNIQUE,
+        name TEXT,
+        email VARCHAR(320),
+        login_method VARCHAR(64),
+        role VARCHAR(16) NOT NULL DEFAULT 'user',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_signed_in TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    _pgSchemaInitialized = true;
+    return true;
+  } catch (err) {
+    console.error("[Database:PostgreSQL] Failed to ensure schema:", err);
+    return false;
+  }
+}
+async function getDb() {
+  const url = process.env.DATABASE_URL;
+  if (!_mysqlDb && url && (url.startsWith("mysql://") || url.startsWith("mysql2://"))) {
+    try {
+      _mysqlDb = drizzle(url);
+    } catch (error) {
+      console.warn("[Database:MySQL] Failed to connect:", error);
+      _mysqlDb = null;
+    }
+  }
+  return _mysqlDb;
 }
 async function upsertUser(user) {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
   }
-  const db = await getDb();
-  if (!db) {
-    if (isTursoConfigured()) {
-      return upsertTursoUser({
-        openId: user.openId,
-        name: user.name,
-        email: user.email,
-        loginMethod: user.loginMethod,
-        role: user.role,
-        lastSignedIn: user.lastSignedIn
-      });
+  const pgPool = getPgPool();
+  if (pgPool) {
+    try {
+      await ensurePgSchema(pgPool);
+      const assignedRole = user.role !== void 0 ? user.role : user.openId === ENV.ownerOpenId ? "admin" : "user";
+      const signedInDate = user.lastSignedIn || /* @__PURE__ */ new Date();
+      await pgPool.query(
+        `
+        INSERT INTO users (open_id, name, email, login_method, role, last_signed_in)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (open_id) DO UPDATE SET
+          name = COALESCE(EXCLUDED.name, users.name),
+          email = COALESCE(EXCLUDED.email, users.email),
+          login_method = COALESCE(EXCLUDED.login_method, users.login_method),
+          role = EXCLUDED.role,
+          updated_at = NOW(),
+          last_signed_in = EXCLUDED.last_signed_in;
+        `,
+        [
+          user.openId,
+          user.name ?? null,
+          user.email ?? null,
+          user.loginMethod ?? null,
+          assignedRole,
+          signedInDate
+        ]
+      );
+      return;
+    } catch (err) {
+      console.error("[Database:PostgreSQL] Failed to upsert user:", err);
+      throw err;
     }
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
   }
-  try {
-    const values = {
-      openId: user.openId
-    };
-    const updateSet = {};
-    const textFields = ["name", "email", "loginMethod"];
-    const assignNullable = (field) => {
-      const value = user[field];
-      if (value === void 0) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-    textFields.forEach(assignNullable);
-    if (user.lastSignedIn !== void 0) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== void 0) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = "admin";
-      updateSet.role = "admin";
-    }
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = /* @__PURE__ */ new Date();
-    }
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = /* @__PURE__ */ new Date();
-    }
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet
+  if (isTursoConfigured()) {
+    return upsertTursoUser({
+      openId: user.openId,
+      name: user.name,
+      email: user.email,
+      loginMethod: user.loginMethod,
+      role: user.role,
+      lastSignedIn: user.lastSignedIn
     });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
   }
+  const mysqlDb = await getDb();
+  if (mysqlDb) {
+    try {
+      const values = {
+        openId: user.openId
+      };
+      const updateSet = {};
+      const textFields = ["name", "email", "loginMethod"];
+      const assignNullable = (field) => {
+        const value = user[field];
+        if (value === void 0) return;
+        const normalized = value ?? null;
+        values[field] = normalized;
+        updateSet[field] = normalized;
+      };
+      textFields.forEach(assignNullable);
+      if (user.lastSignedIn !== void 0) {
+        values.lastSignedIn = user.lastSignedIn;
+        updateSet.lastSignedIn = user.lastSignedIn;
+      }
+      if (user.role !== void 0) {
+        values.role = user.role;
+        updateSet.role = user.role;
+      } else if (user.openId === ENV.ownerOpenId) {
+        values.role = "admin";
+        updateSet.role = "admin";
+      }
+      if (!values.lastSignedIn) {
+        values.lastSignedIn = /* @__PURE__ */ new Date();
+      }
+      if (Object.keys(updateSet).length === 0) {
+        updateSet.lastSignedIn = /* @__PURE__ */ new Date();
+      }
+      await mysqlDb.insert(users).values(values).onDuplicateKeyUpdate({
+        set: updateSet
+      });
+      return;
+    } catch (error) {
+      console.error("[Database:MySQL] Failed to upsert user:", error);
+      throw error;
+    }
+  }
+  console.warn("[Database] Cannot upsert user: database not available");
 }
 async function getUserByOpenId(openId) {
-  const db = await getDb();
-  if (!db) {
-    if (isTursoConfigured()) {
-      return getTursoUserByOpenId(openId);
+  const pgPool = getPgPool();
+  if (pgPool) {
+    try {
+      await ensurePgSchema(pgPool);
+      const res = await pgPool.query(
+        `
+        SELECT id, open_id as "openId", name, email, login_method as "loginMethod",
+               role, created_at as "createdAt", updated_at as "updatedAt",
+               last_signed_in as "lastSignedIn"
+        FROM users
+        WHERE open_id = $1
+        LIMIT 1;
+        `,
+        [openId]
+      );
+      return res.rows.length > 0 ? res.rows[0] : void 0;
+    } catch (err) {
+      console.error("[Database:PostgreSQL] Failed to get user:", err);
+      return void 0;
     }
-    console.warn("[Database] Cannot get user: database not available");
-    return void 0;
   }
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result.length > 0 ? result[0] : void 0;
+  if (isTursoConfigured()) {
+    return getTursoUserByOpenId(openId);
+  }
+  const mysqlDb = await getDb();
+  if (mysqlDb) {
+    const result = await mysqlDb.select().from(users).where(eq(users.openId, openId)).limit(1);
+    return result.length > 0 ? result[0] : void 0;
+  }
+  console.warn("[Database] Cannot get user: database not available");
+  return void 0;
 }
 
 // server/_core/cookies.ts
@@ -714,49 +826,23 @@ function registerOAuthRoutes(app2) {
 import fs2 from "fs";
 import path2 from "path";
 function registerStorageProxy(app2) {
-  app2.get("/manus-storage/*", async (req, res) => {
+  const handleStorageRequest = (req, res) => {
     const key = req.params[0];
     if (!key) {
       res.status(400).send("Missing storage key");
       return;
     }
-    const localDir = process.env.NODE_ENV === "development" ? path2.resolve(import.meta.dirname, "../..", "client", "public", "manus-storage") : path2.resolve(import.meta.dirname, "public", "manus-storage");
+    const localDir = process.env.NODE_ENV === "development" ? path2.resolve(import.meta.dirname, "../..", "client", "public", "storage") : path2.resolve(import.meta.dirname, "public", "storage");
     const localPath = path2.resolve(localDir, key);
     if (localPath.startsWith(localDir) && fs2.existsSync(localPath)) {
+      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
       res.sendFile(localPath);
       return;
     }
-    if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
-      res.status(500).send("Storage proxy not configured");
-      return;
-    }
-    try {
-      const forgeUrl = new URL(
-        "v1/storage/presign/get",
-        ENV.forgeApiUrl.replace(/\/+$/, "") + "/"
-      );
-      forgeUrl.searchParams.set("path", key);
-      const forgeResp = await fetch(forgeUrl, {
-        headers: { Authorization: `Bearer ${ENV.forgeApiKey}` }
-      });
-      if (!forgeResp.ok) {
-        const body = await forgeResp.text().catch(() => "");
-        console.error(`[StorageProxy] forge error: ${forgeResp.status} ${body}`);
-        res.status(502).send("Storage backend error");
-        return;
-      }
-      const { url } = await forgeResp.json();
-      if (!url) {
-        res.status(502).send("Empty signed URL from backend");
-        return;
-      }
-      res.set("Cache-Control", "no-store");
-      res.redirect(307, url);
-    } catch (err) {
-      console.error("[StorageProxy] failed:", err);
-      res.status(502).send("Storage proxy error");
-    }
-  });
+    res.status(404).send("File not found");
+  };
+  app2.get("/storage/*", handleStorageRequest);
+  app2.get("/manus-storage/*", handleStorageRequest);
 }
 
 // server/_core/systemRouter.ts
@@ -902,11 +988,11 @@ var systemRouter = router({
   })
 });
 
-// server/dailyContent.ts
+// server/storage/dailyContentStore.ts
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { createClient as createClient2 } from "@libsql/client";
-import { Pool } from "pg";
+import { Pool as Pool2 } from "pg";
 var DAILY_GAMES = ["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"];
 var RULESET_VERSION = "5";
 var dayKey = (value = /* @__PURE__ */ new Date()) => value.toISOString().slice(0, 10);
@@ -1025,7 +1111,7 @@ function getDailyStore() {
   const postgresUrl = process.env.CONTENT_DB_URL;
   const tursoUrl = process.env.TURSO_URL;
   if (provider === "postgres" && postgresUrl && /^(postgres|postgresql):\/\//.test(postgresUrl)) {
-    store = new PostgresStore(new Pool({ connectionString: postgresUrl, max: 2, idleTimeoutMillis: 1e4 }));
+    store = new PostgresStore(new Pool2({ connectionString: postgresUrl, max: 2, idleTimeoutMillis: 1e4 }));
     return store;
   }
   if (provider === "turso" && tursoUrl && /^libsql:\/\//.test(tursoUrl) && process.env.TURSO_AUTH_TOKEN) {
@@ -5017,7 +5103,7 @@ async function dailyCleanupHandler(req, res) {
   }
 }
 
-// server/leaderboard.ts
+// server/storage/leaderboard.ts
 import { Redis as UpstashRedis } from "@upstash/redis";
 import IORedis from "ioredis";
 var VALID_GAMES = ["echo", "knot", "cut", "shadow", "marker", "hane", "spark", "vaka"];
@@ -5284,7 +5370,7 @@ async function submitLeaderboardHandler(req, res) {
   }
 }
 
-// server/globalConfig.ts
+// server/storage/globalConfig.ts
 import { getAll } from "@vercel/global-config";
 var DEFAULT_CONFIG = {
   maintenance: false,

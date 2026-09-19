@@ -122,7 +122,10 @@ client/public/BingSiteAuth.xml
 client/public/yandex_*.html
 
 # Private production görselleri — yalnız private assets paketinden deploy sırasında kopyalanır
+client/public/storage/
+client/public/storage
 client/public/manus-storage/
+client/public/manus-storage
 
 # AI asistan kılavuzları — yalnız yerel geliştirme notu, repoya girmez
 CLAUDE.md

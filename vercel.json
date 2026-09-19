@@ -52,6 +52,15 @@
       ]
     },
     {
+      "source": "/storage/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=2592000, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
       "source": "/manus-storage/(.*)",
       "headers": [
         {
@@ -109,8 +118,12 @@
       "destination": "/api/index.js"
     },
     {
+      "source": "/storage/(.*)",
+      "destination": "/storage/$1"
+    },
+    {
       "source": "/manus-storage/(.*)",
-      "destination": "/manus-storage/$1"
+      "destination": "/storage/$1"
     },
     {
       "source": "/(.*)",

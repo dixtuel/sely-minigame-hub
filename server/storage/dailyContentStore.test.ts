@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanupDailyContent, createDailyManifest, ensureDailyContent } from "./dailyContent";
+import { cleanupDailyContent, createDailyManifest, ensureDailyContent } from "./dailyContentStore";
 
 describe("daily content generator", () => {
   it("creates the same compact seven-game manifest for the same UTC date", () => {

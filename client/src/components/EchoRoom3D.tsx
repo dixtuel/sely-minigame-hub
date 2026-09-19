@@ -10,7 +10,7 @@ import { assets } from "@/game/assets";
 import { createGameScene } from "@/game/scene";
 import { createInitialSnapshot, type GameHandle, type GameSnapshot } from "@/game/types";
 import type { SiteLocale } from "@/lib/i18n";
-import "@/echo-room.css";
+import "@/styles/echo-room.css";
 
 export type GameResult = { score: number; label: string; detail: string; outcome: "success" | "failure" };
 

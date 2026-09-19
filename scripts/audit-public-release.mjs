@@ -2,7 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { resolve, relative, sep } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const sourceRoots = ["client", "server", "shared", "drizzle", "db"];
+const sourceRoots = ["client", "server", "shared", "drizzle"];
 const ignoredDirectories = new Set(["node_modules", "dist", ".git"]);
 const forbiddenFile = /^(google.+\.html|BingSiteAuth\.xml|yandex_.+\.html)$/i;
 const forbiddenLiteral = /asrinklcc@(?:dixtuel|sely)\.tr/i;

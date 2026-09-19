@@ -214,7 +214,7 @@ pnpm dev
 pnpm check
 # ya da: bun run check
 
-# Çözücü ve birim test paketi (14 dosya, 86 test, 9.3k+ assertion)
+# Çözücü ve birim test paketi (18 dosya, 106 test, 14.3k+ assertion)
 pnpm test
 # ya da: bun test
 

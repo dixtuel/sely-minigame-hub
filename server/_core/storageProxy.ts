@@ -1,10 +1,13 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
-import { ENV } from "./env";
 
+/**
+ * Serves stored game assets and social cards from client/public/storage.
+ * Maintains backwards-compatible support for /manus-storage/*.
+ */
 export function registerStorageProxy(app: Express) {
-  app.get("/manus-storage/*", async (req, res) => {
+  const handleStorageRequest = (req: Request, res: Response) => {
     const key = (req.params as Record<string, string>)[0];
     if (!key) {
       res.status(400).send("Missing storage key");
@@ -13,48 +16,19 @@ export function registerStorageProxy(app: Express) {
 
     const localDir =
       process.env.NODE_ENV === "development"
-        ? path.resolve(import.meta.dirname, "../..", "client", "public", "manus-storage")
-        : path.resolve(import.meta.dirname, "public", "manus-storage");
+        ? path.resolve(import.meta.dirname, "../..", "client", "public", "storage")
+        : path.resolve(import.meta.dirname, "public", "storage");
     const localPath = path.resolve(localDir, key);
+
     if (localPath.startsWith(localDir) && fs.existsSync(localPath)) {
+      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
       res.sendFile(localPath);
       return;
     }
 
-    if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
-      res.status(500).send("Storage proxy not configured");
-      return;
-    }
+    res.status(404).send("File not found");
+  };
 
-    try {
-      const forgeUrl = new URL(
-        "v1/storage/presign/get",
-        ENV.forgeApiUrl.replace(/\/+$/, "") + "/",
-      );
-      forgeUrl.searchParams.set("path", key);
-
-      const forgeResp = await fetch(forgeUrl, {
-        headers: { Authorization: `Bearer ${ENV.forgeApiKey}` },
-      });
-
-      if (!forgeResp.ok) {
-        const body = await forgeResp.text().catch(() => "");
-        console.error(`[StorageProxy] forge error: ${forgeResp.status} ${body}`);
-        res.status(502).send("Storage backend error");
-        return;
-      }
-
-      const { url } = (await forgeResp.json()) as { url: string };
-      if (!url) {
-        res.status(502).send("Empty signed URL from backend");
-        return;
-      }
-
-      res.set("Cache-Control", "no-store");
-      res.redirect(307, url);
-    } catch (err) {
-      console.error("[StorageProxy] failed:", err);
-      res.status(502).send("Storage proxy error");
-    }
-  });
+  app.get("/storage/*", handleStorageRequest);
+  app.get("/manus-storage/*", handleStorageRequest);
 }
