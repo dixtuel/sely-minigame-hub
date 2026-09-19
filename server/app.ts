@@ -7,6 +7,7 @@ import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
 import { dailyCleanupHandler, dailyContentHandler } from "./scheduled/dailyContent";
 import { getLeaderboardHandler, submitLeaderboardHandler } from "./leaderboard";
+import { getGlobalConfigHandler } from "./globalConfig";
 import { createRateLimiter, securityHeaders } from "./_core/security";
 import { registerSeoAndVerificationRoutes } from "./seoRoutes";
 
@@ -28,6 +29,7 @@ export function createApp() {
   const leaderboardLimiter = createRateLimiter({ max: 20, windowMs: 60_000 });
   app.get("/api/leaderboard", getLeaderboardHandler);
   app.post("/api/leaderboard", leaderboardLimiter, submitLeaderboardHandler);
+  app.get("/api/config", getGlobalConfigHandler);
 
   // Scheduled endpoints (supports GET for Vercel Cron and POST for VDS crontab)
   const scheduledLimiter = createRateLimiter({ max: 8, windowMs: 60_000 });

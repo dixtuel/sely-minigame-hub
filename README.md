@@ -234,9 +234,9 @@ Tüm ortam değişkenleri opsiyoneldir. Herhangi bir veritabanı bağlantısı s
 | Değişken | Zorunlu | Varsayılan | Açıklama |
 | :--- | :---: | :---: | :--- |
 | `DATABASE_URL` | Hayır | `undefined` | PostgreSQL 16 bağlantı dizesi (Neon / yerel). |
-| `CONTENT_DB_PROVIDER` | Hayır | `postgres` | libSQL / Turso kullanılacaksa `turso` olarak ayarlanır. |
-| `TURSO_URL` | Hayır | `undefined` | Turso veritabanı URL adresi. |
-| `TURSO_AUTH_TOKEN` | Hayır | `undefined` | Turso yetkilendirme anahtarı. |
+| `TURSO_DATABASE_URL` | Hayır | `undefined` | Turso / libSQL bağlantı dizesi (`libsql://...` veya yerel SQLite `file:./data/sely.db`). Tanımlıysa kalıcı skor arşivi ve kullanıcı deposu olarak çalışır. |
+| `TURSO_AUTH_TOKEN` | Hayır | `undefined` | Turso Cloud yetkilendirme anahtarı (yerel `file:...` modunda gerekmez). |
+| `GLOBAL_CONFIG_ID` | Hayır | `undefined` | Vercel Global Config (Edge Config) mağaza kimliği. Deploy atmadan dinamik duyuru banner'ı veya bakım modu yönetimi sağlar. |
 | `REDIS_URL` | Hayır | `undefined` | VDS / Docker TCP Redis bağlantı dizesi (`redis://127.0.0.1:6379` vb.). Tanımsızsa memory fallback devrededir. |
 | `UPSTASH_REDIS_REST_URL` | Hayır | `undefined` | Vercel Marketplace Upstash Redis REST URL adresi (Serverless liderlik tablosu). |
 | `UPSTASH_REDIS_REST_TOKEN` | Hayır | `undefined` | Vercel Marketplace Upstash Redis REST yetkilendirme token'ı. |

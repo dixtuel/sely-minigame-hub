@@ -26,6 +26,7 @@
     "@trpc/server": "^11.6.0",
     "@upstash/redis": "^1.38.4",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/global-config": "^1.5.1",
     "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.12.0",
     "class-variance-authority": "^0.7.1",

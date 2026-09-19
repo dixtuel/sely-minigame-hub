@@ -15,7 +15,7 @@ export interface LeaderboardResponse {
   date: string;
   top: LeaderboardEntry[];
   totalPlayers: number;
-  source: "upstash" | "vds-redis" | "memory";
+  source: "upstash" | "vds-redis" | "turso" | "memory";
 }
 import { getPlayerNick, getPlayerSignature, getTodayDateStr } from "@/lib/playerNick";
 import { trackEvent } from "@/lib/analytics";

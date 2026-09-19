@@ -9,6 +9,7 @@ import { masteryBand, personalSeed, runInstanceKey } from "@/lib/levelGenerators
 import { trackEvent } from "@/lib/analytics";
 import { getPlayerNick, getPlayerSignature, getTodayDateStr } from "@/lib/playerNick";
 import LeaderboardModal from "@/components/LeaderboardModal";
+import GlobalAnnouncementBanner from "@/components/GlobalAnnouncementBanner";
 
 const GameStudio = lazy(() => import("@/components/GameStudio"));
 const SCORE_KEY = "sely-scorebook-v1";
@@ -99,6 +100,7 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
   }
 
   return <main className="hub-page" lang={locale}>
+    <GlobalAnnouncementBanner locale={locale} />
     <header className="hub-nav">
       <a className="brand-lockup" href="#top" aria-label="SELY.TR home"><img src="/manus-storage/sely-mark_de9c08a5.png" alt="" /><span>SELY<span className="brand-dot">.</span>TR</span></a>
       <nav className={menuOpen ? "nav-links is-open" : "nav-links"} aria-label={locale === "en" ? "Main navigation" : "Ana gezinme"}><a href="#games" onClick={() => setMenuOpen(false)}>{words.games}</a><a href="#daily" onClick={() => setMenuOpen(false)}>{words.daily}</a></nav>

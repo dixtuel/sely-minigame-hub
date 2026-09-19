@@ -63,6 +63,247 @@ var ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
 };
 
+// server/turso.ts
+import { createClient } from "@libsql/client";
+import fs from "node:fs";
+import path from "node:path";
+var tursoClient = null;
+var schemaInitialized = false;
+var boardCache = /* @__PURE__ */ new Map();
+var CACHE_TTL_MS = 15e3;
+function getTursoConfig() {
+  const url = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || process.env.LIBSQL_URL || null;
+  if (!url) return null;
+  const authToken = process.env.TURSO_AUTH_TOKEN || void 0;
+  return { url, authToken };
+}
+function isTursoConfigured() {
+  return getTursoConfig() !== null;
+}
+function getTursoClient() {
+  const config = getTursoConfig();
+  if (!config) return null;
+  if (!tursoClient) {
+    try {
+      if (config.url.startsWith("file:")) {
+        const filePath = config.url.replace(/^file:\/\/?/, "");
+        if (filePath && filePath !== ":memory:" && !filePath.startsWith(":")) {
+          const dir = path.dirname(path.resolve(filePath));
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+          }
+        }
+      }
+      tursoClient = createClient({
+        url: config.url,
+        authToken: config.authToken
+      });
+    } catch (err) {
+      console.warn("[Turso] Failed to initialize client:", err);
+      tursoClient = null;
+    }
+  }
+  return tursoClient;
+}
+async function ensureTursoSchema() {
+  const client = getTursoClient();
+  if (!client) return false;
+  if (schemaInitialized) return true;
+  try {
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS daily_scores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id TEXT NOT NULL,
+        date_str TEXT NOT NULL,
+        nick TEXT NOT NULL,
+        signature TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        UNIQUE(game_id, date_str, signature)
+      );
+    `);
+    await client.execute(`
+      CREATE INDEX IF NOT EXISTS idx_daily_scores_lookup
+      ON daily_scores(game_id, date_str, score DESC);
+    `);
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        open_id TEXT NOT NULL UNIQUE,
+        name TEXT,
+        email TEXT,
+        login_method TEXT,
+        role TEXT NOT NULL DEFAULT 'user',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        last_signed_in INTEGER NOT NULL
+      );
+    `);
+    schemaInitialized = true;
+    return true;
+  } catch (err) {
+    console.error("[Turso] Schema initialization failed:", err);
+    return false;
+  }
+}
+async function saveTursoScore(gameId, score, nick, signature, dateStr) {
+  const client = getTursoClient();
+  if (!client) return false;
+  await ensureTursoSchema();
+  try {
+    const now = Date.now();
+    await client.execute({
+      sql: `
+        INSERT INTO daily_scores (game_id, date_str, nick, signature, score, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(game_id, date_str, signature) DO UPDATE SET
+          score = CASE WHEN excluded.score > daily_scores.score THEN excluded.score ELSE daily_scores.score END,
+          nick = excluded.nick,
+          created_at = excluded.created_at;
+      `,
+      args: [gameId, dateStr, nick, signature, score, now]
+    });
+    const prefix = `${gameId}:${dateStr}`;
+    for (const key of Array.from(boardCache.keys())) {
+      if (key.startsWith(prefix)) {
+        boardCache.delete(key);
+      }
+    }
+    return true;
+  } catch (err) {
+    console.warn("[Turso] Error saving score:", err);
+    return false;
+  }
+}
+async function getTursoPlayerRank(gameId, dateStr, score) {
+  const client = getTursoClient();
+  if (!client) return void 0;
+  try {
+    const rs = await client.execute({
+      sql: `
+        SELECT COUNT(*) as rank_above
+        FROM daily_scores
+        WHERE game_id = ? AND date_str = ? AND score > ?;
+      `,
+      args: [gameId, dateStr, score]
+    });
+    const count = Number(rs.rows[0]?.rank_above ?? 0);
+    return count + 1;
+  } catch {
+    return void 0;
+  }
+}
+async function getTursoTopScores(gameId, dateStr, limit = 10) {
+  const client = getTursoClient();
+  if (!client) return null;
+  await ensureTursoSchema();
+  const cacheKey = `${gameId}:${dateStr}:${limit}`;
+  const now = Date.now();
+  const cached = boardCache.get(cacheKey);
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  try {
+    const [scoresRs, totalRs] = await Promise.all([
+      client.execute({
+        sql: `
+          SELECT nick, signature, score, created_at
+          FROM daily_scores
+          WHERE game_id = ? AND date_str = ?
+          ORDER BY score DESC
+          LIMIT ?;
+        `,
+        args: [gameId, dateStr, limit]
+      }),
+      client.execute({
+        sql: `
+          SELECT COUNT(*) as total
+          FROM daily_scores
+          WHERE game_id = ? AND date_str = ?;
+        `,
+        args: [gameId, dateStr]
+      })
+    ]);
+    const totalPlayers = Number(totalRs.rows[0]?.total ?? scoresRs.rows.length);
+    const top = scoresRs.rows.map((row, index) => ({
+      rank: index + 1,
+      nick: String(row.nick),
+      score: Number(row.score),
+      signature: String(row.signature),
+      timestamp: Number(row.created_at)
+    }));
+    const result = { top, totalPlayers };
+    boardCache.set(cacheKey, { timestamp: now, data: result });
+    return result;
+  } catch (err) {
+    console.warn("[Turso] Error querying top scores:", err);
+    return null;
+  }
+}
+async function getTursoUserByOpenId(openId) {
+  const client = getTursoClient();
+  if (!client) return void 0;
+  await ensureTursoSchema();
+  try {
+    const rs = await client.execute({
+      sql: `SELECT * FROM users WHERE open_id = ? LIMIT 1;`,
+      args: [openId]
+    });
+    if (rs.rows.length === 0) return void 0;
+    const row = rs.rows[0];
+    return {
+      id: Number(row.id),
+      openId: String(row.open_id),
+      name: row.name ? String(row.name) : null,
+      email: row.email ? String(row.email) : null,
+      loginMethod: row.login_method ? String(row.login_method) : null,
+      role: String(row.role),
+      createdAt: new Date(Number(row.created_at)),
+      updatedAt: new Date(Number(row.updated_at)),
+      lastSignedIn: new Date(Number(row.last_signed_in))
+    };
+  } catch (err) {
+    console.warn("[Turso] Error looking up user:", err);
+    return void 0;
+  }
+}
+async function upsertTursoUser(user) {
+  const client = getTursoClient();
+  if (!client) return;
+  await ensureTursoSchema();
+  try {
+    const now = Date.now();
+    const lastSignedInMs = user.lastSignedIn ? user.lastSignedIn.getTime() : now;
+    const role = user.role || "user";
+    await client.execute({
+      sql: `
+        INSERT INTO users (open_id, name, email, login_method, role, created_at, updated_at, last_signed_in)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(open_id) DO UPDATE SET
+          name = COALESCE(excluded.name, users.name),
+          email = COALESCE(excluded.email, users.email),
+          login_method = COALESCE(excluded.login_method, users.login_method),
+          role = excluded.role,
+          updated_at = excluded.updated_at,
+          last_signed_in = excluded.last_signed_in;
+      `,
+      args: [
+        user.openId,
+        user.name ?? null,
+        user.email ?? null,
+        user.loginMethod ?? null,
+        role,
+        now,
+        now,
+        lastSignedInMs
+      ]
+    });
+  } catch (err) {
+    console.error("[Turso] Failed to upsert user:", err);
+    throw err;
+  }
+}
+
 // server/db.ts
 var _db = null;
 async function getDb() {
@@ -82,6 +323,16 @@ async function upsertUser(user) {
   }
   const db = await getDb();
   if (!db) {
+    if (isTursoConfigured()) {
+      return upsertTursoUser({
+        openId: user.openId,
+        name: user.name,
+        email: user.email,
+        loginMethod: user.loginMethod,
+        role: user.role,
+        lastSignedIn: user.lastSignedIn
+      });
+    }
     console.warn("[Database] Cannot upsert user: database not available");
     return;
   }
@@ -127,6 +378,9 @@ async function upsertUser(user) {
 async function getUserByOpenId(openId) {
   const db = await getDb();
   if (!db) {
+    if (isTursoConfigured()) {
+      return getTursoUserByOpenId(openId);
+    }
     console.warn("[Database] Cannot get user: database not available");
     return void 0;
   }
@@ -457,8 +711,8 @@ function registerOAuthRoutes(app2) {
 }
 
 // server/_core/storageProxy.ts
-import fs from "fs";
-import path from "path";
+import fs2 from "fs";
+import path2 from "path";
 function registerStorageProxy(app2) {
   app2.get("/manus-storage/*", async (req, res) => {
     const key = req.params[0];
@@ -466,9 +720,9 @@ function registerStorageProxy(app2) {
       res.status(400).send("Missing storage key");
       return;
     }
-    const localDir = process.env.NODE_ENV === "development" ? path.resolve(import.meta.dirname, "../..", "client", "public", "manus-storage") : path.resolve(import.meta.dirname, "public", "manus-storage");
-    const localPath = path.resolve(localDir, key);
-    if (localPath.startsWith(localDir) && fs.existsSync(localPath)) {
+    const localDir = process.env.NODE_ENV === "development" ? path2.resolve(import.meta.dirname, "../..", "client", "public", "manus-storage") : path2.resolve(import.meta.dirname, "public", "manus-storage");
+    const localPath = path2.resolve(localDir, key);
+    if (localPath.startsWith(localDir) && fs2.existsSync(localPath)) {
       res.sendFile(localPath);
       return;
     }
@@ -651,7 +905,7 @@ var systemRouter = router({
 // server/dailyContent.ts
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
-import { createClient } from "@libsql/client";
+import { createClient as createClient2 } from "@libsql/client";
 import { Pool } from "pg";
 var DAILY_GAMES = ["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"];
 var RULESET_VERSION = "5";
@@ -775,7 +1029,7 @@ function getDailyStore() {
     return store;
   }
   if (provider === "turso" && tursoUrl && /^libsql:\/\//.test(tursoUrl) && process.env.TURSO_AUTH_TOKEN) {
-    store = new TursoStore(createClient({ url: tursoUrl, authToken: process.env.TURSO_AUTH_TOKEN }));
+    store = new TursoStore(createClient2({ url: tursoUrl, authToken: process.env.TURSO_AUTH_TOKEN }));
     return store;
   }
   store = new MemoryStore();
@@ -4891,6 +5145,21 @@ async function getTopScores(gameId, dateStr = getTodayIsoDate()) {
     } catch {
     }
   }
+  if (isTursoConfigured()) {
+    try {
+      const tursoResult = await getTursoTopScores(gameId, dateStr);
+      if (tursoResult && tursoResult.top.length > 0) {
+        return {
+          gameId,
+          date: dateStr,
+          top: tursoResult.top,
+          totalPlayers: tursoResult.totalPlayers,
+          source: "turso"
+        };
+      }
+    } catch {
+    }
+  }
   const memKey = getMemoryKey(gameId, dateStr);
   const gameMap = memoryStore.get(memKey) || /* @__PURE__ */ new Map();
   const sorted = Array.from(gameMap.entries()).map(([signature, data]) => ({
@@ -4925,6 +5194,10 @@ async function submitScore(gameId, score, nick, signature, dateStr = getTodayIso
   }
   const key = `lb:${gameId}:${dateStr}`;
   const member = `${cleanSig}::${cleanNick}`;
+  if (isTursoConfigured()) {
+    saveTursoScore(gameId, score, cleanNick, cleanSig, dateStr).catch(() => {
+    });
+  }
   const tcpRedis = getTcpRedisClient();
   if (tcpRedis) {
     try {
@@ -4954,6 +5227,16 @@ async function submitScore(gameId, score, nick, signature, dateStr = getTodayIso
       const rank0 = await upstash.zrevrank(key, member);
       const rank2 = typeof rank0 === "number" ? rank0 + 1 : void 0;
       return { success: true, rank: rank2 };
+    } catch {
+    }
+  }
+  if (isTursoConfigured()) {
+    try {
+      const saved = await saveTursoScore(gameId, score, cleanNick, cleanSig, dateStr);
+      if (saved) {
+        const rank2 = await getTursoPlayerRank(gameId, dateStr, score);
+        return { success: true, rank: rank2 };
+      }
     } catch {
     }
   }
@@ -4998,6 +5281,56 @@ async function submitLeaderboardHandler(req, res) {
     return res.json(result);
   } catch (err) {
     return res.status(500).json({ error: "Skor kaydedilemedi." });
+  }
+}
+
+// server/globalConfig.ts
+import { getAll } from "@vercel/global-config";
+var DEFAULT_CONFIG = {
+  maintenance: false,
+  announcement: null,
+  flags: {},
+  source: "fallback"
+};
+var cachedConfig = null;
+var lastFetchTime = 0;
+var CACHE_TTL_MS2 = 15e3;
+async function fetchGlobalConfig() {
+  const now = Date.now();
+  if (cachedConfig && now - lastFetchTime < CACHE_TTL_MS2) {
+    return cachedConfig;
+  }
+  const connectionString = process.env.GLOBAL_CONFIG || process.env.EDGE_CONFIG;
+  if (!connectionString) {
+    return DEFAULT_CONFIG;
+  }
+  try {
+    const rawItems = await getAll();
+    if (!rawItems || typeof rawItems !== "object") {
+      return DEFAULT_CONFIG;
+    }
+    const config = {
+      maintenance: Boolean(rawItems.maintenance ?? false),
+      maintenanceMessageTr: typeof rawItems.maintenanceMessageTr === "string" ? rawItems.maintenanceMessageTr : void 0,
+      maintenanceMessageEn: typeof rawItems.maintenanceMessageEn === "string" ? rawItems.maintenanceMessageEn : void 0,
+      announcement: rawItems.announcement || null,
+      flags: rawItems.flags || {},
+      source: "global-config"
+    };
+    cachedConfig = config;
+    lastFetchTime = now;
+    return config;
+  } catch (err) {
+    return DEFAULT_CONFIG;
+  }
+}
+async function getGlobalConfigHandler(_req, res) {
+  res.setHeader("Cache-Control", "public, max-age=15, s-maxage=30, stale-while-revalidate=60");
+  try {
+    const config = await fetchGlobalConfig();
+    return res.json(config);
+  } catch {
+    return res.json(DEFAULT_CONFIG);
   }
 }
 
@@ -5123,6 +5456,7 @@ function createApp() {
   const leaderboardLimiter = createRateLimiter({ max: 20, windowMs: 6e4 });
   app2.get("/api/leaderboard", getLeaderboardHandler);
   app2.post("/api/leaderboard", leaderboardLimiter, submitLeaderboardHandler);
+  app2.get("/api/config", getGlobalConfigHandler);
   const scheduledLimiter = createRateLimiter({ max: 8, windowMs: 6e4 });
   const publicApiLimiter = createRateLimiter({ max: 90, windowMs: 6e4 });
   app2.all("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);

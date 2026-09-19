@@ -1,6 +1,12 @@
 import type { Request, Response } from "express";
 import { Redis as UpstashRedis } from "@upstash/redis";
 import IORedis from "ioredis";
+import {
+  isTursoConfigured,
+  getTursoTopScores,
+  saveTursoScore,
+  getTursoPlayerRank,
+} from "./turso";
 
 export type GameId = "echo" | "knot" | "cut" | "shadow" | "marker" | "hane" | "spark" | "vaka";
 
@@ -17,7 +23,7 @@ export interface LeaderboardResponse {
   date: string;
   top: LeaderboardEntry[];
   totalPlayers: number;
-  source: "upstash" | "vds-redis" | "memory";
+  source: "upstash" | "vds-redis" | "turso" | "memory";
 }
 
 const VALID_GAMES: readonly string[] = ["echo", "knot", "cut", "shadow", "marker", "hane", "spark", "vaka"];
@@ -178,11 +184,29 @@ export async function getTopScores(gameId: GameId, dateStr: string = getTodayIso
         source: "upstash",
       };
     } catch {
-      // Fallback to memory on network/Upstash error
+      // Fallback to next strategy on network/Upstash error
     }
   }
 
-  // Strategy C: Memory fallback (Local development / Zero-config environments)
+  // Strategy C: Turso Database (Serverless libSQL / Local SQLite / Historical Archive)
+  if (isTursoConfigured()) {
+    try {
+      const tursoResult = await getTursoTopScores(gameId, dateStr);
+      if (tursoResult && tursoResult.top.length > 0) {
+        return {
+          gameId,
+          date: dateStr,
+          top: tursoResult.top,
+          totalPlayers: tursoResult.totalPlayers,
+          source: "turso",
+        };
+      }
+    } catch {
+      // Fallback to memory
+    }
+  }
+
+  // Strategy D: Memory fallback (Local development / Zero-config environments)
   const memKey = getMemoryKey(gameId, dateStr);
   const gameMap = memoryStore.get(memKey) || new Map();
   const sorted = Array.from(gameMap.entries())
@@ -239,6 +263,11 @@ export async function submitScore(
   const key = `lb:${gameId}:${dateStr}`;
   const member = `${cleanSig}::${cleanNick}`;
 
+  // If Turso is configured, asynchronously persist to durable SQL store
+  if (isTursoConfigured()) {
+    saveTursoScore(gameId, score, cleanNick, cleanSig, dateStr).catch(() => {});
+  }
+
   // Strategy A: VDS / Self-Hosted Native TCP Redis
   const tcpRedis = getTcpRedisClient();
   if (tcpRedis) {
@@ -278,11 +307,24 @@ export async function submitScore(
 
       return { success: true, rank };
     } catch {
-      // Fallback to memory on failure
+      // Fallback to next strategy on failure
     }
   }
 
-  // Strategy C: Memory fallback
+  // Strategy C: Turso Database (Serverless libSQL / Local SQLite)
+  if (isTursoConfigured()) {
+    try {
+      const saved = await saveTursoScore(gameId, score, cleanNick, cleanSig, dateStr);
+      if (saved) {
+        const rank = await getTursoPlayerRank(gameId, dateStr, score);
+        return { success: true, rank };
+      }
+    } catch {
+      // Fallback to memory
+    }
+  }
+
+  // Strategy D: Memory fallback
   const memKey = getMemoryKey(gameId, dateStr);
   if (!memoryStore.has(memKey)) {
     memoryStore.set(memKey, new Map());
