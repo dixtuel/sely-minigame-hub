@@ -1,16 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Maximize, Minimize, RotateCcw, Volume2, X } from "lucide-react";
-import SparkCanvasGame from "@/components/SparkCanvasGame";
 import AdSenseResultUnit from "@/components/AdSenseResultUnit";
 import type { GameMeta } from "@/lib/catalog";
 import { local, type SiteLocale } from "@/lib/i18n";
 import { trackEvent } from "@/lib/analytics";
 
-import KnotGame from "@/components/games/KnotGame";
-import CutGame from "@/components/games/CutGame";
-import ShadowGame from "@/components/games/ShadowGame";
-import HaneGame from "@/components/games/HaneGame";
-import VakaGame from "@/components/games/VakaGame";
+
 
 import {
   runMasteryFor,
@@ -138,13 +133,25 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
 }
 
 const EchoRoom3D = lazy(() => import("@/components/EchoRoom3D"));
+const KnotGame = lazy(() => import("@/components/games/KnotGame"));
+const CutGame = lazy(() => import("@/components/games/CutGame"));
+const ShadowGame = lazy(() => import("@/components/games/ShadowGame"));
+const HaneGame = lazy(() => import("@/components/games/HaneGame"));
+const SparkCanvasGame = lazy(() => import("@/components/SparkCanvasGame"));
+const VakaGame = lazy(() => import("@/components/games/VakaGame"));
 
 function GameRenderer({ game, locale, dailySeed, mastery, demo, soundOn, onFinish }: { game: GameMeta; locale: SiteLocale; dailySeed: number; mastery: number; demo?: "spark" | "spark-fail" | "cut-fail"; soundOn: boolean; onFinish: (result: GameResult) => void }) {
-  if (game.id === "echo") return <Suspense fallback={<div className="game-surface game-loading">{local(locale, "Oda yükleniyor…", "Loading room…")}</div>}><EchoRoom3D locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} /></Suspense>;
-  if (game.id === "knot") return <KnotGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />;
-  if (game.id === "cut") return <CutGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "cut-fail"} soundOn={soundOn} onFinish={onFinish} />;
-  if (game.id === "shadow") return <ShadowGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />;
-  if (game.id === "hane") return <HaneGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />;
-  if (game.id === "spark") return <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} soundOn={soundOn} onFinish={onFinish} />;
-  return <VakaGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />;
+  const loading = <div className="game-surface game-loading">{local(locale, "Oyun yükleniyor…", "Loading game…")}</div>;
+
+  return (
+    <Suspense fallback={loading}>
+      {game.id === "echo" && <EchoRoom3D locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />}
+      {game.id === "knot" && <KnotGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />}
+      {game.id === "cut" && <CutGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "cut-fail"} soundOn={soundOn} onFinish={onFinish} />}
+      {game.id === "shadow" && <ShadowGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />}
+      {game.id === "hane" && <HaneGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />}
+      {game.id === "spark" && <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} soundOn={soundOn} onFinish={onFinish} />}
+      {game.id === "vaka" && <VakaGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />}
+    </Suspense>
+  );
 }

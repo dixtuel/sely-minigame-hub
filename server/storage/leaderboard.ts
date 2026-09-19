@@ -103,6 +103,15 @@ interface L1LeaderboardEntry {
 }
 const l1Cache = new Map<string, L1LeaderboardEntry>();
 const L1_TTL_MS = 5_000;
+const MAX_L1_ENTRIES = 128;
+
+function setL1Cache(key: string, entry: L1LeaderboardEntry) {
+  if (l1Cache.size >= MAX_L1_ENTRIES) {
+    const oldest = l1Cache.keys().next().value;
+    if (oldest) l1Cache.delete(oldest);
+  }
+  l1Cache.set(key, entry);
+}
 
 /**
  * Retrieves the top leaderboard entries for a given game and date.
@@ -154,7 +163,7 @@ export async function getTopScores(gameId: GameId, dateStr: string = getTodayIso
           totalPlayers: count || entries.length,
           source: "redis",
         };
-        l1Cache.set(l1Key, { timestamp: Date.now(), data: response });
+        setL1Cache(l1Key, { timestamp: Date.now(), data: response });
         return response;
       }
     } catch {
@@ -279,12 +288,20 @@ export async function submitScore(
   // Strategy C: Memory fallback
   const memKey = getMemoryKey(gameId, dateStr);
   if (!memoryStore.has(memKey)) {
+    if (memoryStore.size >= 32) {
+      const oldestBoard = memoryStore.keys().next().value;
+      if (oldestBoard) memoryStore.delete(oldestBoard);
+    }
     memoryStore.set(memKey, new Map());
   }
   const gameMap = memoryStore.get(memKey)!;
   const existing = gameMap.get(cleanSig);
 
   if (!existing || score > existing.score) {
+    if (!existing && gameMap.size >= 500) {
+      const oldestKey = gameMap.keys().next().value;
+      if (oldestKey) gameMap.delete(oldestKey);
+    }
     gameMap.set(cleanSig, { nick: cleanNick, score, timestamp: Date.now() });
   }
 

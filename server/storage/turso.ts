@@ -31,6 +31,15 @@ interface CachedBoard {
 }
 const boardCache = new Map<string, CachedBoard>();
 const CACHE_TTL_MS = 15_000; // 15 seconds
+const MAX_BOARD_CACHE_ENTRIES = 128;
+
+function setCachedBoard(key: string, value: CachedBoard) {
+  if (boardCache.size >= MAX_BOARD_CACHE_ENTRIES) {
+    const oldest = boardCache.keys().next().value;
+    if (oldest) boardCache.delete(oldest);
+  }
+  boardCache.set(key, value);
+}
 
 /**
  * Resolves the Turso connection configuration from environment variables.
@@ -290,7 +299,7 @@ export async function getTursoTopScores(
     }));
 
     const result = { top, totalPlayers };
-    boardCache.set(cacheKey, { timestamp: now, data: result });
+    setCachedBoard(cacheKey, { timestamp: now, data: result });
 
     return result;
   } catch (err) {

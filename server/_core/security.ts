@@ -11,6 +11,8 @@ type Counter = { count: number; resetAt: number };
 
 const remoteAddress = (req: Request) => req.socket.remoteAddress ?? "unknown";
 
+const MAX_LIMITER_ENTRIES = 2048;
+
 export function createRateLimiter({ max, windowMs, now = Date.now, key = remoteAddress }: LimiterOptions): RequestHandler {
   const counters = new Map<string, Counter>();
   let lastSweep = 0;
@@ -20,6 +22,12 @@ export function createRateLimiter({ max, windowMs, now = Date.now, key = remoteA
     if (moment - lastSweep > windowMs) {
       counters.forEach((counter, counterKey) => { if (counter.resetAt <= moment) counters.delete(counterKey); });
       lastSweep = moment;
+    }
+
+    // Guard against memory exhaustion under DDoS or bot scanning
+    if (counters.size >= MAX_LIMITER_ENTRIES) {
+      const oldestKey = counters.keys().next().value;
+      if (oldestKey) counters.delete(oldestKey);
     }
 
     const counterKey = key(req);

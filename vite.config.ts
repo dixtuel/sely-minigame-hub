@@ -44,29 +44,57 @@ function seoMetaPlugin(): Plugin {
   };
 }
 
-const plugins = [
-  react(),
-  tailwindcss(),
-  jsxLocPlugin(),
-  seoMetaPlugin(),
-];
+export default defineConfig(({ mode }) => {
+  const isDev = mode === "development";
+  const plugins = [
+    react(),
+    tailwindcss(),
+    ...(isDev ? [jsxLocPlugin()] : []),
+    seoMetaPlugin(),
+  ];
 
-export default defineConfig({
-  plugins,
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+  return {
+    plugins,
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "client", "src"),
+        "@shared": path.resolve(import.meta.dirname, "shared"),
+        "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      },
     },
-  },
-  envDir: path.resolve(import.meta.dirname),
-  root: path.resolve(import.meta.dirname, "client"),
-  publicDir: path.resolve(import.meta.dirname, "client", "public"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
+    envDir: path.resolve(import.meta.dirname),
+    root: path.resolve(import.meta.dirname, "client"),
+    publicDir: path.resolve(import.meta.dirname, "client", "public"),
+    build: {
+      outDir: path.resolve(import.meta.dirname, "dist/public"),
+      emptyOutDir: true,
+      target: "es2022",
+      cssCodeSplit: true,
+      chunkSizeWarningLimit: 800,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("node_modules")) {
+              if (id.includes("three") || id.includes("@react-three") || id.includes("@babylonjs")) {
+                return "vendor-3d";
+              }
+              if (id.includes("framer-motion")) {
+                return "vendor-motion";
+              }
+              if (id.includes("lucide-react")) {
+                return "vendor-icons";
+              }
+              if (id.includes("@tanstack") || id.includes("@trpc")) {
+                return "vendor-query";
+              }
+              if (id.includes("react") || id.includes("wouter")) {
+                return "vendor-framework";
+              }
+            }
+          },
+        },
+      },
+    },
   server: {
     host: true,
     allowedHosts: [
@@ -79,14 +107,15 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
-  test: {
-    root: path.resolve(import.meta.dirname),
-    environment: "node",
-    include: [
-      "server/**/*.test.ts",
-      "server/**/*.spec.ts",
-      "client/src/**/*.test.ts",
-      "client/src/**/*.spec.ts",
-    ],
-  },
-} as UserConfig & { test?: unknown });
+    test: {
+      root: path.resolve(import.meta.dirname),
+      environment: "node",
+      include: [
+        "server/**/*.test.ts",
+        "server/**/*.spec.ts",
+        "client/src/**/*.test.ts",
+        "client/src/**/*.spec.ts",
+      ],
+    },
+  } as UserConfig & { test?: unknown };
+});
