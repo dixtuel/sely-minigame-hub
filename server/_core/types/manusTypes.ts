@@ -42,6 +42,8 @@ export interface GetUserInfoResponse {
   name: string;
   email?: string | null;
   platform?: string | null;
+  /** Raw list of linked platforms from the OAuth server; deriveLoginMethod() reduces this to `platform`/`loginMethod`. */
+  platforms?: string[];
   loginMethod?: string | null;
 }
 
@@ -65,6 +67,8 @@ export interface GetUserInfoWithJwtResponse {
   name: string;
   email?: string | null;
   platform?: string | null;
+  /** Raw list of linked platforms from the OAuth server; deriveLoginMethod() reduces this to `platform`/`loginMethod`. */
+  platforms?: string[];
   loginMethod?: string | null;
   /** Cron-only; references `schedule_task.uid`. */
   taskUid?: string | null;

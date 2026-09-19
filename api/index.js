@@ -626,6 +626,11 @@ var SDKServer = class {
     const first = Array.from(set)[0];
     return first ? first.toLowerCase() : null;
   }
+  /** Shared by getUserInfo()/getUserInfoWithJwt(): reduces the raw `platforms` list into `platform`/`loginMethod`. */
+  applyLoginMethod(data) {
+    const loginMethod = this.deriveLoginMethod(data.platforms, data.platform ?? null);
+    return { ...data, platform: loginMethod, loginMethod };
+  }
   /**
    * Exchange OAuth authorization code for access token
    * @example
@@ -643,15 +648,7 @@ var SDKServer = class {
     const data = await this.oauthService.getUserInfoByToken({
       accessToken
     });
-    const loginMethod = this.deriveLoginMethod(
-      data?.platforms,
-      data?.platform ?? data.platform ?? null
-    );
-    return {
-      ...data,
-      platform: loginMethod,
-      loginMethod
-    };
+    return this.applyLoginMethod(data);
   }
   parseCookies(cookieHeader) {
     if (!cookieHeader) {
@@ -724,15 +721,7 @@ var SDKServer = class {
       GET_USER_INFO_WITH_JWT_PATH,
       payload
     );
-    const loginMethod = this.deriveLoginMethod(
-      data?.platforms,
-      data?.platform ?? data.platform ?? null
-    );
-    return {
-      ...data,
-      platform: loginMethod,
-      loginMethod
-    };
+    return this.applyLoginMethod(data);
   }
   async authenticateRequest(req) {
     const cookies = this.parseCookies(req.headers.cookie);

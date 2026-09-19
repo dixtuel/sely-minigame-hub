@@ -112,6 +112,12 @@ class SDKServer {
     return first ? first.toLowerCase() : null;
   }
 
+  /** Shared by getUserInfo()/getUserInfoWithJwt(): reduces the raw `platforms` list into `platform`/`loginMethod`. */
+  private applyLoginMethod<T extends { platform?: string | null; platforms?: string[] }>(data: T): T {
+    const loginMethod = this.deriveLoginMethod(data.platforms, data.platform ?? null);
+    return { ...data, platform: loginMethod, loginMethod };
+  }
+
   /**
    * Exchange OAuth authorization code for access token
    * @example
@@ -133,15 +139,7 @@ class SDKServer {
     const data = await this.oauthService.getUserInfoByToken({
       accessToken,
     } as ExchangeTokenResponse);
-    const loginMethod = this.deriveLoginMethod(
-      (data as any)?.platforms,
-      (data as any)?.platform ?? data.platform ?? null
-    );
-    return {
-      ...(data as any),
-      platform: loginMethod,
-      loginMethod,
-    } as GetUserInfoResponse;
+    return this.applyLoginMethod(data);
   }
 
   private parseCookies(cookieHeader: string | undefined) {
@@ -244,15 +242,7 @@ class SDKServer {
       payload
     );
 
-    const loginMethod = this.deriveLoginMethod(
-      (data as any)?.platforms,
-      (data as any)?.platform ?? data.platform ?? null
-    );
-    return {
-      ...(data as any),
-      platform: loginMethod,
-      loginMethod,
-    } as GetUserInfoWithJwtResponse;
+    return this.applyLoginMethod(data);
   }
 
   async authenticateRequest(req: Request): Promise<AuthenticatedUser> {
