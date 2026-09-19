@@ -7,6 +7,7 @@ import AdSenseResultUnit from "@/components/AdSenseResultUnit";
 import type { GameId, GameMeta } from "@/lib/catalog";
 import type { SiteLocale } from "@/lib/i18n";
 import { playComplete, playFail, playHit, playSlice, playStamp, playThrust } from "@/lib/sfx";
+import { trackEvent } from "@/lib/analytics";
 import {
   generateCutLevel,
   generateHaneLevel,
@@ -94,11 +95,13 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
     setRunMastery(runMasteryFor(highScore, dailyDifficulty));
     setStarted(true);
     setRunKey(value => value + 1);
+    trackEvent("retry_game", { game: game.id });
   };
   const continueToNext = () => {
     setResult(null);
     setFailureCount(0);
     onNextLevel();
+    trackEvent("next_level", { game: game.id });
   };
 
   const finish = useCallback((next: GameResult) => {
@@ -106,6 +109,7 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
     if (next.outcome === "success" || game.id === "spark") onScore(finalScore);
     setFailureCount(current => next.outcome === "failure" ? current + 1 : 0);
     setResult({ ...next, score: finalScore });
+    trackEvent("game_finish", { game: game.id, outcome: next.outcome });
   }, [game.id, onScore]);
 
   return (

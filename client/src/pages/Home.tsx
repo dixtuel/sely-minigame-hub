@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { getGameCatalog, type GameId, type GameMeta } from "@/lib/catalog";
 import { copy, localePath, rememberLocale, type SiteLocale } from "@/lib/i18n";
 import { masteryBand, personalSeed, runInstanceKey } from "@/lib/levelGenerators";
+import { trackEvent } from "@/lib/analytics";
 
 const GameStudio = lazy(() => import("@/components/GameStudio"));
 const SCORE_KEY = "sely-scorebook-v1";
@@ -53,15 +54,18 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
   const totalBest = useMemo(() => Object.values(scores).reduce((total, value) => total + value, 0), [scores]);
   const otherLocale: SiteLocale = locale === "tr" ? "en" : "tr";
   const startGame = (game: GameMeta) => {
-    const attempt = personalAttempts[game.id] + 1;
+    const attempt = (personalAttempts[game.id] ?? 0) + 1;
     setPersonalAttempts(previous => ({ ...previous, [game.id]: attempt }));
     setSelected({ game, source: "personal", attempt, mastery: masteryBand(scores[game.id] ?? 0) });
+    navigate(locale === "en" ? `/en/play/${game.id}` : `/play/${game.id}`);
+    trackEvent("play_game", { game: game.id });
   };
   const continueToNextLevel = () => {
     if (!selected) return;
     const attempt = Math.max(1, selected.attempt + 1);
     setPersonalAttempts(previous => ({ ...previous, [selected.game.id]: Math.max(previous[selected.game.id], attempt) }));
     setSelected({ ...selected, source: "personal", attempt, autoStart: true, demo: undefined, mastery: masteryBand(scores[selected.game.id] ?? 0) });
+    trackEvent("next_level", { game: selected.game.id });
   };
 
   const handleScore = useCallback((score: number) => {
@@ -70,20 +74,20 @@ export default function Home({ locale = "tr", directGameId }: { locale?: SiteLoc
 
   if (selected) {
     const runIdentity = runInstanceKey(selected.game.id, selected.source, selected.attempt, activeSeed);
-    return <Suspense fallback={<main className="hub-page game-loading" aria-live="polite">{locale === "en" ? "Opening edition…" : "Baskı açılıyor…"}</main>}><GameStudio key={runIdentity} game={selected.game} locale={locale} autoStart={selected.autoStart} demo={selected.demo} dailySeed={activeSeed} dailyDifficulty={activeDifficulty} highScore={scores[selected.game.id]} soundOn={soundOn} onToggleSound={() => setSoundOn(value => !value)} onBack={() => { setSelected(null); if (selected.autoStart) navigate(localePath(locale)); }} onNextLevel={continueToNextLevel} onScore={handleScore} /></Suspense>;
+    return <Suspense fallback={<main className="hub-page game-loading" aria-live="polite">{locale === "en" ? "Opening edition…" : "Baskı açılıyor…"}</main>}><GameStudio key={runIdentity} game={selected.game} locale={locale} autoStart={selected.autoStart} demo={selected.demo} dailySeed={activeSeed} dailyDifficulty={activeDifficulty} highScore={scores[selected.game.id]} soundOn={soundOn} onToggleSound={() => setSoundOn(value => !value)} onBack={() => { setSelected(null); navigate(localePath(locale)); trackEvent("back_to_catalog", { game: selected.game.id }); }} onNextLevel={continueToNextLevel} onScore={handleScore} /></Suspense>;
   }
 
   return <main className="hub-page" lang={locale}>
     <header className="hub-nav">
       <a className="brand-lockup" href="#top" aria-label="SELY.TR home"><img src="/manus-storage/sely-mark_de9c08a5.png" alt="" /><span>SELY<span className="brand-dot">.</span>TR</span></a>
       <nav className={menuOpen ? "nav-links is-open" : "nav-links"} aria-label={locale === "en" ? "Main navigation" : "Ana gezinme"}><a href="#games" onClick={() => setMenuOpen(false)}>{words.games}</a><a href="#daily" onClick={() => setMenuOpen(false)}>{words.daily}</a></nav>
-      <div className="nav-actions"><span className="nav-score"><Sparkles size={15} /> {totalBest.toLocaleString(locale === "en" ? "en-US" : "tr-TR")}</span><button className="locale-button" onClick={() => { rememberLocale(otherLocale); navigate(localePath(otherLocale)); }}>{words.language}</button><button className="menu-button" onClick={() => setMenuOpen(value => !value)} aria-label={locale === "en" ? "Open or close menu" : "Menüyü aç veya kapat"}>{menuOpen ? <X size={19} /> : <Menu size={19} />}</button></div>
+      <div className="nav-actions"><span className="nav-score"><Sparkles size={15} /> {totalBest.toLocaleString(locale === "en" ? "en-US" : "tr-TR")}</span><button className="locale-button" onClick={() => { rememberLocale(otherLocale); navigate(localePath(otherLocale)); trackEvent("change_locale", { locale: otherLocale }); }}>{words.language}</button><button className="menu-button" onClick={() => setMenuOpen(value => !value)} aria-label={locale === "en" ? "Open or close menu" : "Menüyü aç veya kapat"}>{menuOpen ? <X size={19} /> : <Menu size={19} />}</button></div>
     </header>
     <section className="masthead" id="top"><div className="masthead-rail"><span>SELY / {locale === "en" ? "MINI GAME CATALOGUE" : "MİNİ OYUN KATALOĞU"}</span><i /><span>EDITION 01</span></div><div className="masthead-copy"><span className="studio-kicker">{words.mastheadKicker}</span><h1>{words.mastheadLead}<br /><em>{words.mastheadEmphasis}</em> {words.mastheadEnd}</h1><p>{words.mastheadDescription}</p><a className="hero-link" href="#games">{words.catalog} <ArrowUpRight size={18} /></a></div><div className="masthead-stamp"><img src="/manus-storage/sely-mark_de9c08a5.png" alt="" /><span>{locale === "en" ? <>ORIGINAL<br />GAME<br />EXPERIMENTS</> : <>ÖZGÜN<br />OYUN<br />DENEYLERİ</>}</span></div></section>
     <section className="featured-block" id="daily"><div className="section-index"><span>{words.today}</span><b>{daily.data?.date ?? "…"}</b></div><article className="featured-poster"><img src={catalog[0].poster} alt={`${catalog[0].title} game poster`} /><div className="featured-overlay"><span>01 / {words.todayStart}</span><h2>{catalog[0].title}</h2><p>{catalog[0].mechanic}</p><button onClick={() => startGame(catalog[0])}>{words.enter} <ArrowUpRight size={18} /></button></div><div className="poster-number">01</div></article><aside className="daily-note"><span className="note-mark">✳</span><span className="daily-set-label">{words.dailySet}</span><p>{words.dailyCopy}</p><div className="daily-edition-list">{catalog.map(game => <button key={game.id} onClick={() => startGame(game)}><span>{game.number}</span>{game.title}</button>)}</div><div><History size={16} /><span>{daily.isLoading ? words.dailyLoading : words.dailyReady}</span></div></aside></section>
     <section className="catalog-section" id="games"><div className="catalog-heading"><span className="studio-kicker">{words.catalogKicker}</span><h2>{words.catalogLead}<br /><em>{words.catalogEmphasis}</em></h2><p>{words.catalogDescription}</p><div className="personal-note"><span>{words.personalKicker}</span><p>{words.personalDescription}</p></div></div><div className="catalog-grid">{catalog.map((game, index) => <GameCard key={game.id} game={game} locale={locale} score={scores[game.id]} mastery={masteryBand(scores[game.id])} index={index} onPlay={() => startGame(game)} />)}</div></section>
     <section className="principles"><div className="principle-icon"><Gamepad2 size={26} /></div><div><span className="studio-kicker">{words.rhythmKicker}</span><h2>{words.rhythmLead}<br />{words.rhythmBottom}</h2></div><p>{words.rhythmDescription}</p><a href="#daily">{words.backToDaily} <ArrowUpRight size={17} /></a></section>
-    <footer className="hub-footer"><div><a className="brand-lockup" href="#top"><img src="/manus-storage/sely-mark_de9c08a5.png" alt="" /><span>SELY<span className="brand-dot">.</span>TR</span></a><p>{words.footerDescription}</p></div><div className="footer-links"><Link href={localePath(locale, "/privacy")}><ShieldCheck size={15} /> {words.privacy}</Link><Link href={localePath(locale, "/terms")}><CircleHelp size={15} /> {words.terms}</Link><Link href={localePath(locale, "/accessibility")}>{words.accessibility}</Link><button type="button" className="footer-link-button" onClick={openBanner}><Cookie size={14} /> {locale === "en" ? "Cookie Settings" : "Çerez Ayarları"}</button></div><div className="footer-credit"><a href="https://dixtuel.tr/" target="_blank" rel="noreferrer">Made by <strong>dixtuel</strong> + <em>kiyici ;)</em><ArrowUpRight size={14} /></a><small>© 2026 SELY.TR · {words.titleSuffix}</small></div></footer>
+    <footer className="hub-footer"><div><a className="brand-lockup" href="#top"><img src="/manus-storage/sely-mark_de9c08a5.png" alt="" /><span>SELY<span className="brand-dot">.</span>TR</span></a><p>{words.footerDescription}</p></div><div className="footer-links"><Link href={localePath(locale, "/privacy")}><ShieldCheck size={15} /> {words.privacy}</Link><Link href={localePath(locale, "/terms")}><CircleHelp size={15} /> {words.terms}</Link><Link href={localePath(locale, "/accessibility")}>{words.accessibility}</Link><button type="button" className="footer-link-button" onClick={() => { openBanner(); trackEvent("open_cookie_settings"); }}><Cookie size={14} /> {locale === "en" ? "Cookie Settings" : "Çerez Ayarları"}</button></div><div className="footer-credit"><a href="https://dixtuel.tr/" target="_blank" rel="noreferrer">Made by <strong>dixtuel</strong> + <em>kiyici ;)</em><ArrowUpRight size={14} /></a><small>© 2026 SELY.TR · {words.titleSuffix}</small></div></footer>
   </main>;
 }
 
