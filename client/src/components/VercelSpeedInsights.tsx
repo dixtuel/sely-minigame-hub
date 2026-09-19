@@ -64,6 +64,7 @@ export default function VercelSpeedInsights() {
     <SpeedInsights
       route={route}
       sampleRate={sampleRate}
+      debug={import.meta.env.DEV}
       beforeSend={(event) => {
         if (status === "rejected") {
           return null;

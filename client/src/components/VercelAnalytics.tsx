@@ -42,11 +42,13 @@ export default function VercelAnalytics() {
     <Analytics
       route={route}
       path={path}
+      mode="auto"
+      debug={import.meta.env.DEV}
       beforeSend={(event: BeforeSendEvent) => {
         if (status === "rejected") {
           return null;
         }
-        // Deduplicate rapid mobile re-renders on the exact same path
+        // Deduplicate rapid re-renders on the exact same path
         if (event.type === "pageview" && event.url === lastPathRef.current) {
           return null;
         }
