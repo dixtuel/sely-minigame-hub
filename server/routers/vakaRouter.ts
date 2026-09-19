@@ -140,15 +140,12 @@ export const vakaRouter = router({
     )
     .mutation(async ({ input }) => {
       const caseData = VAKA_SAMPLE_CASES.find((c) => c.id === input.caseId) || VAKA_SAMPLE_CASES[0];
-      const suspect = caseData.suspects.find((s) => s.id === input.suspectId);
-      if (!suspect) {
-        throw new Error("Suspect not found");
-      }
+      const suspect = caseData.suspects.find((s) => s.id === input.suspectId) || caseData.suspects[0];
 
       // Deterministik kural motorunu işlet
       const deterministic = processDeterministicInterrogation(
         caseData,
-        input.suspectId,
+        suspect.id,
         input.actionType as InterrogationActionType,
         {
           question: input.question,
@@ -171,14 +168,14 @@ export const vakaRouter = router({
 
       // Canlı LLM denemesi (Eğer soru serbestse ve henüz itiraf gerçekleşmediyse)
       if (hasKeys && !deterministic.confessed && (input.actionType === "question" || input.actionType === "cross_examine")) {
-        const langInstruction = input.locale === "en" ? "Respond in English." : "Türkçe yanıt ver.";
+        const isEn = input.locale === "en";
         const presentedClue = input.presentedClueId
           ? caseData.clues.find((c) => c.id === input.presentedClueId) ?? null
           : null;
 
         const otherSuspectsInfo = caseData.suspects
           .filter((s) => s.id !== suspect.id)
-          .map((s) => `- ${s.name} (${s.role}): ${s.statement}`)
+          .map((s) => `- ${s.name} (${isEn ? (s.roleEn || s.role) : s.role}): ${isEn ? (s.statementEn || s.statement) : s.statement}`)
           .join("\n");
 
         const systemPrompt = buildVakaInterrogationPrompt({
@@ -186,12 +183,15 @@ export const vakaRouter = router({
           newStress: deterministic.newStress,
           otherSuspectsInfo,
           presentedClue,
-          langInstruction,
+          locale: input.locale,
         });
 
+        const crossSuspectName = caseData.suspects.find(s => s.id === input.crossSuspectId)?.name || "Başka bir şüpheli";
         const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId
-          ? `Detective says: "${caseData.suspects.find(s => s.id === input.crossSuspectId)?.name} told me you were lying about your whereabouts!"`
-          : input.question || "Explain yourself!";
+          ? (isEn
+              ? `Detective: "${crossSuspectName} told me you were lying about your whereabouts!"`
+              : `Dedektif: "${crossSuspectName} bana olay saatinde senin yalan söylediğini anlattı!"`)
+          : input.question || (isEn ? "Explain yourself!" : "Kendini açıkla!");
 
         const messages: LlmMessage[] = [
           { role: "system", content: systemPrompt },
