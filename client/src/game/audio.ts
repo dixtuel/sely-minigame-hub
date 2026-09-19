@@ -1,4 +1,5 @@
 import { shouldLoadHighFidelityMedia } from "@/lib/networkSaver";
+import { registerAudioContextForVisibility } from "@/lib/devicePerformance";
 
 // Lightweight WebAudio-based sound manager for the Echo room.
 // Uses a handful of real CC0 Kenney SFX samples (see public/assets/CREDITS.md)
@@ -26,6 +27,7 @@ export class GameAudio {
   private readonly buffers = new Map<string, AudioBuffer>();
   private lastFootstepAt = 0;
   private unlocking: Promise<void> | null = null;
+  private unregisterVisibility: (() => void) | null = null;
 
   /** Must be called from inside a user-gesture handler (keydown, click, etc). */
   unlock(): Promise<void> {
@@ -36,6 +38,7 @@ export class GameAudio {
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       this.ctx = ctx;
+      this.unregisterVisibility = registerAudioContextForVisibility(ctx);
       this.masterGain = ctx.createGain();
       this.masterGain.gain.value = this.muted ? 0 : 0.85;
       this.masterGain.connect(ctx.destination);
@@ -161,6 +164,8 @@ export class GameAudio {
   }
 
   dispose() {
+    this.unregisterVisibility?.();
+    this.unregisterVisibility = null;
     this.droneNodes.forEach((node) => {
       if (node instanceof OscillatorNode) {
         try { node.stop(); } catch { /* already stopped */ }

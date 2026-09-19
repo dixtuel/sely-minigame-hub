@@ -1,3 +1,5 @@
+import { registerAudioContextForVisibility } from "@/lib/devicePerformance";
+
 // Sentezlenmiş oyun efektleri (Web Audio API) — hiçbir harici ses dosyasına bağımlı değil,
 // bu yüzden lisans/asset-pipeline riski taşımaz. Yalnız `enabled` true iken ve tarayıcı
 // AudioContext destekliyorsa ses üretir; ilk çağrıda lazy olarak tek bir context açılır.
@@ -15,8 +17,11 @@ export function getContext(): AudioContext | null {
     const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return null;
     sharedContext = new Ctor();
+    registerAudioContextForVisibility(sharedContext);
   }
-  if (sharedContext.state === "suspended") sharedContext.resume().catch(() => {});
+  if (typeof document !== "undefined" && !document.hidden && sharedContext.state === "suspended") {
+    sharedContext.resume().catch(() => {});
+  }
   return sharedContext;
 }
 

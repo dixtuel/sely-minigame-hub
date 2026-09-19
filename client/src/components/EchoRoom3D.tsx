@@ -10,6 +10,7 @@ import { assets } from "@/game/assets";
 import { createGameScene } from "@/game/scene";
 import { createInitialSnapshot, type GameHandle, type GameSnapshot } from "@/game/types";
 import { local, type SiteLocale } from "@/lib/i18n";
+import { getAdaptiveDpr, isLowPowerMode } from "@/lib/devicePerformance";
 import "@/styles/echo-room.css";
 
 export type GameResult = { score: number; label: string; detail: string; outcome: "success" | "failure" };
@@ -46,16 +47,19 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
     finishedRef.current = false;
 
     const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-    const devicePixelRatio = Math.max(1, window.devicePixelRatio || 1);
-    const hardwareScale = coarsePointer
-      ? Math.max(1, Math.min(1.3, devicePixelRatio * 0.5))
-      : Math.max(1, Math.min(1.2, devicePixelRatio * 0.82));
+    const lowPower = isLowPowerMode();
+    const adaptiveDpr = getAdaptiveDpr(1.5);
+    const hardwareScale = lowPower
+      ? (coarsePointer ? 1.35 : 1.25)
+      : (coarsePointer
+          ? Math.max(1, Math.min(1.3, adaptiveDpr * 0.5))
+          : Math.max(1, Math.min(1.2, adaptiveDpr * 0.82)));
 
     const engine = new Engine(canvas, true, {
       preserveDrawingBuffer: false,
       stencil: false,
       adaptToDeviceRatio: false,
-      powerPreference: "high-performance",
+      powerPreference: lowPower ? "default" : "high-performance",
     });
     engine.setHardwareScalingLevel(hardwareScale);
 
@@ -103,16 +107,34 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
         handleRef.current = handle;
         handle.setSound(soundOn);
         setReady(true);
-        engine.runRenderLoop(() => handle.scene.render());
+        startLoop();
       })
       .catch((error: unknown) => {
         console.error("[YANKI] Game scene failed to initialize", error);
         if (!disposed) setToast(local(locale, "Arşiv yüklenemedi. Yeniden başlatmayı dene.", "Archive failed to load. Try restarting."));
       });
 
+    let isRendering = false;
+    const startLoop = () => {
+      if (isRendering || disposed || !handleRef.current) return;
+      isRendering = true;
+      engine.runRenderLoop(() => handleRef.current?.scene.render());
+    };
+
+    const stopLoop = () => {
+      if (!isRendering) return;
+      isRendering = false;
+      engine.stopRenderLoop();
+    };
+
     const onResize = () => engine.resize();
     const onVisibilityChange = () => {
-      if (!document.hidden) engine.resize();
+      if (document.hidden) {
+        stopLoop();
+      } else {
+        startLoop();
+        engine.resize();
+      }
     };
     const onFullscreenChange = () => {
       // Some mobile browsers settle fullscreen layout a frame late; resize twice to be safe.
@@ -120,15 +142,29 @@ export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish 
       requestAnimationFrame(() => engine.resize());
     };
 
+    const onContextLost = (e: Event) => {
+      e.preventDefault();
+      stopLoop();
+    };
+    const onContextRestored = () => {
+      startLoop();
+      engine.resize();
+    };
+
     window.addEventListener("resize", onResize);
     document.addEventListener("visibilitychange", onVisibilityChange);
     document.addEventListener("fullscreenchange", onFullscreenChange);
+    canvas.addEventListener("webglcontextlost", onContextLost, false);
+    canvas.addEventListener("webglcontextrestored", onContextRestored, false);
 
     return () => {
       disposed = true;
+      stopLoop();
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       document.removeEventListener("fullscreenchange", onFullscreenChange);
+      canvas.removeEventListener("webglcontextlost", onContextLost);
+      canvas.removeEventListener("webglcontextrestored", onContextRestored);
       handleRef.current?.dispose();
       handleRef.current = null;
       engine.dispose();

@@ -68,7 +68,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: path.resolve(import.meta.dirname, "dist/public"),
       emptyOutDir: true,
-      target: "es2022",
+      target: ["es2020", "chrome87", "safari14", "firefox78", "edge88"],
+      cssTarget: "chrome80",
       cssCodeSplit: true,
       chunkSizeWarningLimit: 800,
       rollupOptions: {

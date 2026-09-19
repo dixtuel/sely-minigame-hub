@@ -12,6 +12,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Legal from "./pages/Legal";
 import { browserLocale } from "./lib/i18n";
+import { initDevicePerformanceMonitoring } from "./lib/devicePerformance";
 import { useLocation } from "wouter";
 
 function DefaultHome() {
@@ -47,6 +48,10 @@ function Router() {
 // - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
+  useEffect(() => {
+    return initDevicePerformanceMonitoring();
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider

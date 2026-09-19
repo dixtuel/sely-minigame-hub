@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { local as worldWord, type SiteLocale } from "@/lib/i18n";
 import { mulberry32 } from "@/lib/rng";
 import { getContext as getSharedAudioContext } from "@/lib/sfx";
+import { getAdaptiveDpr, isLowPowerMode } from "@/lib/devicePerformance";
 
 export type Outcome = "success" | "failure";
 export type SparkResult = { score: number; label: string; detail: string; outcome: Outcome };
@@ -336,7 +337,7 @@ export default function SparkCanvasGame({
 
     // Parçacık patlaması üretici
     function createSparks(x: number, y: number, count: number, color = "#f8d77a", speed = 140) {
-      if (reducedMotion) count = Math.min(count, 4);
+      if (reducedMotion || isLowPowerMode()) count = Math.max(2, Math.ceil(count * 0.5));
       for (let i = 0; i < count; i++) {
         const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
         const vel = speed * (0.4 + Math.random() * 0.8);
@@ -363,7 +364,7 @@ export default function SparkCanvasGame({
       const newWidth = Math.max(320, Math.floor(rect.width));
       const newHeight = Math.max(340, Math.floor(rect.height));
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = getAdaptiveDpr(1.5);
       cvs.width = Math.floor(newWidth * dpr);
       cvs.height = Math.floor(newHeight * dpr);
       const c = cvs.getContext("2d");
@@ -379,6 +380,11 @@ export default function SparkCanvasGame({
 
     handleResize();
     window.addEventListener("resize", handleResize);
+
+    const handleVisibility = () => {
+      lastTime = performance.now();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
 
     // Giriş (Input) Tetikleyici
     const doFlap = () => {
@@ -406,12 +412,19 @@ export default function SparkCanvasGame({
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("resize", handleResize);
+      document.removeEventListener("visibilitychange", handleVisibility);
       onFinishRef.current(result);
     };
 
     // Ana Oyun Döngüsü
     const tick = (now: number) => {
       if (gameEnded || finishedRef.current) return;
+      if (document.hidden) {
+        // Sekme veya WebView arka planda: CPU/pil tüketimini sıfırlamak için simülasyonu beklet
+        lastTime = now;
+        frameId = window.requestAnimationFrame(tick);
+        return;
+      }
       const rawDt = clamp((now - lastTime) / 1000, 0, 0.04);
       lastTime = now;
       arcPhase += rawDt * 12;
@@ -435,10 +448,11 @@ export default function SparkCanvasGame({
 
       // Akıcı Plazma Kuyruğu İz Noktası (Trail History)
       trail.unshift({ x: spark.x, y: spark.y, vy: spark.vy, time: now });
-      if (trail.length > 14) trail.pop();
+      const maxTrail = isLowPowerMode() ? 8 : 14;
+      if (trail.length > maxTrail) trail.pop();
 
       // Kıvılcım serbest mikro parçacık dökülmesi
-      if (!reducedMotion && Math.random() > 0.4) {
+      if (!reducedMotion && !isLowPowerMode() && Math.random() > 0.4) {
         particles.push({
           x: spark.x - 10 + (Math.random() - 0.5) * 4,
           y: spark.y + (Math.random() - 0.5) * 4,

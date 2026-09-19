@@ -83,6 +83,7 @@
   z-index: 25 !important;
   background: rgba(8, 12, 24, 0.82) !important;
   border-bottom: 1px solid rgba(246, 240, 227, 0.16) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
   backdrop-filter: blur(10px) !important;
   display: flex !important;
   align-items: center !important;
@@ -161,4 +162,11 @@
   .spark-topbar-val {
     font-size: 11px;
   }
+}
+
+/* Low-Power Mode & Legacy WebView Fallbacks */
+.low-power-mode .studio-shell-spark .studio-topbar {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: #080c18 !important;
 }
