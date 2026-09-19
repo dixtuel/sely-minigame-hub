@@ -150,8 +150,9 @@ Aşağıdaki tablo, projede kullanılan doğrudan kod kütüphanelerini, sürüm
 | `typescript` | `5.9.3` | `Apache-2.0` | Microsoft Corporation | Statik tip denetimi ve geliştirme araç seti |
 | `esbuild` | `^0.25.0` | `MIT` | Evan Wallace | Hızlı sunucu derleme ve paketleme aracı |
 | `@vercel/analytics` | `^2.0.1` | `MIT` | Vercel, Inc. | Opsiyonel web analitiği ve sayfa görüntüleme ölçümü (`VITE_ENABLE_VERCEL_ANALYTICS` bayrağıyla opt-in; hardcoded kimlik barındırmaz) |
+| `@vercel/speed-insights` | `^2.0.0` | `MIT` | Vercel, Inc. | Opsiyonel gerçek kullanıcı performans takibi (Core Web Vitals - LCP/INP/CLS, `VITE_ENABLE_VERCEL_SPEED_INSIGHTS` bayrağıyla opt-in) |
 
-*Not: `@vercel/analytics` entegrasyonu tamamen opsiyoneldir (opt-in). Kod tabanında hiçbir analitik kimliği sabit kodlanmamıştır (zero hardcoded ID). Yalnızca `VITE_ENABLE_VERCEL_ANALYTICS=true` ortam değişkeni açık olduğunda ve kullanıcı çerez/gizlilik iznini reddetmediğinde devreye girer; bağımsız barındırılan veya yerel çalışan kurulumlarda hiçbir veri göndermez (no-op).*
+*Not: `@vercel/analytics` ve `@vercel/speed-insights` entegrasyonları tamamen opsiyoneldir (opt-in). Kod tabanında hiçbir analitik kimliği sabit kodlanmamıştır (zero hardcoded ID). Yalnızca `VITE_ENABLE_VERCEL_ANALYTICS=true` veya `VITE_ENABLE_VERCEL_SPEED_INSIGHTS=true` ortam değişkenleri açık olduğunda ve kullanıcı çerez/gizlilik iznini reddetmediğinde devreye girerler; bağımsız barındırılan veya yerel çalışan kurulumlarda hiçbir veri göndermezler (no-op).*
 
 ---
 

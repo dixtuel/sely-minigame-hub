@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import CookieConsentBanner from "./components/CookieConsentBanner";
 import VercelAnalytics from "./components/VercelAnalytics";
+import VercelSpeedInsights from "./components/VercelSpeedInsights";
 import { CookieConsentProvider } from "./contexts/CookieConsentContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -58,6 +59,7 @@ function App() {
             <Router />
             <CookieConsentBanner />
             <VercelAnalytics />
+            <VercelSpeedInsights />
           </TooltipProvider>
         </CookieConsentProvider>
       </ThemeProvider>
