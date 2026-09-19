@@ -89,6 +89,21 @@ describe("OG Image and Dynamic Social Sharing Routes", () => {
     expect(svg).not.toContain("<!--");
   });
 
+  it("renders daily level expedition banner when score is not provided", () => {
+    const svg = generateOgSvg({
+      game: "knot",
+      locale: "tr",
+    });
+
+    expect(svg).toContain("<svg");
+    expect(svg).toContain("</svg>");
+    expect(svg).toContain("GÜNLÜK SEFER KATALOĞU");
+    expect(svg).toContain("DÜĞÜM");
+    expect(svg).toContain("GÜNÜN TURUNA BAŞLA");
+    expect(svg).toContain("dugum-poster_684e5a01.png");
+    expect(svg).not.toContain("<!--");
+  });
+
   it("renders custom court dossier dossier & seal for Vaka Mystery", () => {
     const svg = generateOgSvg({
       game: "vaka",

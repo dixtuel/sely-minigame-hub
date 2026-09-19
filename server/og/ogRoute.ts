@@ -9,7 +9,7 @@ function parseOgParams(query: Record<string, any>): OgParams {
   const game = typeof query.game === "string" ? query.game.toLowerCase().slice(0, 20) : "hub";
   const rawScore = query.score ? parseInt(String(query.score), 10) : undefined;
   const score = typeof rawScore === "number" && !isNaN(rawScore) && rawScore >= 0 && rawScore <= 10_000_000 ? rawScore : undefined;
-  const nick = typeof query.nick === "string" ? query.nick.slice(0, 16).replace(/[^\w\s-]/g, "") : undefined;
+  const nick = typeof query.nick === "string" ? query.nick.slice(0, 32).replace(/[^\w\s\-#çğıöşüÇĞİÖŞÜ]/g, "") : undefined;
   const rank = typeof query.rank === "string" ? query.rank.slice(0, 8) : undefined;
   const outcome = query.outcome === "solved" || query.outcome === "dismissed" || query.outcome === "success" || query.outcome === "failure" ? query.outcome : undefined;
   const grade = query.grade === "S" || query.grade === "A" || query.grade === "B" || query.grade === "C" ? query.grade : undefined;

@@ -24,7 +24,7 @@ export default async function handler(req: Request) {
     const params: OgParams = {
       game,
       score: typeof score === "number" && !isNaN(score) ? score : undefined,
-      nick: nick ? nick.slice(0, 16) : undefined,
+      nick: nick ? nick.slice(0, 32).replace(/[^\w\s\-#çğıöşüÇĞİÖŞÜ]/g, "") : undefined,
       rank: rank ? rank.slice(0, 8) : undefined,
       outcome,
       grade,
