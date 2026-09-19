@@ -229,26 +229,64 @@ pnpm build
 
 ## Ortam Değişkenleri
 
-Tüm ortam değişkenleri opsiyoneldir. Herhangi bir veritabanı bağlantısı sağlanmadığında sistem bellek-içi deterministik tohum üretimiyle sorunsuz çalışır.
+Tüm ortam değişkenleri opsiyoneldir. Herhangi bir veritabanı bağlantısı sağlanmadığında sistem bellek-içi deterministik tohum üretimiyle sorunsuz çalışır. Başlamak için `.env.example` dosyasını `.env` olarak kopyala:
 
-| Değişken | Zorunlu | Varsayılan | Açıklama |
-| :--- | :---: | :---: | :--- |
-| `DATABASE_URL` | Hayır | `undefined` | PostgreSQL 16 bağlantı dizesi (Neon / yerel). |
-| `TURSO_DATABASE_URL` | Hayır | `undefined` | Turso / libSQL bağlantı dizesi (`libsql://...` veya yerel SQLite `file:./data/sely.db`). Tanımlıysa kalıcı skor arşivi ve kullanıcı deposu olarak çalışır. |
-| `TURSO_AUTH_TOKEN` | Hayır | `undefined` | Turso Cloud yetkilendirme anahtarı (yerel `file:...` modunda gerekmez). |
-| `GLOBAL_CONFIG_ID` | Hayır | `undefined` | Vercel Global Config (Edge Config) mağaza kimliği. Deploy atmadan dinamik duyuru banner'ı veya bakım modu yönetimi sağlar. |
-| `REDIS_URL` | Hayır | `undefined` | Redis bağlantı dizesi — VDS/Docker TCP Redis veya yönetilen bir Redis (örn. Redis Cloud) (`redis://...`). Tanımsızsa Turso'ya, o da yoksa memory fallback'e düşer. |
-| `PRIMARY_DOMAIN` | Hayır | `sely.tr` | Kanonik alan adı — SEO etiketleri ve sitemap için kullanılır. |
-| `GOOGLE_SITE_VERIFICATION`| Hayır | `undefined` | Google Search Console doğrulama kodu. |
-| `BING_SITE_VERIFICATION`  | Hayır | `undefined` | Bing Webmaster Tools doğrulama kodu. |
-| `YANDEX_SITE_VERIFICATION`| Hayır | `undefined` | Yandex Webmaster doğrulama kodu. |
-| `VITE_ADSENSE_CLIENT_ID`  | Hayır | `undefined` | Google AdSense yayıncı kimliği (`ca-pub-...`). Tanımsızsa reklamlar gizlenir. |
-| `VITE_ADSENSE_RESULT_SLOT_ID` | Hayır | `undefined` | Oyun sonu panelindeki reklam alanı kimliği. |
-| `VITE_ENABLE_VERCEL_ANALYTICS` | Hayır | `false` | Vercel Web Analytics'i etkinleştirir (`true`/`false`). Hardcoded ID içermez, sıfır çerezli gizlilik dostudur. |
-| `VITE_ENABLE_VERCEL_SPEED_INSIGHTS` | Hayır | `false` | Vercel Speed Insights (RUM / Core Web Vitals) takibini etkinleştirir (`true`/`false`). Hardcoded ID içermez. |
-| `VITE_VERCEL_SPEED_INSIGHTS_SAMPLE_RATE` | Hayır | `undefined` (1.0) | Speed Insights için örnekleme oranı (`0.0` - `1.0`). Free tier 10k kota kontrolü için opsiyoneldir. |
-| `CRON_SECRET`             | Hayır | `undefined` | Vercel Cron Jobs otomatik çağrıları için `Bearer` yetkilendirme anahtarı. |
-| `DAILY_JOB_TOKEN`         | Hayır | `undefined` | VDS crontab çağrıları (`x-sely-cron-token`) için yetkilendirme anahtarı. |
+```bash
+cp .env.example .env
+```
+
+#### Veritabanı — günlük içerik & skor arşivi
+
+| Değişken | Varsayılan | Açıklama |
+| :--- | :---: | :--- |
+| `TURSO_DATABASE_URL` | `undefined` | Turso / libSQL bağlantı dizesi. Birincil depo — tanımsızsa `DATABASE_URL`'e, o da yoksa belleğe düşer. Yerel/sıfır kurulum: `file:./data/sely.db`. Bulut (ücretsiz): [turso.tech](https://turso.tech) üzerinden DB oluştur. |
+| `TURSO_AUTH_TOKEN` | `undefined` | Turso Cloud yetkilendirme anahtarı ("Create Token" ile üretilir; yerel `file:...` modunda gerekmez). |
+| `DATABASE_URL` | `undefined` | PostgreSQL 16 bağlantı dizesi (Neon / yerel) — kullanıcı/OAuth hesap kayıtları için, içerik deposundan bağımsız. |
+
+#### Redis — liderlik tablosu önbelleği
+
+| Değişken | Varsayılan | Açıklama |
+| :--- | :---: | :--- |
+| `REDIS_URL` | `undefined` | ioredis uyumlu herhangi bir Redis (`redis://...`) — yerel/Docker, VDS veya yönetilen bir servis (örn. Redis Cloud'un ücretsiz 30MB planı). Tanımsızsa Turso'ya, o da yoksa belleğe düşer. Her key 48 saatlik TTL ile kendiliğinden temizlenir, elle silme gerekmez. |
+
+#### Güvenlik — zamanlanmış görev (cron) yetkilendirmesi
+
+Her ikisi için de rastgele, tahmin edilemez bir değer üret: `openssl rand -hex 32`
+
+| Değişken | Varsayılan | Açıklama |
+| :--- | :---: | :--- |
+| `CRON_SECRET` | `undefined` | Vercel Cron'un gönderdiği `Authorization: Bearer <değer>` başlığıyla doğrulanır. |
+| `DAILY_JOB_TOKEN` | `undefined` | VDS crontab'ının gönderdiği `x-sely-cron-token` başlığıyla doğrulanır. |
+
+#### Vercel — Global Config, Analytics, Speed Insights
+
+| Değişken | Varsayılan | Açıklama |
+| :--- | :---: | :--- |
+| `GLOBAL_CONFIG_ID` | `undefined` | [Global Config (Edge Config)](https://vercel.com/docs/storage/edge-config) mağaza kimliği. Deploy atmadan dinamik duyuru banner'ı veya bakım modu yönetimi sağlar. |
+| `VITE_ENABLE_VERCEL_ANALYTICS` | `false` | Vercel Web Analytics'i etkinleştirir (`true`/`false`). Hardcoded ID içermez, sıfır çerezli gizlilik dostudur. |
+| `VITE_ENABLE_VERCEL_SPEED_INSIGHTS` | `false` | Vercel Speed Insights (RUM / Core Web Vitals) takibini etkinleştirir (`true`/`false`). Hardcoded ID içermez. |
+| `VITE_VERCEL_SPEED_INSIGHTS_SAMPLE_RATE` | `1.0` | Speed Insights için örnekleme oranı (`0.0`–`1.0`). Free tier 10k kota kontrolü için düşürülebilir. |
+
+#### SEO — arama motoru doğrulama kodları
+
+| Değişken | Varsayılan | Açıklama |
+| :--- | :---: | :--- |
+| `GOOGLE_SITE_VERIFICATION` | `undefined` | Google Search Console doğrulama kodu. |
+| `BING_SITE_VERIFICATION` | `undefined` | Bing Webmaster Tools doğrulama kodu. |
+| `YANDEX_SITE_VERIFICATION` | `undefined` | Yandex Webmaster doğrulama kodu. |
+
+#### Reklam — Google AdSense
+
+| Değişken | Varsayılan | Açıklama |
+| :--- | :---: | :--- |
+| `VITE_ADSENSE_CLIENT_ID` | `undefined` | Google AdSense yayıncı kimliği (`ca-pub-...`). Tanımsızsa reklam bileşeni hiç render edilmez. |
+| `VITE_ADSENSE_RESULT_SLOT_ID` | `undefined` | Oyun sonu panelindeki reklam alanı kimliği. |
+
+#### Genel
+
+| Değişken | Varsayılan | Açıklama |
+| :--- | :---: | :--- |
+| `PRIMARY_DOMAIN` | `sely.tr` | Kanonik alan adı — SEO etiketleri ve sitemap için kullanılır. |
 
 ---
 
