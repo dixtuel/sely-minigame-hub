@@ -237,6 +237,9 @@ Tüm ortam değişkenleri opsiyoneldir. Herhangi bir veritabanı bağlantısı s
 | `CONTENT_DB_PROVIDER` | Hayır | `postgres` | libSQL / Turso kullanılacaksa `turso` olarak ayarlanır. |
 | `TURSO_URL` | Hayır | `undefined` | Turso veritabanı URL adresi. |
 | `TURSO_AUTH_TOKEN` | Hayır | `undefined` | Turso yetkilendirme anahtarı. |
+| `REDIS_URL` | Hayır | `undefined` | VDS / Docker TCP Redis bağlantı dizesi (`redis://127.0.0.1:6379` vb.). Tanımsızsa memory fallback devrededir. |
+| `UPSTASH_REDIS_REST_URL` | Hayır | `undefined` | Vercel Marketplace Upstash Redis REST URL adresi (Serverless liderlik tablosu). |
+| `UPSTASH_REDIS_REST_TOKEN` | Hayır | `undefined` | Vercel Marketplace Upstash Redis REST yetkilendirme token'ı. |
 | `PRIMARY_DOMAIN` | Hayır | `sely.tr` | Kanonik alan adı — SEO etiketleri ve sitemap için kullanılır. |
 | `GOOGLE_SITE_VERIFICATION`| Hayır | `undefined` | Google Search Console doğrulama kodu. |
 | `BING_SITE_VERIFICATION`  | Hayır | `undefined` | Bing Webmaster Tools doğrulama kodu. |

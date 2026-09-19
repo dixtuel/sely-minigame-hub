@@ -793,6 +793,1654 @@ async function cleanupDailyContent(retentionDays = 90, referenceDate = dayKey())
 // server/routers/vakaRouter.ts
 import { z as z2 } from "zod";
 
+// shared/vakaCasesExtra.ts
+var newCases = [
+  // Case 09
+  {
+    id: "case-09-bogaz-yalisi",
+    title: "Bo\u011Faz Yal\u0131s\u0131nda Kasa Soygunu",
+    titleEn: "Vault Heist at the Bosphorus Mansion",
+    difficulty: "normal",
+    briefing: "Emekli armat\xF6r Hikmet Pa\u015Fazade'nin Bo\u011Faz'daki yal\u0131s\u0131ndan milyon dolarl\u0131k hamiline senetler ve antika m\xFCh\xFCr \xE7al\u0131nd\u0131.",
+    briefingEn: "Million dollar bearer bonds and an antique seal were stolen from retired magnate Hikmet Pa\u015Fazade's Bosphorus mansion.",
+    incidentTime: "23:15",
+    location: "Yal\u0131 Ana Kasa Odas\u0131",
+    locationEn: "Mansion Main Vault Room",
+    victim: {
+      name: "Hikmet Pa\u015Fazade",
+      occupation: "Emekli Armat\xF6r",
+      occupationEn: "Retired Shipping Magnate",
+      causeOfDeath: "Can kayb\u0131 yok (Nitelikli H\u0131rs\u0131zl\u0131k)",
+      causeOfDeathEn: "No casualties (Grand Larceny)"
+    },
+    timeline: [
+      { time: "22:00", event: "Misafirler yal\u0131dan ayr\u0131ld\u0131.", eventEn: "Guests left the mansion.", verified: true },
+      { time: "23:15", event: "Kasa kapa\u011F\u0131 a\xE7\u0131ld\u0131.", eventEn: "Vault door opened.", verified: true },
+      { time: "00:30", event: "Kasan\u0131n bo\u015F oldu\u011Fu fark edildi.", eventEn: "Vault discovered empty.", verified: true }
+    ],
+    crimeSceneNotes: {
+      tr: [
+        "Kasa \u015Fifre paneli temiz, zorlama yok.",
+        "\u0130skelede taze s\xFCrt\xFCnme izleri."
+      ],
+      en: [
+        "Vault combination panel is clean, no forced entry.",
+        "Fresh friction marks on the dock."
+      ]
+    },
+    culpritId: "suspect-selim",
+    correctMethod: "\u015Eifresini bildi\u011Fi kasay\u0131 a\xE7\u0131p \xE7ald\u0131klar\u0131n\u0131 iskeledeki s\xFCrat motoruna gizledi.",
+    correctMethodEn: "Opened the vault using the known code and hid the stolen items in his speedboat at the dock.",
+    correctMotive: "B\xFCy\xFCk kumar bor\xE7lar\u0131n\u0131 kapatmak.",
+    correctMotiveEn: "To pay off massive gambling debts.",
+    winningContradiction: {
+      suspectId: "suspect-selim",
+      sentenceId: "selim-s2",
+      clueId: "clue-yali-dock-rope"
+    },
+    analystSummary: {
+      tr: "Analist Notu: \u015E\xFCpheli iskeleye inmedi\u011Fini iddia ediyor ancak iskele babas\u0131nda motorunun ipine ait lifler bulundu.",
+      en: "Analyst Note: Suspect claims he never went to the dock, but fibers from his boat's rope were found on the bollard."
+    },
+    suspects: [
+      {
+        id: "suspect-selim",
+        name: "Selim Pa\u015Fazade",
+        role: "Mirasyedi Ye\u011Fen",
+        roleEn: "Spendthrift Nephew",
+        age: 28,
+        temperament: "Kibirli ve rahat",
+        temperamentEn: "Arrogant and relaxed",
+        relationshipToVictim: "Hikmet Pa\u015Fazade'nin ye\u011Feni.",
+        relationshipToVictimEn: "Nephew of Hikmet Pa\u015Fazade.",
+        statement: "B\xFCt\xFCn ak\u015Fam kendi odamda oyun oynad\u0131m, d\u0131\u015Far\u0131 ad\u0131m atmad\u0131m.",
+        statementEn: "I played games in my room all evening, didn't step outside.",
+        isCulprit: true,
+        alibi: "Odas\u0131nda oldu\u011Funu iddia ediyor.",
+        alibiEn: "Claims to be in his room.",
+        motive: "B\xFCy\xFCk kumar bor\xE7lar\u0131.",
+        motiveEn: "Massive gambling debts.",
+        minorSecret: "Amcas\u0131n\u0131n antika arabas\u0131n\u0131 izinsiz kullan\u0131rd\u0131.",
+        minorSecretEn: "Used his uncle's antique car without permission.",
+        breakThreshold: 85,
+        gossip: {
+          "suspect-aylin": { tr: "Doktorun amcama verdi\u011Fi ila\xE7lar \xE7ok \u015F\xFCpheli.", en: "The doctor's meds for my uncle are very suspicious." },
+          "suspect-riza": { tr: "R\u0131za Efendi kasan\u0131n \u015Fifresini biliyor olabilir.", en: "R\u0131za Efendi might know the vault code." }
+        },
+        behavioralCues: {
+          calm: { tr: "Telefonuyla oynuyor.", en: "Playing with his phone." },
+          nervous: { tr: "Dudaklar\u0131n\u0131 kemiriyor.", en: "Chewing his lips." },
+          breaking: { tr: "Ba\u011F\u0131rarak su\xE7lamalar\u0131 reddediyor.", en: "Yelling and denying accusations." }
+        },
+        lies: {
+          level1: "Ben sadece oyun oynuyordum.",
+          level2: "Amcam\u0131n kasas\u0131 umurumda de\u011Fil.",
+          level3: "O motoru g\xFCnlerdir kullanmad\u0131m!"
+        },
+        confession: "Bor\xE7lar\u0131m vard\u0131, beni \xF6ld\xFCreceklerdi! Mecburdum!",
+        confessionEn: "I had debts, they were going to kill me! I had to!",
+        detailedStatements: [
+          { id: "selim-s1", text: "Ak\u015Fam yeme\u011Finden sonra odama \xE7\u0131kt\u0131m.", textEn: "I went up to my room after dinner.", isContradiction: false },
+          { id: "selim-s2", text: "B\xFCt\xFCn gece deniz taraf\u0131ndaki iskeleye ad\u0131m dahi atmad\u0131m.", textEn: "I didn't even step on the seaside dock all night.", isContradiction: true, contradictionClueId: "clue-yali-dock-rope", explanation: "\u0130skele babas\u0131ndaki taze palamar s\xFCrt\xFCnme izi ve Selim'in motorunun lifleri bulundu.", explanationEn: "Fresh mooring friction marks and fibers from Selim's speedboat rope were found on the dock bollard." }
+        ]
+      },
+      {
+        id: "suspect-aylin",
+        name: "Dr. Aylin Kurt",
+        role: "\xD6zel Hekim",
+        roleEn: "Private Physician",
+        age: 35,
+        temperament: "Ciddi ve so\u011Fuk",
+        temperamentEn: "Serious and cold",
+        relationshipToVictim: "Hikmet Bey'in \xF6zel doktoru.",
+        relationshipToVictimEn: "Hikmet's private doctor.",
+        statement: "Sadece tansiyonunu \xF6l\xE7t\xFCm ve ayr\u0131ld\u0131m.",
+        statementEn: "I only checked his blood pressure and left.",
+        isCulprit: false,
+        alibi: "Klinikte n\xF6bet\xE7iydi.",
+        alibiEn: "Was on duty at the clinic.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Yanl\u0131\u015F ila\xE7 yazd\u0131\u011F\u0131n\u0131 gizliyordu.",
+        minorSecretEn: "Hid the fact she prescribed the wrong medication.",
+        breakThreshold: 94,
+        gossip: {
+          "suspect-selim": { tr: "Selim \xE7ok bor\xE7luydu.", en: "Selim was heavily in debt." }
+        },
+        behavioralCues: {
+          calm: { tr: "Not defterine bak\u0131yor.", en: "Looking at her notepad." },
+          nervous: { tr: "Stetoskopuyla oynuyor.", en: "Playing with her stethoscope." },
+          breaking: { tr: "A\u011Flamaya ba\u015Fl\u0131yor.", en: "Starts crying." }
+        },
+        lies: {
+          level1: "Ben sadece doktorum.",
+          level2: "Kasa umurumda de\u011Fil.",
+          level3: "Klini\u011Fin kameralar\u0131 bozuktu."
+        },
+        confession: "Masumum, sadece yanl\u0131\u015F ila\xE7 yazd\u0131m!",
+        confessionEn: "I am innocent, I just prescribed the wrong med!",
+        detailedStatements: [
+          { id: "aylin-s1", text: "Hikmet Bey'in tedavisini yap\u0131p \xE7\u0131kt\u0131m.", textEn: "I treated Hikmet and left.", isContradiction: false }
+        ]
+      },
+      {
+        id: "suspect-riza",
+        name: "R\u0131za Efendi",
+        role: "Ba\u015F Kahya",
+        roleEn: "Head Butler",
+        age: 58,
+        temperament: "Sad\u0131k ve tela\u015Fl\u0131",
+        temperamentEn: "Loyal and frantic",
+        relationshipToVictim: "Yal\u0131n\u0131n 30 y\u0131ll\u0131k \xE7al\u0131\u015Fan\u0131.",
+        relationshipToVictimEn: "30-year employee of the mansion.",
+        statement: "Mutfakta personeli y\xF6netiyordum.",
+        statementEn: "I was managing the staff in the kitchen.",
+        isCulprit: false,
+        alibi: "Personelle birlikteydi.",
+        alibiEn: "Was with the staff.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Mutfak b\xFCt\xE7esinden biraz kesinti yap\u0131yordu.",
+        minorSecretEn: "Was skimming a bit off the kitchen budget.",
+        breakThreshold: 92,
+        gossip: {
+          "suspect-selim": { tr: "Selim Bey anahtarlar\u0131 gizlice kopyalam\u0131\u015F olabilir.", en: "Mr. Selim might have secretly copied the keys." }
+        },
+        behavioralCues: {
+          calm: { tr: "Ceketini ilikliyor.", en: "Buttoning his jacket." },
+          nervous: { tr: "Terini siliyor.", en: "Wiping his sweat." },
+          breaking: { tr: "Diz \xE7\xF6k\xFCp yalvar\u0131yor.", en: "Kneeling and begging." }
+        },
+        lies: {
+          level1: "Ben y\u0131llar\u0131n kahyas\u0131y\u0131m.",
+          level2: "H\u0131rs\u0131zl\u0131kla i\u015Fim olmaz.",
+          level3: "Kasa \u015Fifresini bilmem."
+        },
+        confession: "Ben yapmad\u0131m, Hikmet Bey'e ihanet etmem!",
+        confessionEn: "I didn't do it, I wouldn't betray Hikmet!",
+        detailedStatements: [
+          { id: "riza-s1", text: "Personelle ilgileniyordum.", textEn: "I was dealing with the staff.", isContradiction: false }
+        ]
+      }
+    ],
+    clues: [
+      {
+        id: "clue-yali-dock-rope",
+        label: "\u0130skele Babas\u0131nda S\xFCrt\xFCnme \u0130zi",
+        labelEn: "Friction Mark on Dock Bollard",
+        category: "forensic",
+        type: "forensic",
+        contradictsSuspectId: "suspect-selim",
+        detail: "\u0130skele babas\u0131nda Selim'in s\xFCrat motoruna ait halat lifleri bulundu.",
+        detailEn: "Rope fibers belonging to Selim's speedboat were found on the dock bollard.",
+        significance: "Selim'in motoru o gece kulland\u0131\u011F\u0131n\u0131 kan\u0131tlar.",
+        significanceEn: "Proves Selim used the boat that night."
+      },
+      {
+        id: "clue-09-camera",
+        label: "Klinik Kamera Kayd\u0131",
+        labelEn: "Clinic Camera Footage",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-aylin",
+        detail: "Aylin Han\u0131m gece boyunca klinikteydi.",
+        detailEn: "Aylin was at the clinic all night.",
+        significance: "Aylin'i temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Aylin."
+      },
+      {
+        id: "clue-09-staff",
+        label: "Personel \u0130fadesi",
+        labelEn: "Staff Statement",
+        category: "witness",
+        type: "alibi",
+        clearsSuspectId: "suspect-riza",
+        detail: "R\u0131za Efendi personelin yan\u0131ndan ayr\u0131lmad\u0131.",
+        detailEn: "R\u0131za Efendi didn't leave the staff's side.",
+        significance: "R\u0131za Efendi'yi temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears R\u0131za Efendi."
+      }
+    ]
+  },
+  // Case 10
+  {
+    id: "case-10-siber-zirve",
+    title: "Siber Zirvede S\u0131f\u0131r\u0131nc\u0131 G\xFCn S\u0131z\u0131nt\u0131s\u0131",
+    titleEn: "Zero-Day Leak at the Cyber Summit",
+    difficulty: "hard",
+    briefing: "Siber g\xFCvenlik zirvesinde, Kaan Sencer'in korudu\u011Fu ana sunucudan HSM anahtar\u0131 \xE7al\u0131nd\u0131.",
+    briefingEn: "At the cybersecurity summit, the HSM key was stolen from the main server guarded by Kaan Sencer.",
+    incidentTime: "14:30",
+    location: "B-4 Sunucu Kat\u0131",
+    locationEn: "B-4 Server Floor",
+    victim: {
+      name: "Kaan Sencer",
+      occupation: "Ba\u015F G\xFCvenlik Mimar\u0131",
+      occupationEn: "Chief Security Architect",
+      causeOfDeath: "Sistem S\u0131z\u0131nt\u0131s\u0131",
+      causeOfDeathEn: "System Leak"
+    },
+    timeline: [
+      { time: "14:00", event: "Sunucu odas\u0131 yetkisiz giri\u015Flere kapat\u0131ld\u0131.", eventEn: "Server room locked for unauthorized access.", verified: true },
+      { time: "14:30", event: "HSM anahtar\u0131 klonland\u0131.", eventEn: "HSM key was cloned.", verified: true }
+    ],
+    crimeSceneNotes: {
+      tr: [
+        "Donan\u0131m bypass implant\u0131 lehimlenmi\u015F.",
+        "Havaland\u0131rma filtresinde ila\xE7 kal\u0131nt\u0131s\u0131."
+      ],
+      en: [
+        "Hardware bypass implant soldered.",
+        "Drug residue in the ventilation filter."
+      ]
+    },
+    culpritId: "suspect-ozan",
+    correctMethod: "Donan\u0131m bypass implant\u0131 lehimleyip HSM anahtar\u0131n\u0131 USB belle\u011Fe klonlad\u0131.",
+    correctMethodEn: "Soldered a hardware bypass implant and cloned the HSM key to a USB drive.",
+    correctMotive: "Rakip firmaya s\u0131f\u0131r\u0131nc\u0131 g\xFCn a\xE7\u0131\u011F\u0131n\u0131 satmak.",
+    correctMotiveEn: "To sell the zero-day exploit to a rival company.",
+    winningContradiction: {
+      suspectId: "suspect-ozan",
+      sentenceId: "ozan-s2",
+      clueId: "clue-inhaler-vent"
+    },
+    analystSummary: {
+      tr: "Analist Notu: \u015E\xFCpheli sunucu kat\u0131na inmedi\u011Fini belirtiyor ancak havaland\u0131rmada ona ait ast\u0131m ilac\u0131 izi bulundu.",
+      en: "Analyst Note: Suspect claims he didn't go down to the server floor, but his asthma drug residue was found in the vent."
+    },
+    suspects: [
+      {
+        id: "suspect-ozan",
+        name: "Ozan \xC7elik",
+        role: "K\u0131demli Pentester",
+        roleEn: "Senior Pentester",
+        age: 39,
+        temperament: "Kibirli ve gergin",
+        temperamentEn: "Arrogant and tense",
+        relationshipToVictim: "Kaan'\u0131n ekibindeki k\u0131demli test\xE7i.",
+        relationshipToVictimEn: "Senior tester in Kaan's team.",
+        statement: "Benim ast\u0131m\u0131m var, so\u011Fuk sunucu odalar\u0131na girmem.",
+        statementEn: "I have asthma, I don't enter cold server rooms.",
+        isCulprit: true,
+        alibi: "Odas\u0131nda kod yazd\u0131\u011F\u0131n\u0131 iddia ediyor.",
+        alibiEn: "Claims to be writing code in his room.",
+        motive: "Finansal kazan\xE7.",
+        motiveEn: "Financial gain.",
+        minorSecret: "\u015Eirket verilerini ki\u015Fisel diskine kopyal\u0131yordu.",
+        minorSecretEn: "Was copying company data to his personal drive.",
+        breakThreshold: 84,
+        gossip: {
+          "suspect-merve": { tr: "Merve \xE7ok dikkatsiz.", en: "Merve is very careless." },
+          "suspect-tarik": { tr: "Tar\u0131k'\u0131n loglar\u0131 silmeye \xE7al\u0131\u015Ft\u0131\u011F\u0131n\u0131 g\xF6rd\xFCm.", en: "I saw Tar\u0131k trying to delete logs." }
+        },
+        behavioralCues: {
+          calm: { tr: "G\xF6zl\xFC\u011F\xFCn\xFC siliyor.", en: "Cleaning his glasses." },
+          nervous: { tr: "Ast\u0131m ilac\u0131na uzan\u0131yor.", en: "Reaching for his inhaler." },
+          breaking: { tr: "Ekrana vurup k\xFCfrediyor.", en: "Hitting the screen and swearing." }
+        },
+        lies: {
+          level1: "Ben sadece test yapar\u0131m.",
+          level2: "Lehim yapmay\u0131 bilmem.",
+          level3: "O odaya hi\xE7 girmedim!"
+        },
+        confession: "Evet, anahtar\u0131 ben klonlad\u0131m! Bu sistem zaten \xE7\xFCr\xFCkt\xFC!",
+        confessionEn: "Yes, I cloned the key! This system was rotten anyway!",
+        detailedStatements: [
+          { id: "ozan-s1", text: "\xD6\u011Fleden sonra odamda testlerimi s\xFCrd\xFCrd\xFCm.", textEn: "I continued my tests in my room in the afternoon.", isContradiction: false },
+          { id: "ozan-s2", text: "Ast\u0131m\u0131m y\xFCz\xFCnden so\u011Fuk hava olan B-4 sunucu kat\u0131na asla inmedim.", textEn: "Because of my asthma, I never went down to the cold B-4 server floor.", isContradiction: true, contradictionClueId: "clue-inhaler-vent", explanation: "Sunucu odas\u0131 hava filtresinde Ozan'\u0131n re\xE7eteli Salbutamol ilac\u0131 partik\xFClleri bulundu.", explanationEn: "Particles of Ozan's prescribed Salbutamol medication were found in the server room air filter." }
+        ]
+      },
+      {
+        id: "suspect-merve",
+        name: "Merve Ayd\u0131n",
+        role: "Altyap\u0131 \u015Eefi",
+        roleEn: "Infrastructure Chief",
+        age: 32,
+        temperament: "Ciddi ve detayc\u0131",
+        temperamentEn: "Serious and meticulous",
+        relationshipToVictim: "Kaan'\u0131n altyap\u0131 y\xF6neticisi.",
+        relationshipToVictimEn: "Kaan's infrastructure manager.",
+        statement: "Kablolamalar\u0131 bitirip \xFCst kata \xE7\u0131kt\u0131m.",
+        statementEn: "I finished the wiring and went upstairs.",
+        isCulprit: false,
+        alibi: "\xDCst katta toplant\u0131dayd\u0131.",
+        alibiEn: "Was in a meeting upstairs.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Bir sunucuyu yanl\u0131\u015F konfig\xFCre etmi\u015Fti.",
+        minorSecretEn: "Had misconfigured a server.",
+        breakThreshold: 92,
+        gossip: {
+          "suspect-ozan": { tr: "Ozan \xE7ok gergindi.", en: "Ozan was very tense." }
+        },
+        behavioralCues: {
+          calm: { tr: "Notlar\u0131na bak\u0131yor.", en: "Looking at her notes." },
+          nervous: { tr: "Kalemini \xE7eviriyor.", en: "Spinning her pen." },
+          breaking: { tr: "A\u011Flamaya ba\u015Fl\u0131yor.", en: "Starts crying." }
+        },
+        lies: {
+          level1: "Sistem kusursuzdu.",
+          level2: "Ben yapmad\u0131m.",
+          level3: "O odaya d\xF6nmedim."
+        },
+        confession: "Masumum, sadece yanl\u0131\u015F konfig\xFCrasyon yapt\u0131m!",
+        confessionEn: "I am innocent, I just did a misconfiguration!",
+        detailedStatements: [
+          { id: "merve-s1", text: "\xDCst katta toplant\u0131dayd\u0131m.", textEn: "I was in a meeting upstairs.", isContradiction: false }
+        ]
+      },
+      {
+        id: "suspect-tarik",
+        name: "Tar\u0131k Do\u011Fan",
+        role: "Denet\xE7i",
+        roleEn: "Auditor",
+        age: 41,
+        temperament: "\u015E\xFCpheci ve so\u011Fuk",
+        temperamentEn: "Suspicious and cold",
+        relationshipToVictim: "D\u0131\u015F denet\xE7i.",
+        relationshipToVictimEn: "External auditor.",
+        statement: "Sadece loglar\u0131 inceliyordum.",
+        statementEn: "I was only reviewing the logs.",
+        isCulprit: false,
+        alibi: "Kameralar onun ofisinde oldu\u011Funu do\u011Fruluyor.",
+        alibiEn: "Cameras confirm he was in his office.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Denetim raporunu geciktirmi\u015Fti.",
+        minorSecretEn: "Delayed the audit report.",
+        breakThreshold: 95,
+        gossip: {
+          "suspect-ozan": { tr: "Ozan'\u0131n loglar\u0131nda bo\u015Fluklar var.", en: "There are gaps in Ozan's logs." }
+        },
+        behavioralCues: {
+          calm: { tr: "Kravat\u0131n\u0131 d\xFCzeltiyor.", en: "Adjusting his tie." },
+          nervous: { tr: "Saatine bak\u0131yor.", en: "Looking at his watch." },
+          breaking: { tr: "Sinirle ba\u011F\u0131r\u0131yor.", en: "Yelling angrily." }
+        },
+        lies: {
+          level1: "Ben sadece denetlerim.",
+          level2: "Donan\u0131mla i\u015Fim olmaz.",
+          level3: "S\u0131zma benim i\u015Fim de\u011Fil."
+        },
+        confession: "Ben masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "tarik-s1", text: "Ofisimde rapor yaz\u0131yordum.", textEn: "I was writing a report in my office.", isContradiction: false }
+        ]
+      }
+    ],
+    clues: [
+      {
+        id: "clue-inhaler-vent",
+        label: "Havaland\u0131rmadaki \u0130la\xE7 \u0130zi",
+        labelEn: "Drug Trace in Vent",
+        category: "forensic",
+        type: "forensic",
+        contradictsSuspectId: "suspect-ozan",
+        detail: "Sunucu odas\u0131 hava filtresinde Ozan'\u0131n re\xE7eteli Salbutamol ilac\u0131 partik\xFClleri bulundu.",
+        detailEn: "Ozan's prescribed Salbutamol medication particles were found in the server room air filter.",
+        significance: "Ozan'\u0131n odaya girdi\u011Fini kan\u0131tlar.",
+        significanceEn: "Proves Ozan entered the room."
+      },
+      {
+        id: "clue-10-camera",
+        label: "\xDCst Kat Kamera Kayd\u0131",
+        labelEn: "Upper Floor Camera Footage",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-merve",
+        detail: "Merve \xFCst kattaki toplant\u0131dan hi\xE7 ayr\u0131lmad\u0131.",
+        detailEn: "Merve never left the meeting upstairs.",
+        significance: "Merve'yi temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Merve."
+      },
+      {
+        id: "clue-10-office-cam",
+        label: "Ofis Kameras\u0131",
+        labelEn: "Office Camera",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-tarik",
+        detail: "Tar\u0131k olay s\u0131ras\u0131nda kendi ofisindeydi.",
+        detailEn: "Tar\u0131k was in his own office during the incident.",
+        significance: "Tar\u0131k'\u0131 temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Tar\u0131k."
+      }
+    ]
+  },
+  // Case 11
+  {
+    id: "case-11-acik-deniz-yat",
+    title: "A\xE7\u0131k Deniz Yatta F\u0131rt\u0131na Vurgunu",
+    titleEn: "Storm Strike on the Offshore Yacht",
+    difficulty: "normal",
+    briefing: "F\u0131rt\u0131nal\u0131 bir gecede Tar\u0131k Soydan'\u0131n yat\u0131ndan 5 milyon dolarl\u0131k 'Mavi Safir' kolye \xE7al\u0131nd\u0131.",
+    briefingEn: "On a stormy night, a 5 million dollar 'Blue Sapphire' necklace was stolen from Tar\u0131k Soydan's yacht.",
+    incidentTime: "23:50",
+    location: "Yat Ana G\xFCverte ve Kasa Odas\u0131",
+    locationEn: "Yacht Main Deck and Vault Room",
+    victim: {
+      name: "Tar\u0131k Soydan",
+      occupation: "Portf\xF6y Y\xF6neticisi",
+      occupationEn: "Portfolio Manager",
+      causeOfDeath: "Can Kayb\u0131 Yok",
+      causeOfDeathEn: "No Casualties"
+    },
+    timeline: [
+      { time: "23:00", event: "F\u0131rt\u0131na \u015Fiddetlendi, herkes kamaralara \xE7ekildi.", eventEn: "Storm intensified, everyone retreated to cabins.", verified: true },
+      { time: "23:50", event: "G\xFCverte pompas\u0131 \xE7al\u0131\u015Ft\u0131r\u0131ld\u0131, kasa a\xE7\u0131ld\u0131.", eventEn: "Deck pump activated, vault opened.", verified: true }
+    ],
+    crimeSceneNotes: {
+      tr: [
+        "Seyir defteri manip\xFCle edilmeye \xE7al\u0131\u015F\u0131lm\u0131\u015F.",
+        "Kasa \u015Fifresiyle a\xE7\u0131lm\u0131\u015F."
+      ],
+      en: [
+        "Attempt to manipulate the logbook.",
+        "Vault opened with code."
+      ]
+    },
+    culpritId: "suspect-melih",
+    correctMethod: "F\u0131rt\u0131nada g\xFCverteye \xE7\u0131k\u0131p pompay\u0131 \xE7al\u0131\u015Ft\u0131rarak dikkat da\u011F\u0131tt\u0131, ard\u0131ndan kasay\u0131 a\xE7t\u0131.",
+    correctMethodEn: "Went to deck in the storm, started the pump to distract, then opened the vault.",
+    correctMotive: "Kolye ile yurtd\u0131\u015F\u0131na ka\xE7\u0131p bor\xE7lar\u0131n\u0131 \xF6demek.",
+    correctMotiveEn: "To flee abroad with the necklace and pay off debts.",
+    winningContradiction: {
+      suspectId: "suspect-melih",
+      sentenceId: "melih-s2",
+      clueId: "clue-deck-pump-log"
+    },
+    analystSummary: {
+      tr: "Analist Notu: \u015E\xFCpheli t\xFCm gece uyudu\u011Funu s\xF6yl\xFCyor fakat anahtar kart\u0131 gece yar\u0131s\u0131 g\xFCverte pompas\u0131n\u0131 \xE7al\u0131\u015Ft\u0131rmak i\xE7in kullan\u0131lm\u0131\u015F.",
+      en: "Analyst Note: Suspect claims he slept all night, but his keycard was used to activate the deck pump at midnight."
+    },
+    suspects: [
+      {
+        id: "suspect-melih",
+        name: "Melih Erdem",
+        role: "Ortak & CFO",
+        roleEn: "Partner & CFO",
+        age: 48,
+        temperament: "Kurnaz ve so\u011Fukkanl\u0131",
+        temperamentEn: "Cunning and stoic",
+        relationshipToVictim: "Tar\u0131k'\u0131n i\u015F orta\u011F\u0131.",
+        relationshipToVictimEn: "Tar\u0131k's business partner.",
+        statement: "F\u0131rt\u0131na y\xFCz\xFCnden midem buland\u0131, b\xFCt\xFCn gece yatt\u0131m.",
+        statementEn: "I was seasick from the storm, lay in bed all night.",
+        isCulprit: true,
+        alibi: "Kamaras\u0131nda oldu\u011Funu iddia ediyor.",
+        alibiEn: "Claims to be in his cabin.",
+        motive: "\u015Eirketin paras\u0131n\u0131 bat\u0131rd\u0131\u011F\u0131 i\xE7in ka\xE7\u0131\u015F fonu.",
+        motiveEn: "Escape fund because he sank the company's money.",
+        minorSecret: "Yat\u0131n yak\u0131t b\xFCt\xE7esinden \xE7al\u0131yordu.",
+        minorSecretEn: "Was stealing from the yacht's fuel budget.",
+        breakThreshold: 85,
+        gossip: {
+          "suspect-burak": { tr: "Kaptan seyir defterini s\u0131k s\u0131k de\u011Fi\u015Ftirir.", en: "The captain frequently changes the logbook." },
+          "suspect-canan": { tr: "Canan kolyeden nefret ederdi.", en: "Canan hated the necklace." }
+        },
+        behavioralCues: {
+          calm: { tr: "Viskisini yudumluyor.", en: "Sipping his whiskey." },
+          nervous: { tr: "Parmaklar\u0131yla ritim tutuyor.", en: "Tapping his fingers." },
+          breaking: { tr: "Barda\u011F\u0131 yere f\u0131rlat\u0131yor.", en: "Throws his glass to the floor." }
+        },
+        lies: {
+          level1: "Ben sadece uyudum.",
+          level2: "G\xFCverteye hi\xE7 \xE7\u0131kmad\u0131m.",
+          level3: "Kolyenin nerede oldu\u011Funu bilmiyorum!"
+        },
+        confession: "Evet, ben ald\u0131m! Tar\u0131k bizi bat\u0131rm\u0131\u015Ft\u0131!",
+        confessionEn: "Yes, I took it! Tar\u0131k had ruined us!",
+        detailedStatements: [
+          { id: "melih-s1", text: "F\u0131rt\u0131na ba\u015Flay\u0131nca kamarama girdim.", textEn: "When the storm started, I went to my cabin.", isContradiction: false },
+          { id: "melih-s2", text: "B\xFCt\xFCn gece kamaramda uyudum, g\xFCverteye hi\xE7 \xE7\u0131kmad\u0131m.", textEn: "I slept in my cabin all night, never went out on deck.", isContradiction: true, contradictionClueId: "clue-deck-pump-log", explanation: "G\xFCverte otomatik y\u0131kama pompas\u0131 23:50'de Melih'in anahtar kart\u0131yla \xE7al\u0131\u015Ft\u0131r\u0131lm\u0131\u015F.", explanationEn: "The deck automatic wash pump was activated at 23:50 with Melih's keycard." }
+        ]
+      },
+      {
+        id: "suspect-burak",
+        name: "Kaptan Burak Reis",
+        role: "Yat Kaptan\u0131",
+        roleEn: "Yacht Captain",
+        age: 52,
+        temperament: "Otoriter ve ciddi",
+        temperamentEn: "Authoritative and serious",
+        relationshipToVictim: "Yat\u0131n kaptan\u0131.",
+        relationshipToVictimEn: "Captain of the yacht.",
+        statement: "B\xFCt\xFCn gece k\xF6pr\xFC \xFCst\xFCnde d\xFCmen tutuyordum.",
+        statementEn: "I was at the helm on the bridge all night.",
+        isCulprit: false,
+        alibi: "K\xF6pr\xFC kamera kay\u0131tlar\u0131.",
+        alibiEn: "Bridge camera records.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Gizlice i\xE7ki i\xE7iyordu.",
+        minorSecretEn: "Was secretly drinking.",
+        breakThreshold: 95,
+        gossip: {
+          "suspect-melih": { tr: "Melih Bey'in o gece kap\u0131s\u0131 kilitli de\u011Fildi.", en: "Mr. Melih's door wasn't locked that night." }
+        },
+        behavioralCues: {
+          calm: { tr: "Pipo i\xE7iyor.", en: "Smoking his pipe." },
+          nervous: { tr: "Sakallar\u0131n\u0131 s\u0131vazl\u0131yor.", en: "Stroking his beard." },
+          breaking: { tr: "Sinirle ba\u011F\u0131r\u0131yor.", en: "Yelling angrily." }
+        },
+        lies: {
+          level1: "Ben sadece gemiyi y\xF6netirim.",
+          level2: "A\u015Fa\u011F\u0131ya inmedim.",
+          level3: "Kolye umurumda de\u011Fil."
+        },
+        confession: "Masumum, ben sadece gemiyi kurtarmaya \xE7al\u0131\u015F\u0131yordum!",
+        confessionEn: "I am innocent, I was just trying to save the ship!",
+        detailedStatements: [
+          { id: "burak-s1", text: "K\xF6pr\xFCdeydim.", textEn: "I was on the bridge.", isContradiction: false }
+        ]
+      },
+      {
+        id: "suspect-canan",
+        name: "Canan Soydan",
+        role: "Tar\u0131k'\u0131n E\u015Fi",
+        roleEn: "Tar\u0131k's Wife",
+        age: 38,
+        temperament: "So\u011Fuk ve mesafeli",
+        temperamentEn: "Cold and distant",
+        relationshipToVictim: "Tar\u0131k'\u0131n e\u015Fi.",
+        relationshipToVictimEn: "Tar\u0131k's wife.",
+        statement: "Kocamla salonda oturduk.",
+        statementEn: "I sat in the lounge with my husband.",
+        isCulprit: false,
+        alibi: "Kocas\u0131yla birlikteydi.",
+        alibiEn: "Was with her husband.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Gizli bir hesab\u0131 vard\u0131.",
+        minorSecretEn: "Had a secret bank account.",
+        breakThreshold: 93,
+        gossip: {
+          "suspect-melih": { tr: "Melih \xE7ok parag\xF6z biridir.", en: "Melih is a very greedy person." }
+        },
+        behavioralCues: {
+          calm: { tr: "Kitap okuyor.", en: "Reading a book." },
+          nervous: { tr: "Y\xFCz\xFC\u011F\xFCn\xFC \xE7eviriyor.", en: "Spinning her ring." },
+          breaking: { tr: "A\u011Flamaya ba\u015Fl\u0131yor.", en: "Starts crying." }
+        },
+        lies: {
+          level1: "Kocamlayd\u0131m.",
+          level2: "Ben yapmad\u0131m.",
+          level3: "Kolyeyi ben \xE7almad\u0131m."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "canan-s1", text: "Tar\u0131k ile birlikteydik.", textEn: "I was with Tar\u0131k.", isContradiction: false }
+        ]
+      }
+    ],
+    clues: [
+      {
+        id: "clue-deck-pump-log",
+        label: "G\xFCverte Pompas\u0131 Logu",
+        labelEn: "Deck Pump Log",
+        category: "digital",
+        type: "digital",
+        contradictsSuspectId: "suspect-melih",
+        detail: "G\xFCverte otomatik y\u0131kama pompas\u0131 23:50'de Melih'in anahtar kart\u0131yla \xE7al\u0131\u015Ft\u0131r\u0131lm\u0131\u015F.",
+        detailEn: "The deck automatic wash pump was activated at 23:50 with Melih's keycard.",
+        significance: "Melih'in g\xFCverteye \xE7\u0131kt\u0131\u011F\u0131n\u0131 kan\u0131tlar.",
+        significanceEn: "Proves Melih went on deck."
+      },
+      {
+        id: "clue-11-bridge-cam",
+        label: "K\xF6pr\xFC Kameras\u0131",
+        labelEn: "Bridge Camera",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-burak",
+        detail: "Kaptan k\xF6pr\xFCden hi\xE7 ayr\u0131lmad\u0131.",
+        detailEn: "Captain never left the bridge.",
+        significance: "Burak Reis'i temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Captain Burak."
+      },
+      {
+        id: "clue-11-witness",
+        label: "Koca \u0130fadesi",
+        labelEn: "Husband Statement",
+        category: "witness",
+        type: "alibi",
+        clearsSuspectId: "suspect-canan",
+        detail: "Tar\u0131k Soydan e\u015Finin t\xFCm gece yan\u0131nda oldu\u011Funu do\u011Frulad\u0131.",
+        detailEn: "Tar\u0131k Soydan confirmed his wife was with him all night.",
+        significance: "Canan'\u0131 temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Canan."
+      }
+    ]
+  },
+  // Case 12
+  {
+    id: "case-12-kapadokya-balon",
+    title: "Kapadokya Balonunda \u0130rtifa Vanas\u0131 Sabotaj\u0131",
+    titleEn: "Altitude Valve Sabotage on the Cappadocia Balloon",
+    difficulty: "normal",
+    briefing: "Turizm Heyeti Ba\u015Fkan\u0131 Haldun Kaya'n\u0131n bulundu\u011Fu b\xF6lmenin mekanik emniyet kilidi a\xE7\u0131ld\u0131 ve sabotaj yap\u0131ld\u0131.",
+    briefingEn: "The mechanical safety lock of the compartment where Tourism Board President Haldun Kaya was located was opened and sabotaged.",
+    incidentTime: "06:15",
+    location: "Kapadokya Hava Sahas\u0131",
+    locationEn: "Cappadocia Airspace",
+    victim: {
+      name: "Haldun Kaya",
+      occupation: "Turizm Heyeti Ba\u015Fkan\u0131",
+      occupationEn: "Tourism Board President",
+      causeOfDeath: "Ara\xE7 Hasar\u0131 (Sabotaj)",
+      causeOfDeathEn: "Vehicle Damage (Sabotage)"
+    },
+    timeline: [
+      { time: "05:30", event: "Balon havaland\u0131.", eventEn: "Balloon took off.", verified: true },
+      { time: "06:15", event: "Emniyet kilidi a\xE7\u0131ld\u0131.", eventEn: "Safety lock was opened.", verified: true }
+    ],
+    crimeSceneNotes: {
+      tr: [
+        "Kilit vidas\u0131nda zorlama izleri.",
+        "Mekanizma elle m\xFCdahale ile gev\u015Fetilmi\u015F."
+      ],
+      en: [
+        "Pry marks on the lock screw.",
+        "Mechanism manually loosened."
+      ]
+    },
+    culpritId: "suspect-mehmet",
+    correctMethod: "Haldun Bey'in bulundu\u011Fu b\xF6lmenin mekanik emniyet kilidini karga burnu aletiyle gev\u015Fetti.",
+    correctMethodEn: "Loosened the mechanical safety lock of Haldun's compartment using needle-nose pliers.",
+    correctMotive: "Ba\u015Fkan\u0131n yeni u\xE7u\u015F lisans kurallar\u0131n\u0131 engellemesi.",
+    correctMotiveEn: "To stop the president from imposing new flight license rules.",
+    winningContradiction: {
+      suspectId: "suspect-mehmet",
+      sentenceId: "mehmet-s2",
+      clueId: "clue-pliers-mark"
+    },
+    analystSummary: {
+      tr: "Analist Notu: Pilot, yolcunun kemeri kendisinin a\xE7t\u0131\u011F\u0131n\u0131 s\xF6yl\xFCyor, fakat kilit \xFCzerinde alet izleri var.",
+      en: "Analyst Note: Pilot claims the passenger unbuckled himself, but there are tool marks on the lock."
+    },
+    suspects: [
+      {
+        id: "suspect-mehmet",
+        name: "Mehmet Usta",
+        role: "K\u0131demli Balon Pilotu",
+        roleEn: "Senior Balloon Pilot",
+        age: 46,
+        temperament: "Otoriter ve sinirli",
+        temperamentEn: "Authoritative and angry",
+        relationshipToVictim: "U\xE7u\u015Fu ger\xE7ekle\u015Ftiren pilot.",
+        relationshipToVictimEn: "Pilot conducting the flight.",
+        statement: "Haldun Bey panikleyip mandal\u0131 kendi a\xE7t\u0131.",
+        statementEn: "Haldun panicked and opened the latch himself.",
+        isCulprit: true,
+        alibi: "Sepette g\xF6rev ba\u015F\u0131ndayd\u0131.",
+        alibiEn: "Was on duty in the basket.",
+        motive: "Lisans yenileme sorunlar\u0131.",
+        motiveEn: "License renewal issues.",
+        minorSecret: "G\xF6rme bozuklu\u011Fu vard\u0131.",
+        minorSecretEn: "Had vision impairment.",
+        breakThreshold: 83,
+        gossip: {
+          "suspect-gokhan": { tr: "G\xF6khan Bey u\xE7u\u015F \xF6ncesi bizim balona \xE7ok yakla\u015Ft\u0131.", en: "G\xF6khan got very close to our balloon pre-flight." }
+        },
+        behavioralCues: {
+          calm: { tr: "Eldivenini d\xFCzeltiyor.", en: "Adjusts his glove." },
+          nervous: { tr: "Burnunu \xE7ekiyor.", en: "Sniffles." },
+          breaking: { tr: "Ba\u011F\u0131rarak inkar ediyor.", en: "Loudly denies." }
+        },
+        lies: {
+          level1: "Ben sadece pilotum.",
+          level2: "Haldun Bey kendi yapt\u0131.",
+          level3: "Benim aletle i\u015Fim olmaz!"
+        },
+        confession: "Bizi i\u015Fimizden edecekti! Kilidi gev\u015Fettim, evet!",
+        confessionEn: "He was going to put us out of business! I loosened the lock, yes!",
+        detailedStatements: [
+          { id: "mehmet-s1", text: "U\xE7u\u015F normal seyrindeydi.", textEn: "The flight was proceeding normally.", isContradiction: false },
+          { id: "mehmet-s2", text: "Haldun Bey kemer mandal\u0131n\u0131 kendi eliyle a\xE7t\u0131.", textEn: "Mr. Haldun unbuckled the belt latch with his own hand.", isContradiction: true, contradictionClueId: "clue-pliers-mark", explanation: "Kilit vidas\u0131nda karga burnu aletiyle yap\u0131lm\u0131\u015F derin \xE7izikler bulundu.", explanationEn: "Deep scratches made by needle-nose pliers were found on the lock screw." }
+        ]
+      },
+      {
+        id: "suspect-gokhan",
+        name: "G\xF6khan Varol",
+        role: "Rakip \u015Eirket Sahibi",
+        roleEn: "Rival Company Owner",
+        age: 50,
+        temperament: "Kibirli",
+        temperamentEn: "Arrogant",
+        relationshipToVictim: "Sekt\xF6rdeki rakibi.",
+        relationshipToVictimEn: "Rival in the industry.",
+        statement: "Kendi balonumdayd\u0131m.",
+        statementEn: "I was in my own balloon.",
+        isCulprit: false,
+        alibi: "Kendi balonunun GPS ve kamera kay\u0131tlar\u0131.",
+        alibiEn: "GPS and camera records of his own balloon.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Vergi ka\xE7\u0131r\u0131yordu.",
+        minorSecretEn: "Was evading taxes.",
+        breakThreshold: 92,
+        gossip: {
+          "suspect-mehmet": { tr: "Mehmet \xE7ok agresif bir pilot.", en: "Mehmet is a very aggressive pilot." }
+        },
+        behavioralCues: {
+          calm: { tr: "G\xFCl\xFCmseyerek poz veriyor.", en: "Posing with a smile." },
+          nervous: { tr: "G\xF6zl\xFC\u011F\xFCn\xFC siliyor.", en: "Cleaning his glasses." },
+          breaking: { tr: "A\u011Flamaya ba\u015Fl\u0131yor.", en: "Starts crying." }
+        },
+        lies: {
+          level1: "Benimle ilgisi yok.",
+          level2: "Onlar\u0131n balonuna yakla\u015Fmad\u0131m.",
+          level3: "Masumum."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "gokhan-s1", text: "Olay s\u0131ras\u0131nda havada kendi balonumdayd\u0131m.", textEn: "I was in the air in my own balloon during the incident.", isContradiction: false }
+        ]
+      },
+      {
+        id: "suspect-derya",
+        name: "Derya Ak\u0131n",
+        role: "Yer Ekibi \u015Eefi",
+        roleEn: "Ground Crew Chief",
+        age: 28,
+        temperament: "Tela\u015Fl\u0131",
+        temperamentEn: "Frantic",
+        relationshipToVictim: "U\xE7u\u015F koordinat\xF6r\xFC.",
+        relationshipToVictimEn: "Flight coordinator.",
+        statement: "Yerde ekipmanlar\u0131 topluyordum.",
+        statementEn: "I was gathering equipment on the ground.",
+        isCulprit: false,
+        alibi: "Yer ekibiyle birlikteydi.",
+        alibiEn: "Was with the ground crew.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Ge\xE7 kalm\u0131\u015Ft\u0131.",
+        minorSecretEn: "Was late.",
+        breakThreshold: 95,
+        gossip: {
+          "suspect-mehmet": { tr: "Mehmet Usta \xE7ok k\u0131zg\u0131nd\u0131.", en: "Mehmet was very angry." }
+        },
+        behavioralCues: {
+          calm: { tr: "Telsizi tutuyor.", en: "Holding the radio." },
+          nervous: { tr: "T\u0131rnaklar\u0131n\u0131 yiyor.", en: "Biting her nails." },
+          breaking: { tr: "Diz \xE7\xF6k\xFCp a\u011Fl\u0131yor.", en: "Kneels down and cries." }
+        },
+        lies: {
+          level1: "Ben yer ekibindeyim.",
+          level2: "Balona binmedim.",
+          level3: "Kilitle i\u015Fim olmaz."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "derya-s1", text: "Yerde ekiple beraberdim.", textEn: "I was with the team on the ground.", isContradiction: false }
+        ]
+      }
+    ],
+    clues: [
+      {
+        id: "clue-pliers-mark",
+        label: "Kilit Vidas\u0131ndaki \u0130zler",
+        labelEn: "Marks on Lock Screw",
+        category: "forensic",
+        type: "forensic",
+        contradictsSuspectId: "suspect-mehmet",
+        detail: "Kilit vidas\u0131nda karga burnu aletiyle yap\u0131lm\u0131\u015F derin \xE7izikler tespit edildi.",
+        detailEn: "Deep scratches made by needle-nose pliers were detected on the lock screw.",
+        significance: "Kilidin mekanik olarak zorland\u0131\u011F\u0131n\u0131 kan\u0131tlar.",
+        significanceEn: "Proves the lock was mechanically forced."
+      },
+      {
+        id: "clue-12-gokhan-gps",
+        label: "GPS ve Kamera",
+        labelEn: "GPS and Camera",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-gokhan",
+        detail: "G\xF6khan'\u0131n kendi balonunda oldu\u011Fu tespit edildi.",
+        detailEn: "Confirmed G\xF6khan was in his own balloon.",
+        significance: "G\xF6khan'\u0131 temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears G\xF6khan."
+      },
+      {
+        id: "clue-12-ground",
+        label: "Yer Ekibi Tutanak",
+        labelEn: "Ground Crew Log",
+        category: "witness",
+        type: "alibi",
+        clearsSuspectId: "suspect-derya",
+        detail: "Derya'n\u0131n yer ekibiyle t\xFCm zaman\u0131 ge\xE7irdi\u011Fi onayland\u0131.",
+        detailEn: "Confirmed Derya spent the entire time with the ground crew.",
+        significance: "Derya'y\u0131 temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Derya."
+      }
+    ]
+  },
+  // Case 13
+  {
+    id: "case-13-gobeklitepe-muhur",
+    title: "G\xF6beklitepe Kaz\u0131s\u0131nda \xC7al\u0131nan M\xFCh\xFCr",
+    titleEn: "Stolen Seal at the G\xF6beklitepe Excavation",
+    difficulty: "hard",
+    briefing: "Prof. Dr. Demir Karahan'\u0131n kaz\u0131 ba\u015Fkanl\u0131\u011F\u0131n\u0131 yapt\u0131\u011F\u0131 G\xF6beklitepe'deki \xE7ad\u0131rdan orijinal Neolitik silindir m\xFCh\xFCr \xE7al\u0131n\u0131p yerine al\xE7\u0131 kopyas\u0131 kondu.",
+    briefingEn: "An original Neolithic cylinder seal was stolen from the tent at G\xF6beklitepe directed by Prof. Dr. Demir Karahan and replaced with a plaster copy.",
+    incidentTime: "01:30",
+    location: "Ana Kaz\u0131 \xC7ad\u0131r\u0131",
+    locationEn: "Main Excavation Tent",
+    victim: {
+      name: "Prof. Dr. Demir Karahan",
+      occupation: "Kaz\u0131 Heyeti Ba\u015Fkan\u0131",
+      occupationEn: "Head of Excavation",
+      causeOfDeath: "Tarihi Eser \xC7al\u0131nmas\u0131",
+      causeOfDeathEn: "Stolen Artifact"
+    },
+    timeline: [
+      { time: "23:00", event: "\xC7ad\u0131r kilitlendi.", eventEn: "Tent was locked.", verified: true },
+      { time: "01:30", event: "M\xFCh\xFCr \xE7al\u0131nd\u0131.", eventEn: "Seal was stolen.", verified: true }
+    ],
+    crimeSceneNotes: {
+      tr: [
+        "M\xFCh\xFCr kopyas\u0131 m\xFCkemmel bir \u015Fekilde yerle\u015Ftirilmi\u015F.",
+        "Sens\xF6rler atlat\u0131lm\u0131\u015F."
+      ],
+      en: [
+        "Seal copy placed perfectly.",
+        "Sensors bypassed."
+      ]
+    },
+    culpritId: "suspect-sinan",
+    correctMethod: "Orijinal Neolitik silindir m\xFChr\xFC \xE7al\u0131p yerine al\xE7\u0131 kopyas\u0131n\u0131 b\u0131rakt\u0131.",
+    correctMethodEn: "Stole the original Neolithic cylinder seal and left a plaster copy.",
+    correctMotive: "Ka\xE7ak\xE7\u0131lara satmak.",
+    correctMotiveEn: "To sell to smugglers.",
+    winningContradiction: {
+      suspectId: "suspect-sinan",
+      sentenceId: "sinan-s2",
+      clueId: "clue-laptop-power-log"
+    },
+    analystSummary: {
+      tr: "Analist Notu: \u015E\xFCpheli t\xFCm gece bilgisayarda \xE7al\u0131\u015Ft\u0131\u011F\u0131n\u0131 s\xF6yl\xFCyor ancak batarya loglar\u0131 bilgisayar\u0131n o saatlerde kapal\u0131 oldu\u011Funu g\xF6steriyor.",
+      en: "Analyst Note: Suspect claims to be working on his laptop all night, but battery logs show it was off during those hours."
+    },
+    suspects: [
+      {
+        id: "suspect-sinan",
+        name: "Sinan Bilgin",
+        role: "Saha Jeolo\u011Fu",
+        roleEn: "Field Geologist",
+        age: 37,
+        temperament: "Kurnaz ve sessiz",
+        temperamentEn: "Cunning and quiet",
+        relationshipToVictim: "Kaz\u0131 ekibi \xFCyesi.",
+        relationshipToVictimEn: "Excavation team member.",
+        statement: "Gece boyu \xE7ad\u0131r\u0131mda bilgisayarda \xE7al\u0131\u015Ft\u0131m.",
+        statementEn: "I worked on my laptop in my tent all night.",
+        isCulprit: true,
+        alibi: "\xC7ad\u0131r\u0131nda \xE7al\u0131\u015Ft\u0131\u011F\u0131n\u0131 iddia ediyor.",
+        alibiEn: "Claims to be working in his tent.",
+        motive: "Tarihi eser sat\u0131\u015F\u0131.",
+        motiveEn: "Selling antiquities.",
+        minorSecret: "Buluntular\u0131n kopyalar\u0131n\u0131 yap\u0131yordu.",
+        minorSecretEn: "Was making copies of the finds.",
+        breakThreshold: 85,
+        gossip: {
+          "suspect-zeynep": { tr: "Zeynep eserleri \xE7ok iyi inceler.", en: "Zeynep examines the artifacts very well." }
+        },
+        behavioralCues: {
+          calm: { tr: "G\xF6zl\xFC\u011F\xFCn\xFC siliyor.", en: "Cleaning his glasses." },
+          nervous: { tr: "Ellerini o\u011Fu\u015Fturuyor.", en: "Rubbing his hands." },
+          breaking: { tr: "Bilgisayar\u0131 kapat\u0131yor.", en: "Shuts the laptop." }
+        },
+        lies: {
+          level1: "Ben sadece jeolo\u011Fum.",
+          level2: "Kopyalamakla i\u015Fim olmaz.",
+          level3: "T\xFCm gece uyan\u0131kt\u0131m!"
+        },
+        confession: "Evet, o m\xFCh\xFCr benim gelece\u011Fimdi!",
+        confessionEn: "Yes, that seal was my future!",
+        detailedStatements: [
+          { id: "sinan-s1", text: "Ak\u015Fam yeme\u011Finden sonra \xE7ad\u0131r\u0131ma \xE7ekildim.", textEn: "Retired to my tent after dinner.", isContradiction: false },
+          { id: "sinan-s2", text: "Gece boyu \xE7ad\u0131r\u0131mda diz\xFCst\xFC bilgisayarda jeoradar verisi i\u015Fledim.", textEn: "I processed GPR data on my laptop in my tent all night.", isContradiction: true, contradictionClueId: "clue-laptop-power-log", explanation: "Bilgisayar\u0131n sistem loglar\u0131 23:30 - 02:15 aras\u0131 tamamen kapal\u0131 oldu\u011Funu g\xF6steriyor.", explanationEn: "System logs show the laptop was completely off from 23:30 to 02:15." }
+        ]
+      },
+      {
+        id: "suspect-zeynep",
+        name: "Dr. Zeynep Ate\u015F",
+        role: "Restorat\xF6r",
+        roleEn: "Restorer",
+        age: 41,
+        temperament: "Ciddi",
+        temperamentEn: "Serious",
+        relationshipToVictim: "Kaz\u0131n\u0131n restorat\xF6r\xFC.",
+        relationshipToVictimEn: "Restorer of the excavation.",
+        statement: "Uyuyordum.",
+        statementEn: "I was sleeping.",
+        isCulprit: false,
+        alibi: "\xC7ad\u0131r arkada\u015F\u0131 onayl\u0131yor.",
+        alibiEn: "Tentmate confirms.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Ekipman b\xFCt\xE7esinden \xE7al\u0131yordu.",
+        minorSecretEn: "Was stealing from the equipment budget.",
+        breakThreshold: 94,
+        gossip: {
+          "suspect-sinan": { tr: "Sinan'\u0131n \xE7ad\u0131r\u0131ndan gece sesler geliyordu.", en: "Noises came from Sinan's tent at night." }
+        },
+        behavioralCues: {
+          calm: { tr: "Notlar\u0131na bak\u0131yor.", en: "Looking at her notes." },
+          nervous: { tr: "F\u0131r\xE7as\u0131yla oynuyor.", en: "Playing with her brush." },
+          breaking: { tr: "A\u011Fl\u0131yor.", en: "Crying." }
+        },
+        lies: {
+          level1: "Ben eserleri korurum.",
+          level2: "M\xFCh\xFCr\xFC \xE7almad\u0131m.",
+          level3: "Ben masumum."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "zeynep-s1", text: "T\xFCm gece uyudum.", textEn: "I slept all night.", isContradiction: false }
+        ]
+      },
+      {
+        id: "suspect-numan",
+        name: "Numan \xC7avu\u015F",
+        role: "Gece Bek\xE7isi",
+        roleEn: "Night Watchman",
+        age: 55,
+        temperament: "Sakin",
+        temperamentEn: "Calm",
+        relationshipToVictim: "Bek\xE7i.",
+        relationshipToVictimEn: "Guard.",
+        statement: "N\xF6bet kul\xFCbesindeydim.",
+        statementEn: "I was in the guardhouse.",
+        isCulprit: false,
+        alibi: "G\xFCvenlik kameralar\u0131.",
+        alibiEn: "Security cameras.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "N\xF6bette uyuyordu.",
+        minorSecretEn: "Slept on duty.",
+        breakThreshold: 92,
+        gossip: {
+          "suspect-sinan": { tr: "Sinan \xE7ok garip davran\u0131yordu.", en: "Sinan was acting very weird." }
+        },
+        behavioralCues: {
+          calm: { tr: "El fenerini tutuyor.", en: "Holding his flashlight." },
+          nervous: { tr: "B\u0131y\u0131\u011F\u0131n\u0131 buruyor.", en: "Twirling his mustache." },
+          breaking: { tr: "Diz \xE7\xF6k\xFCyor.", en: "Kneels down." }
+        },
+        lies: {
+          level1: "Hep uyan\u0131kt\u0131m.",
+          level2: "\xC7ad\u0131r\u0131 korudum.",
+          level3: "Ben \xE7almad\u0131m."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "numan-s1", text: "N\xF6betteydim.", textEn: "I was on duty.", isContradiction: false }
+        ]
+      }
+    ],
+    clues: [
+      {
+        id: "clue-laptop-power-log",
+        label: "Diz\xFCst\xFC Bilgisayar G\xFC\xE7 Logu",
+        labelEn: "Laptop Power Log",
+        category: "digital",
+        type: "digital",
+        contradictsSuspectId: "suspect-sinan",
+        detail: "Bilgisayar 23:30 ile 02:15 aras\u0131nda kapal\u0131yd\u0131.",
+        detailEn: "Laptop was completely shut down between 23:30 and 02:15.",
+        significance: "Sinan'\u0131n yalan\u0131n\u0131 kan\u0131tlar.",
+        significanceEn: "Proves Sinan's lie."
+      },
+      {
+        id: "clue-13-zeynep-alibi",
+        label: "\xC7ad\u0131r Arkada\u015F\u0131 \u0130fadesi",
+        labelEn: "Tentmate Statement",
+        category: "witness",
+        type: "alibi",
+        clearsSuspectId: "suspect-zeynep",
+        detail: "Zeynep'in gece boyunca uyudu\u011Fu onayland\u0131.",
+        detailEn: "Confirmed Zeynep slept through the night.",
+        significance: "Zeynep'i temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Zeynep."
+      },
+      {
+        id: "clue-13-numan-cam",
+        label: "G\xFCvenlik Kameras\u0131",
+        labelEn: "Security Camera",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-numan",
+        detail: "Numan n\xF6bet yerinden ayr\u0131lmad\u0131.",
+        detailEn: "Numan didn't leave his post.",
+        significance: "Numan'\u0131 temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Numan."
+      }
+    ]
+  },
+  // Case 14
+  {
+    id: "case-14-f1-sabotaj",
+    title: "Formula 1 Padokunda Telemetri Sabotaj\u0131",
+    titleEn: "Telemetry Sabotage at the Formula 1 Paddock",
+    difficulty: "normal",
+    briefing: "F1 ba\u015F yar\u0131\u015F pilotu Lucas Rossi'nin arac\u0131n\u0131n ECU fren bas\u0131n\xE7 limiti telemetri terminalinden hileyle d\xFC\u015F\xFCr\xFCld\xFC.",
+    briefingEn: "F1 lead driver Lucas Rossi's car ECU brake pressure limit was fraudulently lowered from the telemetry terminal.",
+    incidentTime: "22:28",
+    location: "Tak\u0131m Garaj\u0131",
+    locationEn: "Team Garage",
+    victim: {
+      name: "Lucas Rossi",
+      occupation: "Ba\u015F Yar\u0131\u015F Pilotu",
+      occupationEn: "Lead Race Driver",
+      causeOfDeath: "Ara\xE7 Sabotaj\u0131",
+      causeOfDeathEn: "Car Sabotage"
+    },
+    timeline: [
+      { time: "22:00", event: "Garaj kapand\u0131.", eventEn: "Garage closed.", verified: true },
+      { time: "22:28", event: "ECU limitleri de\u011Fi\u015Ftirildi.", eventEn: "ECU limits changed.", verified: true }
+    ],
+    crimeSceneNotes: {
+      tr: [
+        "Sistem loglar\u0131nda yetkisiz eri\u015Fim izi.",
+        "A\u011F kablolar\u0131nda m\xFCdahale yok."
+      ],
+      en: [
+        "Unauthorized access trace in system logs.",
+        "No tampering with network cables."
+      ]
+    },
+    culpritId: "suspect-hans",
+    correctMethod: "Telemetri terminalinden ECU fren bas\u0131n\xE7 limitini hileyle d\xFC\u015F\xFCrd\xFC.",
+    correctMethodEn: "Fraudulently lowered the ECU brake pressure limit from the telemetry terminal.",
+    correctMotive: "Rakip tak\u0131mdan r\xFC\u015Fvet almak.",
+    correctMotiveEn: "To take a bribe from the rival team.",
+    winningContradiction: {
+      suspectId: "suspect-hans",
+      sentenceId: "hans-s2",
+      clueId: "clue-ecu-telemetry-log"
+    },
+    analystSummary: {
+      tr: "Analist Notu: M\xFChendis sisteme dokunmad\u0131\u011F\u0131n\u0131 s\xF6yl\xFCyor ancak kendi kriptografik anahtar\u0131yla girilmi\u015F bypass logu mevcut.",
+      en: "Analyst Note: Engineer claims he didn't touch the system, but there is a bypass log entered with his cryptographic key."
+    },
+    suspects: [
+      {
+        id: "suspect-hans",
+        name: "Hans Weber",
+        role: "Ba\u015F Yar\u0131\u015F M\xFChendisi",
+        roleEn: "Chief Race Engineer",
+        age: 45,
+        temperament: "So\u011Fukkanl\u0131 ve disiplinli",
+        temperamentEn: "Stoic and disciplined",
+        relationshipToVictim: "Pilotun ba\u015F m\xFChendisi.",
+        relationshipToVictimEn: "Driver's chief engineer.",
+        statement: "Odamdayd\u0131m, araca hi\xE7 dokunmad\u0131m.",
+        statementEn: "I was in my room, never touched the car.",
+        isCulprit: true,
+        alibi: "Odas\u0131nda oldu\u011Funu iddia ediyor.",
+        alibiEn: "Claims to be in his room.",
+        motive: "B\xFCy\xFCk miktarda r\xFC\u015Fvet.",
+        motiveEn: "Large bribe.",
+        minorSecret: "Rakip tak\u0131mla anla\u015Ft\u0131.",
+        minorSecretEn: "Agreed with the rival team.",
+        breakThreshold: 85,
+        gossip: {
+          "suspect-arda": { tr: "Arda 1. pilot olmak istiyor.", en: "Arda wants to be the 1st driver." }
+        },
+        behavioralCues: {
+          calm: { tr: "Kulakl\u0131\u011F\u0131n\u0131 d\xFCzeltiyor.", en: "Adjusts his headset." },
+          nervous: { tr: "Saatini kontrol ediyor.", en: "Checks his watch." },
+          breaking: { tr: "Masaya vuruyor.", en: "Hits the table." }
+        },
+        lies: {
+          level1: "Ben sadece veri okurum.",
+          level2: "Frenlere dokunmad\u0131m.",
+          level3: "Sisteme giri\u015F yapmad\u0131m!"
+        },
+        confession: "Evet ben yapt\u0131m, bana hak etti\u011Fimi vermediler!",
+        confessionEn: "Yes I did it, they didn't give me what I deserved!",
+        detailedStatements: [
+          { id: "hans-s1", text: "Toplant\u0131dan sonra odama ge\xE7tim.", textEn: "Went to my room after the meeting.", isContradiction: false },
+          { id: "hans-s2", text: "B\xFCt\xFCn gece araca veya sisteme hi\xE7 dokunmad\u0131m, odamdayd\u0131m.", textEn: "I didn't touch the car or system all night, I was in my room.", isContradiction: true, contradictionClueId: "clue-ecu-telemetry-log", explanation: "Hans'\u0131n kriptografik anahtar\u0131yla 22:28'de ECU fren bypass logu sisteme girilmi\u015F.", explanationEn: "An ECU brake bypass log was entered into the system at 22:28 with Hans's cryptographic key." }
+        ]
+      },
+      {
+        id: "suspect-arda",
+        name: "Arda Tan",
+        role: "2. Pilot",
+        roleEn: "2nd Driver",
+        age: 24,
+        temperament: "Heyecanl\u0131",
+        temperamentEn: "Excited",
+        relationshipToVictim: "Tak\u0131m arkada\u015F\u0131.",
+        relationshipToVictimEn: "Teammate.",
+        statement: "Antrenmandayd\u0131m.",
+        statementEn: "I was at training.",
+        isCulprit: false,
+        alibi: "Antren\xF6r onayl\u0131yor.",
+        alibiEn: "Trainer confirms.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Sim\xFClat\xF6rde \xE7ok kaza yap\u0131yordu.",
+        minorSecretEn: "Crashed a lot in the simulator.",
+        breakThreshold: 93,
+        gossip: {
+          "suspect-hans": { tr: "Hans her zaman Lucas'\u0131 kay\u0131r\u0131r.", en: "Hans always favors Lucas." }
+        },
+        behavioralCues: {
+          calm: { tr: "Kask\u0131n\u0131 tutuyor.", en: "Holding his helmet." },
+          nervous: { tr: "Baca\u011F\u0131n\u0131 sall\u0131yor.", en: "Shaking his leg." },
+          breaking: { tr: "Ba\u011F\u0131r\u0131yor.", en: "Shouting." }
+        },
+        lies: {
+          level1: "Ben arac\u0131 sadece s\xFCrerim.",
+          level2: "Sabotajla i\u015Fim olmaz.",
+          level3: "Masumum."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "arda-s1", text: "Antrenmandayd\u0131m.", textEn: "I was at training.", isContradiction: false }
+        ]
+      },
+      {
+        id: "suspect-marco",
+        name: "Marco Vieri",
+        role: "Pit \u015Eefi",
+        roleEn: "Pit Chief",
+        age: 50,
+        temperament: "Sakin",
+        temperamentEn: "Calm",
+        relationshipToVictim: "Pit sorumlusu.",
+        relationshipToVictimEn: "Pit manager.",
+        statement: "Aletleri temizliyordum.",
+        statementEn: "I was cleaning the tools.",
+        isCulprit: false,
+        alibi: "Pit kameralar\u0131 onayl\u0131yor.",
+        alibiEn: "Pit cameras confirm.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Lastik bas\u0131n\xE7lar\u0131nda hile yap\u0131yordu.",
+        minorSecretEn: "Cheated on tire pressures.",
+        breakThreshold: 96,
+        gossip: {
+          "suspect-hans": { tr: "Hans'\u0131n \u015Fifreleri herkesten gizli.", en: "Hans's passwords are hidden from everyone." }
+        },
+        behavioralCues: {
+          calm: { tr: "Matkab\u0131n\u0131 siliyor.", en: "Cleaning his drill." },
+          nervous: { tr: "Terini siliyor.", en: "Wiping his sweat." },
+          breaking: { tr: "Diz \xE7\xF6k\xFCyor.", en: "Kneels down." }
+        },
+        lies: {
+          level1: "Sadece lastiklerle ilgilenirim.",
+          level2: "Elektronikten anlamam.",
+          level3: "Ben masumum."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "marco-s1", text: "Garaj \xF6n\xFCndeydim.", textEn: "I was in front of the garage.", isContradiction: false }
+        ]
+      }
+    ],
+    clues: [
+      {
+        id: "clue-ecu-telemetry-log",
+        label: "ECU Telemetri Logu",
+        labelEn: "ECU Telemetry Log",
+        category: "digital",
+        type: "digital",
+        contradictsSuspectId: "suspect-hans",
+        detail: "Sistemde Hans'\u0131n \xF6zel kriptografik anahtar\u0131yla saat 22:28'de girilen yetkisiz ECU bypass komutu tespit edildi.",
+        detailEn: "Unauthorized ECU bypass command entered at 22:28 with Hans's private cryptographic key was detected in the system.",
+        significance: "Hans'\u0131n araca d\u0131\u015Far\u0131dan m\xFCdahale etti\u011Fini kan\u0131tlar.",
+        significanceEn: "Proves Hans tampered with the car externally."
+      },
+      {
+        id: "clue-14-arda-trainer",
+        label: "Antren\xF6r Raporu",
+        labelEn: "Trainer Report",
+        category: "document",
+        type: "alibi",
+        clearsSuspectId: "suspect-arda",
+        detail: "Arda t\xFCm gece sim\xFClat\xF6rde e\u011Fitimdeydi.",
+        detailEn: "Arda was in simulator training all night.",
+        significance: "Arda'y\u0131 temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Arda."
+      },
+      {
+        id: "clue-14-marco-cam",
+        label: "Pit Kameras\u0131",
+        labelEn: "Pit Camera",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-marco",
+        detail: "Marco garaj d\u0131\u015F\u0131ndan hi\xE7 ayr\u0131lmad\u0131.",
+        detailEn: "Marco never left the front of the garage.",
+        significance: "Marco'yu temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Marco."
+      }
+    ]
+  },
+  // Case 15
+  {
+    id: "case-15-gurme-mutfak",
+    title: "Michelin Y\u0131ld\u0131zl\u0131 Mutfakta Gizli Tarif H\u0131rs\u0131zl\u0131\u011F\u0131",
+    titleEn: "Secret Recipe Theft in the Michelin Starred Kitchen",
+    difficulty: "normal",
+    briefing: "3 Y\u0131ld\u0131zl\u0131 \u015Eef Julien Laurent'in gizli imza men\xFC tarif defteri \xE7al\u0131nd\u0131.",
+    briefingEn: "3 Star Chef Julien Laurent's secret signature menu recipe book was stolen.",
+    incidentTime: "23:45",
+    location: "\u015Eefin \xD6zel Tad\u0131m Odas\u0131",
+    locationEn: "Chef's Private Tasting Room",
+    victim: {
+      name: "Julien Laurent",
+      occupation: "3 Y\u0131ld\u0131zl\u0131 \u015Eef",
+      occupationEn: "3 Star Chef",
+      causeOfDeath: "Tarif H\u0131rs\u0131zl\u0131\u011F\u0131",
+      causeOfDeathEn: "Recipe Theft"
+    },
+    timeline: [
+      { time: "23:00", event: "Restoran kapand\u0131.", eventEn: "Restaurant closed.", verified: true },
+      { time: "23:45", event: "Tarif defteri \xE7al\u0131nd\u0131.", eventEn: "Recipe book stolen.", verified: true }
+    ],
+    crimeSceneNotes: {
+      tr: [
+        "Tad\u0131m masas\u0131nda renkli bir iplik.",
+        "Kasa \u015Fifresiyle a\xE7\u0131lm\u0131\u015F."
+      ],
+      en: [
+        "Colored thread on the tasting table.",
+        "Vault opened with code."
+      ]
+    },
+    culpritId: "suspect-emre",
+    correctMethod: "\u015Eefin \xF6zel tad\u0131m masas\u0131na gizlice girip tarif defterini \xE7ald\u0131.",
+    correctMethodEn: "Secretly entered the chef's private tasting table and stole the recipe book.",
+    correctMotive: "Rakip gruba satmak.",
+    correctMotiveEn: "To sell to a rival group.",
+    winningContradiction: {
+      suspectId: "suspect-emre",
+      sentenceId: "emre-s2",
+      clueId: "clue-apron-thread"
+    },
+    analystSummary: {
+      tr: "Analist Notu: \u015E\xFCpheli, masaya hi\xE7 yakla\u015Fmad\u0131\u011F\u0131n\u0131 iddia etse de masada onun \xF6nl\xFC\u011F\xFCne ait mercan renkli iplik bulundu.",
+      en: "Analyst Note: Suspect claims he never approached the table, but a coral colored thread from his apron was found on it."
+    },
+    suspects: [
+      {
+        id: "suspect-emre",
+        name: "Emre Y\u0131lmaz",
+        role: "Sous Chef",
+        roleEn: "Sous Chef",
+        age: 32,
+        temperament: "H\u0131rsl\u0131 ve kurnaz",
+        temperamentEn: "Ambitious and cunning",
+        relationshipToVictim: "\u015Eefin yard\u0131mc\u0131s\u0131.",
+        relationshipToVictimEn: "Chef's assistant.",
+        statement: "Odan\u0131n yan\u0131na bile yakla\u015Fmad\u0131m.",
+        statementEn: "I didn't even go near the room.",
+        isCulprit: true,
+        alibi: "Mutfakta temizlik yapt\u0131\u011F\u0131n\u0131 iddia ediyor.",
+        alibiEn: "Claims to be cleaning in the kitchen.",
+        motive: "B\xFCy\xFCk para \xF6d\xFCl\xFC.",
+        motiveEn: "Large monetary reward.",
+        minorSecret: "Tariflerin baz\u0131lar\u0131n\u0131 kopyalam\u0131\u015Ft\u0131.",
+        minorSecretEn: "Had copied some of the recipes.",
+        breakThreshold: 84,
+        gossip: {
+          "suspect-pierre": { tr: "Pierre \xE7ok sarho\u015Ftu.", en: "Pierre was very drunk." }
+        },
+        behavioralCues: {
+          calm: { tr: "B\u0131\xE7a\u011F\u0131n\u0131 bileyliyor.", en: "Sharpening his knife." },
+          nervous: { tr: "\xD6nl\xFC\u011F\xFCn\xFC \xE7eki\u015Ftiriyor.", en: "Tugging at his apron." },
+          breaking: { tr: "Tabak f\u0131rlat\u0131yor.", en: "Throws a plate." }
+        },
+        lies: {
+          level1: "Ben sadece yemek yapar\u0131m.",
+          level2: "Tad\u0131m masas\u0131na gitmedim.",
+          level3: "Defter bende de\u011Fil!"
+        },
+        confession: "Evet \xE7ald\u0131m, kendi restoran\u0131m\u0131 a\xE7aca\u011F\u0131m!",
+        confessionEn: "Yes I stole it, I will open my own restaurant!",
+        detailedStatements: [
+          { id: "emre-s1", text: "Temizlikte g\xF6revliydim.", textEn: "I was assigned to cleaning.", isContradiction: false },
+          { id: "emre-s2", text: "B\xFCt\xFCn gece \u015Eefin \xF6zel tad\u0131m masas\u0131na hi\xE7 yakla\u015Fmad\u0131m.", textEn: "I never approached the Chef's private tasting table all night.", isContradiction: true, contradictionClueId: "clue-apron-thread", explanation: "Tad\u0131m masas\u0131nda Emre'nin \xF6zel \xF6nl\xFC\u011F\xFCne ait mercan renkli lif bulundu.", explanationEn: "A coral colored fiber belonging to Emre's custom apron was found on the tasting table." }
+        ]
+      },
+      {
+        id: "suspect-pierre",
+        name: "Pierre Martin",
+        role: "Sommelier",
+        roleEn: "Sommelier",
+        age: 44,
+        temperament: "Rahat",
+        temperamentEn: "Relaxed",
+        relationshipToVictim: "\u015Earap uzman\u0131.",
+        relationshipToVictimEn: "Wine expert.",
+        statement: "Mahzendeydim.",
+        statementEn: "I was in the cellar.",
+        isCulprit: false,
+        alibi: "Mahzen kameralar\u0131.",
+        alibiEn: "Cellar cameras.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "\u015Earaplar\u0131 kendisi i\xE7iyordu.",
+        minorSecretEn: "Drank the wines himself.",
+        breakThreshold: 94,
+        gossip: {
+          "suspect-emre": { tr: "Emre \xE7ok h\u0131rsl\u0131 biri.", en: "Emre is very ambitious." }
+        },
+        behavioralCues: {
+          calm: { tr: "\u015Earap kadehini siliyor.", en: "Wiping a wine glass." },
+          nervous: { tr: "Bo\u011Faz\u0131n\u0131 temizliyor.", en: "Clearing his throat." },
+          breaking: { tr: "A\u011Fl\u0131yor.", en: "Crying." }
+        },
+        lies: {
+          level1: "Sadece \u015Faraplara bakar\u0131m.",
+          level2: "Tariflerle ilgilenmem.",
+          level3: "Ben \xE7almad\u0131m."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "pierre-s1", text: "Mahzende say\u0131m yap\u0131yordum.", textEn: "I was doing inventory in the cellar.", isContradiction: false }
+        ]
+      },
+      {
+        id: "suspect-melis",
+        name: "Melis Akda\u011F",
+        role: "Pasta \u015Eefi",
+        roleEn: "Pastry Chef",
+        age: 29,
+        temperament: "Tatl\u0131",
+        temperamentEn: "Sweet",
+        relationshipToVictim: "Tatl\u0131lardan sorumlu \u015Fef.",
+        relationshipToVictimEn: "Chef in charge of desserts.",
+        statement: "Tatl\u0131 haz\u0131rl\u0131yordum.",
+        statementEn: "I was preparing desserts.",
+        isCulprit: false,
+        alibi: "Mutfaktaki di\u011Fer \xE7al\u0131\u015Fanlar.",
+        alibiEn: "Other workers in the kitchen.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Tatl\u0131lar\u0131 haz\u0131r al\u0131yordu bazen.",
+        minorSecretEn: "Sometimes bought pre-made desserts.",
+        breakThreshold: 92,
+        gossip: {
+          "suspect-emre": { tr: "Emre s\xFCrekli \u015Fefin odas\u0131na bak\u0131yordu.", en: "Emre kept looking at the chef's room." }
+        },
+        behavioralCues: {
+          calm: { tr: "Krema torbas\u0131n\u0131 tutuyor.", en: "Holding the piping bag." },
+          nervous: { tr: "Ellerini o\u011Fu\u015Fturuyor.", en: "Rubbing her hands." },
+          breaking: { tr: "Diz \xE7\xF6k\xFCyor.", en: "Kneels down." }
+        },
+        lies: {
+          level1: "Ben sadece tatl\u0131 yapar\u0131m.",
+          level2: "\u015Eefin odas\u0131na girmedim.",
+          level3: "Masumum."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "melis-s1", text: "Kendi istasyonumdayd\u0131m.", textEn: "I was at my own station.", isContradiction: false }
+        ]
+      }
+    ],
+    clues: [
+      {
+        id: "clue-apron-thread",
+        label: "\xD6nl\xFCk Lifi",
+        labelEn: "Apron Fiber",
+        category: "forensic",
+        type: "forensic",
+        contradictsSuspectId: "suspect-emre",
+        detail: "Tad\u0131m masas\u0131nda Emre'nin \xF6zel \xF6nl\xFC\u011F\xFCne ait mercan renkli lif bulundu.",
+        detailEn: "A coral colored fiber from Emre's custom apron was found on the tasting table.",
+        significance: "Emre'nin masaya yakla\u015Ft\u0131\u011F\u0131n\u0131 kan\u0131tlar.",
+        significanceEn: "Proves Emre approached the table."
+      },
+      {
+        id: "clue-15-pierre-cam",
+        label: "Mahzen Kameras\u0131",
+        labelEn: "Cellar Camera",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-pierre",
+        detail: "Pierre t\xFCm gece mahzendeydi.",
+        detailEn: "Pierre was in the cellar all night.",
+        significance: "Pierre'i temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Pierre."
+      },
+      {
+        id: "clue-15-melis-staff",
+        label: "Personel \u0130fadesi",
+        labelEn: "Staff Statement",
+        category: "witness",
+        type: "alibi",
+        clearsSuspectId: "suspect-melis",
+        detail: "Melis di\u011Fer personelle birlikteydi.",
+        detailEn: "Melis was with the other staff.",
+        significance: "Melis'i temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Melis."
+      }
+    ]
+  },
+  // Case 16
+  {
+    id: "case-16-oyun-studyosu",
+    title: "Ba\u011F\u0131ms\u0131z Oyun St\xFCdyosunda Kaynak Kod Sabotaj\u0131",
+    titleEn: "Source Code Sabotage at the Indie Game Studio",
+    difficulty: "normal",
+    briefing: "Lansmana saatler kala ana repoya yetkisiz force-push yap\u0131larak Ba\u015F Geli\u015Ftirici Berk Taner'in kaynak kodlar\u0131 \xE7al\u0131nd\u0131.",
+    briefingEn: "Hours before launch, the main repo was subjected to an unauthorized force-push and Lead Developer Berk Taner's source codes were stolen.",
+    incidentTime: "03:18",
+    location: "Ana Sistem Sunucusu",
+    locationEn: "Main System Server",
+    victim: {
+      name: "Berk Taner",
+      occupation: "Ba\u015F Geli\u015Ftirici",
+      occupationEn: "Lead Developer",
+      causeOfDeath: "Veri H\u0131rs\u0131zl\u0131\u011F\u0131",
+      causeOfDeathEn: "Data Theft"
+    },
+    timeline: [
+      { time: "02:00", event: "Ekip ofisten ayr\u0131ld\u0131.", eventEn: "Team left the office.", verified: true },
+      { time: "03:18", event: "Force-push ile kodlar de\u011Fi\u015Ftirildi.", eventEn: "Codes changed via force-push.", verified: true }
+    ],
+    crimeSceneNotes: {
+      tr: [
+        "Git loglar\u0131nda garip bir SSH anahtar\u0131 kullan\u0131m\u0131.",
+        "Ofis i\xE7 a\u011F\u0131ndan yap\u0131lm\u0131\u015F eri\u015Fim."
+      ],
+      en: [
+        "Strange SSH key usage in Git logs.",
+        "Access made from the office internal network."
+      ]
+    },
+    culpritId: "suspect-deniz",
+    correctMethod: "Lansmana saatler kala ana repoya yetkisiz force-push yaparak kodu \xE7ald\u0131.",
+    correctMethodEn: "Stole the code by making an unauthorized force-push to the main repo hours before launch.",
+    correctMotive: "Projeyi tek ba\u015F\u0131na sat\u0131p paray\u0131 almak.",
+    correctMotiveEn: "To sell the project alone and take the money.",
+    winningContradiction: {
+      suspectId: "suspect-deniz",
+      sentenceId: "deniz-s2",
+      clueId: "clue-git-commit-log"
+    },
+    analystSummary: {
+      tr: "Analist Notu: \u015E\xFCpheli gece evde oldu\u011Funu belirtiyor ama SSH anahtar\u0131 ile ofisteki masas\u0131ndan i\u015Flem yap\u0131lm\u0131\u015F.",
+      en: "Analyst Note: Suspect claims to be home at night, but his SSH key was used to execute commands from his office desk."
+    },
+    suspects: [
+      {
+        id: "suspect-deniz",
+        name: "Deniz Soylu",
+        role: "Kurucu Ortak & Tasar\u0131mc\u0131",
+        roleEn: "Co-Founder & Designer",
+        age: 31,
+        temperament: "Agresif ve h\u0131rsl\u0131",
+        temperamentEn: "Aggressive and ambitious",
+        relationshipToVictim: "Berk'in orta\u011F\u0131.",
+        relationshipToVictimEn: "Berk's partner.",
+        statement: "Gece yar\u0131s\u0131 ofisten \xE7\u0131k\u0131p evimde uyudum.",
+        statementEn: "I left the office at midnight and slept at home.",
+        isCulprit: true,
+        alibi: "Evinde oldu\u011Funu iddia ediyor.",
+        alibiEn: "Claims to be at home.",
+        motive: "Projeyi \xE7al\u0131p satmak.",
+        motiveEn: "Steal the project and sell it.",
+        minorSecret: "Kumar borcu vard\u0131.",
+        minorSecretEn: "Had a gambling debt.",
+        breakThreshold: 83,
+        gossip: {
+          "suspect-asli": { tr: "Asl\u0131 kodlara \xE7ok merakl\u0131yd\u0131.", en: "Asl\u0131 was very curious about the codes." }
+        },
+        behavioralCues: {
+          calm: { tr: "Telefonuyla oynuyor.", en: "Playing with his phone." },
+          nervous: { tr: "T\u0131rnaklar\u0131n\u0131 yiyor.", en: "Biting his nails." },
+          breaking: { tr: "Ekrana yumruk at\u0131yor.", en: "Punches the screen." }
+        },
+        lies: {
+          level1: "Ben tasar\u0131mc\u0131y\u0131m, koddan anlamam.",
+          level2: "Evdeydim.",
+          level3: "O push bana ait de\u011Fil!"
+        },
+        confession: "Evet \xE7ald\u0131m, o oyun benim fikrimdi!",
+        confessionEn: "Yes I stole it, that game was my idea!",
+        detailedStatements: [
+          { id: "deniz-s1", text: "Partiden sonra do\u011Frudan eve gittim.", textEn: "Went straight home after the party.", isContradiction: false },
+          { id: "deniz-s2", text: "Gece yar\u0131s\u0131 ofisten \xE7\u0131k\u0131p evimde uyudum, hi\xE7bir sisteme dokunmad\u0131m.", textEn: "I left the office at midnight and slept at home, touched no system.", isContradiction: true, contradictionClueId: "clue-git-commit-log", explanation: "Saat 03:18'de Deniz'in ofis masas\u0131ndaki SSH anahtar\u0131yla git push i\u015Flemi yap\u0131lm\u0131\u015F.", explanationEn: "A git push was executed at 03:18 using Deniz's SSH key from his office desk." }
+        ]
+      },
+      {
+        id: "suspect-asli",
+        name: "Asl\u0131 Vural",
+        role: "3D Artist",
+        roleEn: "3D Artist",
+        age: 26,
+        temperament: "Heyecanl\u0131",
+        temperamentEn: "Excited",
+        relationshipToVictim: "Tasar\u0131m ekibi \xFCyesi.",
+        relationshipToVictimEn: "Design team member.",
+        statement: "Sabaha kadar \xE7izim yapt\u0131m evimde.",
+        statementEn: "I drew at home until morning.",
+        isCulprit: false,
+        alibi: "Twitch yay\u0131n\u0131 yap\u0131yordu.",
+        alibiEn: "Was live streaming on Twitch.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Ba\u015Fka st\xFCdyoyla g\xF6r\xFC\u015F\xFCyordu.",
+        minorSecretEn: "Was interviewing with another studio.",
+        breakThreshold: 92,
+        gossip: {
+          "suspect-deniz": { tr: "Deniz Bey patronla \xE7ok tart\u0131\u015F\u0131yordu.", en: "Mr. Deniz argued a lot with the boss." }
+        },
+        behavioralCues: {
+          calm: { tr: "Tabletiyle ilgileniyor.", en: "Attending to her tablet." },
+          nervous: { tr: "Sa\xE7lar\u0131yla oynuyor.", en: "Playing with her hair." },
+          breaking: { tr: "A\u011Fl\u0131yor.", en: "Crying." }
+        },
+        lies: {
+          level1: "Ben sadece modellerim.",
+          level2: "Git loglar\u0131n\u0131 bilmem.",
+          level3: "Masumum."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "asli-s1", text: "Evimde yay\u0131ndayd\u0131m.", textEn: "I was streaming at home.", isContradiction: false }
+        ]
+      },
+      {
+        id: "suspect-cem",
+        name: "Cem Ertekin",
+        role: "Yat\u0131r\u0131mc\u0131",
+        roleEn: "Investor",
+        age: 40,
+        temperament: "Sakin",
+        temperamentEn: "Calm",
+        relationshipToVictim: "\u015Eirket yat\u0131r\u0131mc\u0131s\u0131.",
+        relationshipToVictimEn: "Company investor.",
+        statement: "Oteldeydim.",
+        statementEn: "I was at the hotel.",
+        isCulprit: false,
+        alibi: "Otel kameralar\u0131.",
+        alibiEn: "Hotel cameras.",
+        motive: "Yok.",
+        motiveEn: "None.",
+        minorSecret: "Projeyi iptal etmeyi d\xFC\u015F\xFCn\xFCyordu.",
+        minorSecretEn: "Was considering canceling the project.",
+        breakThreshold: 96,
+        gossip: {
+          "suspect-deniz": { tr: "Deniz kodlar\u0131n haklar\u0131n\u0131 istiyordu.", en: "Deniz wanted the rights to the codes." }
+        },
+        behavioralCues: {
+          calm: { tr: "Puro i\xE7iyor.", en: "Smoking a cigar." },
+          nervous: { tr: "Baca\u011F\u0131n\u0131 sall\u0131yor.", en: "Shaking his leg." },
+          breaking: { tr: "Ba\u011F\u0131r\u0131yor.", en: "Yelling." }
+        },
+        lies: {
+          level1: "Ben sadece para veririm.",
+          level2: "Kodlarla i\u015Fim olmaz.",
+          level3: "Masumum."
+        },
+        confession: "Masumum!",
+        confessionEn: "I am innocent!",
+        detailedStatements: [
+          { id: "cem-s1", text: "Otelimde uyuyordum.", textEn: "I was sleeping at my hotel.", isContradiction: false }
+        ]
+      }
+    ],
+    clues: [
+      {
+        id: "clue-git-commit-log",
+        label: "Git SSH Eri\u015Fim Logu",
+        labelEn: "Git SSH Access Log",
+        category: "digital",
+        type: "digital",
+        contradictsSuspectId: "suspect-deniz",
+        detail: "03:18'de Deniz'in ofis masas\u0131ndaki ki\u015Fisel SSH anahtar\u0131yla yetkisiz git push yap\u0131ld\u0131.",
+        detailEn: "Unauthorized git push executed at 03:18 from Deniz's office desk using his personal SSH key.",
+        significance: "Deniz'in i\u015Flemi yapt\u0131\u011F\u0131n\u0131 kan\u0131tlar.",
+        significanceEn: "Proves Deniz executed the operation."
+      },
+      {
+        id: "clue-16-asli-stream",
+        label: "Twitch Yay\u0131n\u0131 Kayd\u0131",
+        labelEn: "Twitch Stream VOD",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-asli",
+        detail: "Asl\u0131 t\xFCm gece canl\u0131 yay\u0131ndayd\u0131.",
+        detailEn: "Asl\u0131 was live streaming all night.",
+        significance: "Asl\u0131'y\u0131 temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Asl\u0131."
+      },
+      {
+        id: "clue-16-cem-hotel",
+        label: "Otel Kamera Kayd\u0131",
+        labelEn: "Hotel Camera Log",
+        category: "digital",
+        type: "alibi",
+        clearsSuspectId: "suspect-cem",
+        detail: "Cem gece boyunca otelinden ayr\u0131lmad\u0131.",
+        detailEn: "Cem didn't leave his hotel all night.",
+        significance: "Cem'i temize \xE7\u0131kar\u0131r.",
+        significanceEn: "Clears Cem."
+      }
+    ]
+  }
+];
+
 // shared/vakaCases.ts
 var VAKA_SAMPLE_CASES = [
   // 1. VAKA: Müzayede Salonu / Saat Hırsızlığı
@@ -2317,7 +3965,8 @@ var VAKA_SAMPLE_CASES = [
         significanceEn: "Validates Harun's presence in lower stacks."
       }
     ]
-  }
+  },
+  ...newCases
 ];
 
 // server/services/vakaLlmService.ts
@@ -2513,10 +4162,11 @@ async function executeVakaLlmChain(messages, options) {
 
 // server/services/vakaDeterministicEngine.ts
 function processDeterministicInterrogation(caseData, suspectId, actionType = "question", payload, currentStress = 10, locale = "tr") {
+  const isEn = locale === "en";
   const suspect = caseData.suspects.find((s) => s.id === suspectId);
   if (!suspect) {
     return {
-      text: locale === "en" ? "Suspect not found in dossier." : "\u015E\xFCpheli dosyada bulunamad\u0131.",
+      text: isEn ? "Suspect not found in dossier." : "\u015E\xFCpheli dosyada bulunamad\u0131.",
       behavioralCue: "",
       newStress: currentStress,
       stressDelta: 0,
@@ -2526,15 +4176,15 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
   let stress = Math.max(0, Math.min(100, currentStress));
   const startStress = stress;
   const getCue = (st) => {
-    if (st >= 75) return locale === "en" ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr;
-    if (st >= 40) return locale === "en" ? suspect.behavioralCues.nervous.en : suspect.behavioralCues.nervous.tr;
-    return locale === "en" ? suspect.behavioralCues.calm.en : suspect.behavioralCues.calm.tr;
+    if (st >= 75) return isEn ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr;
+    if (st >= 40) return isEn ? suspect.behavioralCues.nervous.en : suspect.behavioralCues.nervous.tr;
+    return isEn ? suspect.behavioralCues.calm.en : suspect.behavioralCues.calm.tr;
   };
   if (actionType === "present_evidence" && payload.presentedClueId) {
     const clue = caseData.clues.find((c) => c.id === payload.presentedClueId);
     if (!clue) {
       return {
-        text: locale === "en" ? "That evidence does not exist in our dossier." : "Bu kan\u0131t dosyam\u0131zda kay\u0131tl\u0131 de\u011Fil.",
+        text: isEn ? "That evidence does not exist in our dossier." : "Bu kan\u0131t dosyam\u0131zda kay\u0131tl\u0131 de\u011Fil.",
         behavioralCue: getCue(stress),
         newStress: stress,
         stressDelta: 0,
@@ -2542,20 +4192,21 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
       };
     }
     if (clue.contradictsSuspectId === suspect.id) {
-      stress = Math.min(100, stress + 25);
+      const gain2 = stress < 45 ? 18 : 24;
+      stress = Math.min(100, stress + gain2);
       if (stress >= suspect.breakThreshold && suspect.isCulprit) {
         return {
-          text: locale === "en" ? suspect.confessionEn : suspect.confession,
-          behavioralCue: locale === "en" ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr,
+          text: isEn ? suspect.confessionEn : suspect.confession,
+          behavioralCue: isEn ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr,
           newStress: stress,
           stressDelta: stress - startStress,
           confessed: true,
           unlockedClueId: clue.id
         };
       }
-      const reply2 = locale === "en" ? `(Voice shaking) Where... where did you get that ${clue.labelEn.toLowerCase()}?! I told you that wasn't me!` : `(Sesi titreyerek) O... o ${clue.label.toLowerCase()} belgesini nereden buldunuz?! Benimle bir ilgisi olmad\u0131\u011F\u0131n\u0131 s\xF6ylemi\u015Ftim!`;
+      const reply2 = isEn ? `(Voice shaking) Where... where did you get that ${clue.labelEn.toLowerCase()}?! I told you that wasn't me!` : `(Sesi titreyerek) O... o ${clue.label.toLowerCase()} belgesini nereden buldunuz?! Benimle bir ilgisi olmad\u0131\u011F\u0131n\u0131 s\xF6ylemi\u015Ftim!`;
       return {
-        text: `${reply2} ${suspect.lies.level3}`,
+        text: `${reply2} ${stress >= 65 ? suspect.lies.level3 : suspect.lies.level2}`,
         behavioralCue: getCue(stress),
         newStress: stress,
         stressDelta: stress - startStress,
@@ -2565,7 +4216,7 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     }
     if (clue.clearsSuspectId === suspect.id) {
       stress = Math.max(0, stress - 15);
-      const reply2 = locale === "en" ? `See? Even this ${clue.labelEn.toLowerCase()} proves my innocence! You are barking up the wrong tree.` : `G\xF6rd\xFCn\xFCz m\xFC? Bu ${clue.label.toLowerCase()} bile masumiyetimi kan\u0131tl\u0131yor! Bo\u015Funa vaktimi harc\u0131yorsunuz dedektif.`;
+      const reply2 = isEn ? `See? Even this ${clue.labelEn.toLowerCase()} proves my innocence! You are barking up the wrong tree, detective.` : `G\xF6rd\xFCn\xFCz m\xFC? Bu ${clue.label.toLowerCase()} bile masumiyetimi kan\u0131tl\u0131yor! Bo\u015Funa vaktimi harc\u0131yorsunuz dedektif.`;
       return {
         text: reply2,
         behavioralCue: getCue(stress),
@@ -2574,44 +4225,8 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
         confessed: false
       };
     }
-    stress = Math.max(0, stress - 8);
-    const reply = locale === "en" ? `What does this ${clue.labelEn.toLowerCase()} have to do with me? You have absolutely nothing on me, detective.` : `Bu ${clue.label.toLowerCase()} ile benim ne alakam var? Elinizde bana dair hi\xE7bir somut \u015Fey yok dedektif.`;
-    return {
-      text: reply,
-      behavioralCue: getCue(stress),
-      newStress: stress,
-      stressDelta: stress - startStress,
-      confessed: false
-    };
-  }
-  if (actionType === "cross_examine" && payload.crossSuspectId) {
-    const other = caseData.suspects.find((s) => s.id === payload.crossSuspectId);
-    const otherName = other ? other.name : locale === "en" ? "the other witness" : "di\u011Fer tan\u0131k";
-    const gossipObj = suspect.gossip[payload.crossSuspectId];
-    const gossipText = gossipObj ? locale === "en" ? gossipObj.en : gossipObj.tr : "";
-    stress = Math.min(100, stress + 16);
-    const intro = locale === "en" ? `${otherName} said that about me?! That liar is just trying to save their own neck!` : `${otherName} benim hakk\u0131mda bunu mu s\xF6yledi?! O yalanc\u0131 s\u0131rf kendi pa\xE7as\u0131n\u0131 kurtarmak i\xE7in iftira at\u0131yor!`;
-    const fullReply = gossipText ? `${intro} ${gossipText}` : intro;
-    return {
-      text: fullReply,
-      behavioralCue: getCue(stress),
-      newStress: stress,
-      stressDelta: stress - startStress,
-      confessed: false
-    };
-  }
-  if (actionType === "stay_silent") {
-    stress = Math.min(100, stress + 10);
-    let reply = "";
-    if (suspect.isCulprit) {
-      if (stress >= 65) {
-        reply = locale === "en" ? "(Fidgets uncomfortably) Why are you staring at me like that?! Ask your questions or let me go!" : "(Huzursuzca k\u0131p\u0131rdan\u0131yor) Neden bana \xF6yle dik dik bak\u0131yorsunuz?! Sorunuz varsa sorun, yoksa beni b\u0131rak\u0131n!";
-      } else {
-        reply = locale === "en" ? "(Clears throat nervously) The silence won't fabricate an alibi for you, detective." : "(Bo\u011Faz\u0131n\u0131 gergince temizliyor) Sessiz kalman\u0131z ger\xE7e\u011Fi de\u011Fi\u015Ftirmez dedektif. Ne bilmek istiyorsunuz?";
-      }
-    } else {
-      reply = locale === "en" ? "Staring at me in silence won't make me guilty. Call my lawyer if you're not going to speak." : "Bana sessizce bakman\u0131z beni su\xE7lu yapmaz. Konu\u015Fmayacaksan\u0131z avukat\u0131m\u0131 arayaca\u011F\u0131m.";
-    }
+    stress = Math.max(0, stress - 10);
+    const reply = isEn ? `What does this ${clue.labelEn.toLowerCase()} have to do with me? You have absolutely nothing on me, detective.` : `Bu ${clue.label.toLowerCase()} ile benim ne alakam var? Elinizde bana dair hi\xE7bir somut delil yok dedektif.`;
     return {
       text: reply,
       behavioralCue: getCue(stress),
@@ -2622,8 +4237,19 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
   }
   if (actionType === "bluff") {
     if (suspect.isCulprit) {
-      stress = Math.min(100, stress + 14);
-      const reply = locale === "en" ? `(Blinks rapidly) You... you have that on record?! No, you're bluffing! You can't possibly prove that!` : `(H\u0131zla g\xF6zlerini k\u0131rp\u0131\u015Ft\u0131r\u0131yor) O... o kay\u0131t elinizde mi?! Hay\u0131r, bl\xF6f yap\u0131yorsunuz! Bunu kan\u0131tlayamazs\u0131n\u0131z!`;
+      if (startStress < 45) {
+        stress = Math.max(5, stress - 12);
+        const reply2 = isEn ? `(Smiles coldly) You're trying to bluff me, detective. You don't have a shred of surveillance footage or testimony, or you would have handcuffed me already.` : `(So\u011Fuk\xE7a g\xFCl\xFCms\xFCyor) Bana bl\xF6f yapmaya \xE7al\u0131\u015F\u0131yorsunuz dedektif. Elinizde ne kamera kayd\u0131 ne de g\xF6rg\xFC tan\u0131\u011F\u0131 var; olsayd\u0131 \xE7oktan kelep\xE7eyi takm\u0131\u015Ft\u0131n\u0131z.`;
+        return {
+          text: reply2,
+          behavioralCue: getCue(stress),
+          newStress: stress,
+          stressDelta: stress - startStress,
+          confessed: false
+        };
+      }
+      stress = Math.min(100, stress + 16);
+      const reply = isEn ? `(Blinks rapidly, sweating) What... you pulled that record?! No, you can't have! The blind spot... I mean, you're bluffing! You have nothing!` : `(H\u0131zla g\xF6zlerini k\u0131rp\u0131\u015Ft\u0131r\u0131yor, terliyor) Ne... o kayd\u0131 m\u0131 buldunuz?! Hay\u0131r, bulmu\u015F olamazs\u0131n\u0131z! O saatteki k\xF6r noktay\u0131... Yani, bl\xF6f yap\u0131yorsunuz!`;
       return {
         text: reply,
         behavioralCue: getCue(stress),
@@ -2633,7 +4259,7 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
       };
     } else {
       stress = Math.max(0, stress - 12);
-      const reply = locale === "en" ? "Nice try detective, but that's an obvious bluff. I know my rights." : "G\xFCzel deneme dedektif, ama bariz bir bl\xF6f yap\u0131yorsunuz. Masum oldu\u011Fumu ikimiz de biliyoruz.";
+      const reply = isEn ? "Nice try detective, but that's an obvious bluff. I know my rights and I won't let you intimidate me." : "G\xFCzel deneme dedektif, ama bariz bir bl\xF6f yap\u0131yorsunuz. Haklar\u0131m\u0131 biliyorum ve as\u0131ls\u0131z iddialarla beni y\u0131ld\u0131ramazs\u0131n\u0131z.";
       return {
         text: reply,
         behavioralCue: getCue(stress),
@@ -2643,6 +4269,48 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
       };
     }
   }
+  if (actionType === "cross_examine" && payload.crossSuspectId) {
+    const other = caseData.suspects.find((s) => s.id === payload.crossSuspectId);
+    const otherName = other ? other.name : isEn ? "the other witness" : "di\u011Fer tan\u0131k";
+    const gossipObj = suspect.gossip[payload.crossSuspectId];
+    const gossipText = gossipObj ? isEn ? gossipObj.en : gossipObj.tr : "";
+    if (stress < 75) {
+      stress = Math.min(75, stress + 16);
+    } else {
+      stress = Math.min(80, stress + 4);
+    }
+    const intro = isEn ? `${otherName} said that about me?! That liar is just trying to save their own neck!` : `${otherName} benim hakk\u0131mda bunu mu s\xF6yledi?! O yalanc\u0131 s\u0131rf kendi pa\xE7as\u0131n\u0131 kurtarmak i\xE7in iftira at\u0131yor!`;
+    const fullReply = gossipText ? `${intro} ${gossipText}` : intro;
+    return {
+      text: fullReply,
+      behavioralCue: getCue(stress),
+      newStress: stress,
+      stressDelta: stress - startStress,
+      confessed: false
+    };
+  }
+  if (actionType === "stay_silent") {
+    if (stress < 55) {
+      stress = Math.min(55, stress + 10);
+    }
+    let reply = "";
+    if (suspect.isCulprit) {
+      if (stress >= 50) {
+        reply = isEn ? "(Fidgets uncomfortably) Why are you staring at me like that?! Ask your questions or let me walk out of here!" : "(Huzursuzca k\u0131p\u0131rdan\u0131yor) Neden bana \xF6yle dik dik bak\u0131yorsunuz?! Sorunuz varsa sorun, yoksa beni buradan b\u0131rak\u0131n!";
+      } else {
+        reply = isEn ? "(Clears throat nervously) The silence won't fabricate an alibi for you, detective." : "(Bo\u011Faz\u0131n\u0131 gergince temizliyor) Sessiz kalman\u0131z ger\xE7e\u011Fi de\u011Fi\u015Ftirmez dedektif. Ne bilmek istiyorsunuz?";
+      }
+    } else {
+      reply = isEn ? "Staring at me in silence won't make me guilty. Call my lawyer if you're not going to speak." : "Bana sessizce bakman\u0131z beni su\xE7lu yapmaz. Konu\u015Fmayacaksan\u0131z avukat\u0131m\u0131 arayaca\u011F\u0131m.";
+    }
+    return {
+      text: reply,
+      behavioralCue: getCue(stress),
+      newStress: stress,
+      stressDelta: stress - startStress,
+      confessed: false
+    };
+  }
   const qLower = (payload.question || "").toLowerCase().trim();
   const triggerWords = [
     "neredeydin",
@@ -2651,7 +4319,6 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     "cinayet",
     "zehir",
     "kasa",
-    "saat",
     "f\u0131rt\u0131na",
     "kamera",
     "neden",
@@ -2664,6 +4331,8 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     "b\u0131\xE7ak",
     "anahtar",
     "nerede",
+    "itiraf",
+    "kim",
     "where",
     "time",
     "murder",
@@ -2677,30 +4346,24 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     "debt",
     "victim",
     "secret",
-    "weapon"
+    "weapon",
+    "confess",
+    "who"
   ];
   const matched = triggerWords.some((w) => qLower.includes(w));
-  if (matched) {
-    stress = Math.min(100, stress + 12);
-  } else {
-    stress = Math.min(100, stress + 4);
-  }
-  if (stress >= suspect.breakThreshold && suspect.isCulprit) {
-    return {
-      text: locale === "en" ? suspect.confessionEn : suspect.confession,
-      behavioralCue: locale === "en" ? suspect.behavioralCues.breaking.en : suspect.behavioralCues.breaking.tr,
-      newStress: stress,
-      stressDelta: stress - startStress,
-      confessed: true
-    };
+  const gain = matched ? 6 : 3;
+  if (stress < 55) {
+    stress = Math.min(55, stress + gain);
+  } else if (stress < 60) {
+    stress = Math.min(60, stress + 1);
   }
   let replyText = "";
-  if (stress >= 70) {
-    replyText = locale === "en" ? suspect.lies.level3 : suspect.lies.level3;
+  if (stress >= 65) {
+    replyText = isEn ? suspect.lies.level3 : suspect.lies.level3;
   } else if (stress >= 35) {
-    replyText = locale === "en" ? suspect.lies.level2 : suspect.lies.level2;
+    replyText = isEn ? suspect.lies.level2 : suspect.lies.level2;
   } else {
-    replyText = locale === "en" ? suspect.lies.level1 : suspect.lies.level1;
+    replyText = isEn ? suspect.lies.level1 : suspect.lies.level1;
   }
   return {
     text: replyText,
@@ -2708,6 +4371,7 @@ function processDeterministicInterrogation(caseData, suspectId, actionType = "qu
     newStress: stress,
     stressDelta: stress - startStress,
     confessed: false
+    // Düz sorularla ASLA itiraf gerçekleşmez!
   };
 }
 
@@ -2906,11 +4570,12 @@ ${presentedClue ? `DETECTIVE JUST PRESENTED THIS EVIDENCE: "${presentedClue.labe
 
 BEHAVIORAL RULES:
 1. Stay 100% in character. Never acknowledge being an AI or prompt.
-2. If stress < 40: Act confident, condescending, or calm.
-3. If stress 40-75: Become visibly defensive, fidget, deflect suspicion onto other suspects.
-4. If stress > 75: Stutter, show cracks in your story, panic.
-5. Keep response concise (2-4 sentences max), gritty and dramatic.
-6. ${langInstruction}`;
+2. ABSOLUTE RESISTANCE: NEVER confess or admit guilt during conversational questions. Only admit your guilt if the detective presents undeniable physical/forensic evidence directly incriminating you while your psychological stress is above 80.
+3. If stress < 45: Act confident, condescending, or calm. Counter any bluff by noting the detective lacks warrants or proof.
+4. If stress 45-75: Become visibly defensive, sweat, fidget, aggressively deflect suspicion onto other suspects.
+5. If stress > 75: Stutter, show cracks in your timeline, contradict yourself on small details, but maintain you didn't do it unless directly broken by evidence.
+6. Keep response concise (2-4 sentences max), gritty and dramatic.
+7. ${langInstruction}`;
       const userPrompt = input.actionType === "cross_examine" && input.crossSuspectId ? `Detective says: "${caseData.suspects.find((s) => s.id === input.crossSuspectId)?.name} told me you were lying about your whereabouts!"` : input.question || "Explain yourself!";
       const messages = [
         { role: "system", content: systemPrompt },
@@ -3064,8 +4729,18 @@ function tokenMatches(received, expected) {
 async function authorizeScheduledRequest(req) {
   const vdsToken = req.header("x-sely-cron-token");
   if (tokenMatches(vdsToken, process.env.DAILY_JOB_TOKEN)) return true;
-  const user = await sdk.authenticateRequest(req);
-  return Boolean(user.isCron && user.taskUid);
+  const authHeader = req.header("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const bearerToken = authHeader.slice(7);
+    const expectedSecret = process.env.CRON_SECRET || process.env.DAILY_JOB_TOKEN;
+    if (tokenMatches(bearerToken, expectedSecret)) return true;
+  }
+  try {
+    const user = await sdk.authenticateRequest(req);
+    return Boolean(user.isCron && user.taskUid);
+  } catch {
+    return false;
+  }
 }
 async function dailyContentHandler(req, res) {
   try {
@@ -3085,6 +4760,244 @@ async function dailyCleanupHandler(req, res) {
   } catch (error) {
     console.error("[daily-content] cleanup failed", error);
     return res.status(500).json({ error: "daily-cleanup-failed" });
+  }
+}
+
+// server/leaderboard.ts
+import { Redis as UpstashRedis } from "@upstash/redis";
+import IORedis from "ioredis";
+var VALID_GAMES = ["echo", "knot", "cut", "shadow", "marker", "hane", "spark", "vaka"];
+var MAX_SCORE_CEILINGS = {
+  echo: 5e3,
+  knot: 4e3,
+  cut: 3e3,
+  shadow: 3e3,
+  marker: 3e3,
+  hane: 2500,
+  spark: 2e3,
+  vaka: 500
+};
+var memoryStore = /* @__PURE__ */ new Map();
+function getMemoryKey(gameId, dateStr) {
+  return `lb:${gameId}:${dateStr}`;
+}
+function getTodayIsoDate() {
+  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
+var tcpRedisInstance = null;
+function getTcpRedisClient() {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) return null;
+  if (!tcpRedisInstance) {
+    try {
+      tcpRedisInstance = new IORedis(redisUrl, {
+        lazyConnect: false,
+        maxRetriesPerRequest: 1,
+        connectTimeout: 3e3,
+        commandTimeout: 3e3,
+        enableOfflineQueue: false,
+        retryStrategy(times) {
+          if (times > 3) return null;
+          return Math.min(times * 100, 1e3);
+        }
+      });
+      tcpRedisInstance.on("error", (err) => {
+        console.warn("[Leaderboard:VDS-Redis] Connection error:", err.message);
+      });
+    } catch {
+      tcpRedisInstance = null;
+    }
+  }
+  return tcpRedisInstance;
+}
+var upstashInstance = null;
+function getUpstashClient() {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (url && token) {
+    if (!upstashInstance) {
+      upstashInstance = new UpstashRedis({
+        url: url.replace(/\/$/, ""),
+        token
+      });
+    }
+    return upstashInstance;
+  }
+  return null;
+}
+async function getTopScores(gameId, dateStr = getTodayIsoDate()) {
+  const key = `lb:${gameId}:${dateStr}`;
+  const tcpRedis = getTcpRedisClient();
+  if (tcpRedis) {
+    try {
+      const result = await tcpRedis.zrevrange(key, 0, 9, "WITHSCORES");
+      const count = await tcpRedis.zcard(key);
+      const entries = [];
+      for (let i = 0; i < result.length; i += 2) {
+        const rawMember = result[i];
+        const score = Number(result[i + 1]);
+        const parts = rawMember.split("::");
+        const signature = parts[0] || "anon";
+        const nick = parts.slice(1).join("::") || "Anonim Gezgin";
+        entries.push({
+          rank: entries.length + 1,
+          nick,
+          score,
+          signature,
+          timestamp: Date.now()
+        });
+      }
+      return {
+        gameId,
+        date: dateStr,
+        top: entries,
+        totalPlayers: count || entries.length,
+        source: "vds-redis"
+      };
+    } catch {
+    }
+  }
+  const upstash = getUpstashClient();
+  if (upstash) {
+    try {
+      const rawResults = await upstash.zrange(key, 0, 9, {
+        rev: true,
+        withScores: true
+      });
+      const totalPlayers = await upstash.zcard(key) ?? rawResults.length;
+      const entries = [];
+      for (let i = 0; i < rawResults.length; i++) {
+        const item = rawResults[i];
+        const rawMember = typeof item === "object" && item !== null && "member" in item ? String(item.member) : String(item);
+        const score = typeof item === "object" && item !== null && "score" in item ? Number(item.score) : 0;
+        const parts = rawMember.split("::");
+        const signature = parts[0] || "anon";
+        const nick = parts.slice(1).join("::") || "Anonim Gezgin";
+        entries.push({
+          rank: i + 1,
+          nick,
+          score,
+          signature,
+          timestamp: Date.now()
+        });
+      }
+      return {
+        gameId,
+        date: dateStr,
+        top: entries,
+        totalPlayers,
+        source: "upstash"
+      };
+    } catch {
+    }
+  }
+  const memKey = getMemoryKey(gameId, dateStr);
+  const gameMap = memoryStore.get(memKey) || /* @__PURE__ */ new Map();
+  const sorted = Array.from(gameMap.entries()).map(([signature, data]) => ({
+    signature,
+    nick: data.nick,
+    score: data.score,
+    timestamp: data.timestamp
+  })).sort((a, b) => b.score - a.score).slice(0, 10).map((item, index) => ({
+    rank: index + 1,
+    ...item
+  }));
+  return {
+    gameId,
+    date: dateStr,
+    top: sorted,
+    totalPlayers: gameMap.size,
+    source: "memory"
+  };
+}
+async function submitScore(gameId, score, nick, signature, dateStr = getTodayIsoDate()) {
+  if (typeof score !== "number" || isNaN(score) || score <= 0) {
+    return { success: false, message: "Ge\xE7ersiz skor de\u011Feri." };
+  }
+  const maxCeiling = MAX_SCORE_CEILINGS[gameId] ?? 3e3;
+  if (score > maxCeiling) {
+    return { success: false, message: "Skor makul s\u0131n\u0131rlar\u0131n \xFCzerinde." };
+  }
+  const cleanNick = nick.trim().slice(0, 32);
+  const cleanSig = signature.trim().slice(0, 32);
+  if (!cleanNick || !cleanSig) {
+    return { success: false, message: "Eksik kod ad\u0131 veya imza." };
+  }
+  const key = `lb:${gameId}:${dateStr}`;
+  const member = `${cleanSig}::${cleanNick}`;
+  const tcpRedis = getTcpRedisClient();
+  if (tcpRedis) {
+    try {
+      try {
+        await tcpRedis.zadd(key, "GT", score, member);
+      } catch {
+        const currentScore = await tcpRedis.zscore(key, member);
+        if (currentScore === null || score > Number(currentScore)) {
+          await tcpRedis.zadd(key, score, member);
+        }
+      }
+      await tcpRedis.expire(key, 172800);
+      const rank0 = await tcpRedis.zrevrank(key, member);
+      const rank2 = typeof rank0 === "number" ? rank0 + 1 : void 0;
+      return { success: true, rank: rank2 };
+    } catch {
+    }
+  }
+  const upstash = getUpstashClient();
+  if (upstash) {
+    try {
+      const currentScore = await upstash.zscore(key, member);
+      if (currentScore === null || score > Number(currentScore)) {
+        await upstash.zadd(key, { score, member });
+      }
+      await upstash.expire(key, 172800);
+      const rank0 = await upstash.zrevrank(key, member);
+      const rank2 = typeof rank0 === "number" ? rank0 + 1 : void 0;
+      return { success: true, rank: rank2 };
+    } catch {
+    }
+  }
+  const memKey = getMemoryKey(gameId, dateStr);
+  if (!memoryStore.has(memKey)) {
+    memoryStore.set(memKey, /* @__PURE__ */ new Map());
+  }
+  const gameMap = memoryStore.get(memKey);
+  const existing = gameMap.get(cleanSig);
+  if (!existing || score > existing.score) {
+    gameMap.set(cleanSig, { nick: cleanNick, score, timestamp: Date.now() });
+  }
+  const sorted = Array.from(gameMap.entries()).sort((a, b) => b[1].score - a[1].score);
+  const rankIndex = sorted.findIndex(([sig]) => sig === cleanSig);
+  const rank = rankIndex !== -1 ? rankIndex + 1 : void 0;
+  return { success: true, rank };
+}
+async function getLeaderboardHandler(req, res) {
+  const game = String(req.query.game || "echo");
+  const date = String(req.query.date || getTodayIsoDate());
+  if (!VALID_GAMES.includes(game)) {
+    return res.status(400).json({ error: "Ge\xE7ersiz oyun kimli\u011Fi." });
+  }
+  res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=300");
+  try {
+    const data = await getTopScores(game, date);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "Liderlik tablosu al\u0131namad\u0131." });
+  }
+}
+async function submitLeaderboardHandler(req, res) {
+  const { gameId, score, nick, signature } = req.body || {};
+  if (!VALID_GAMES.includes(gameId)) {
+    return res.status(400).json({ error: "Ge\xE7ersiz oyun kimli\u011Fi." });
+  }
+  try {
+    const result = await submitScore(gameId, Number(score), String(nick || ""), String(signature || ""));
+    if (!result.success) {
+      return res.status(400).json({ error: result.message });
+    }
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: "Skor kaydedilemedi." });
   }
 }
 
@@ -3207,10 +5120,13 @@ function createApp() {
   registerSeoAndVerificationRoutes(app2);
   registerStorageProxy(app2);
   registerOAuthRoutes(app2);
+  const leaderboardLimiter = createRateLimiter({ max: 20, windowMs: 6e4 });
+  app2.get("/api/leaderboard", getLeaderboardHandler);
+  app2.post("/api/leaderboard", leaderboardLimiter, submitLeaderboardHandler);
   const scheduledLimiter = createRateLimiter({ max: 8, windowMs: 6e4 });
   const publicApiLimiter = createRateLimiter({ max: 90, windowMs: 6e4 });
-  app2.post("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);
-  app2.post("/api/scheduled/daily-cleanup", scheduledLimiter, dailyCleanupHandler);
+  app2.all("/api/scheduled/daily-content", scheduledLimiter, dailyContentHandler);
+  app2.all("/api/scheduled/daily-cleanup", scheduledLimiter, dailyCleanupHandler);
   app2.use("/api/trpc", (req, res, next) => {
     if (req.method === "GET") {
       res.setHeader("Cache-Control", "public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400");

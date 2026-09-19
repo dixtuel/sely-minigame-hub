@@ -6,6 +6,7 @@ import { registerStorageProxy } from "./_core/storageProxy";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
 import { dailyCleanupHandler, dailyContentHandler } from "./scheduled/dailyContent";
+import { getLeaderboardHandler, submitLeaderboardHandler } from "./leaderboard";
 import { createRateLimiter, securityHeaders } from "./_core/security";
 import { registerSeoAndVerificationRoutes } from "./seoRoutes";
 
@@ -22,6 +23,11 @@ export function createApp() {
   // Storage & OAuth
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // Leaderboard API (Vercel KV / Upstash Redis with In-Memory fallback & Edge caching)
+  const leaderboardLimiter = createRateLimiter({ max: 20, windowMs: 60_000 });
+  app.get("/api/leaderboard", getLeaderboardHandler);
+  app.post("/api/leaderboard", leaderboardLimiter, submitLeaderboardHandler);
 
   // Scheduled endpoints (supports GET for Vercel Cron and POST for VDS crontab)
   const scheduledLimiter = createRateLimiter({ max: 8, windowMs: 60_000 });
