@@ -30,27 +30,6 @@ import { parse as parseCookieHeader2 } from "cookie";
 
 // server/storage/db.ts
 import pg from "pg";
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-
-// drizzle/schema.ts
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
-var users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
-  id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
-});
 
 // server/_core/env.ts
 var ENV = {
@@ -331,7 +310,6 @@ function warnIfDatabaseUrlSchemeMismatch(callerLabel, expectedSchemes) {
 
 // server/storage/db.ts
 var { Pool } = pg;
-var _mysqlDb = null;
 var _pgPool = null;
 var _pgSchemaInitialized = false;
 function getPostgresUrl() {
@@ -392,18 +370,6 @@ async function ensurePgSchema(pool) {
     return false;
   }
 }
-async function getDb() {
-  const url = process.env.DATABASE_URL;
-  if (!_mysqlDb && url && (url.startsWith("mysql://") || url.startsWith("mysql2://"))) {
-    try {
-      _mysqlDb = drizzle(url);
-    } catch (error) {
-      console.warn("[Database:MySQL] Failed to connect:", error);
-      _mysqlDb = null;
-    }
-  }
-  return _mysqlDb;
-}
 async function upsertUser(user) {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
@@ -451,48 +417,6 @@ async function upsertUser(user) {
       lastSignedIn: user.lastSignedIn
     });
   }
-  const mysqlDb = await getDb();
-  if (mysqlDb) {
-    try {
-      const values = {
-        openId: user.openId
-      };
-      const updateSet = {};
-      const textFields = ["name", "email", "loginMethod"];
-      const assignNullable = (field) => {
-        const value = user[field];
-        if (value === void 0) return;
-        const normalized = value ?? null;
-        values[field] = normalized;
-        updateSet[field] = normalized;
-      };
-      textFields.forEach(assignNullable);
-      if (user.lastSignedIn !== void 0) {
-        values.lastSignedIn = user.lastSignedIn;
-        updateSet.lastSignedIn = user.lastSignedIn;
-      }
-      if (user.role !== void 0) {
-        values.role = user.role;
-        updateSet.role = user.role;
-      } else if (user.openId === ENV.ownerOpenId) {
-        values.role = "admin";
-        updateSet.role = "admin";
-      }
-      if (!values.lastSignedIn) {
-        values.lastSignedIn = /* @__PURE__ */ new Date();
-      }
-      if (Object.keys(updateSet).length === 0) {
-        updateSet.lastSignedIn = /* @__PURE__ */ new Date();
-      }
-      await mysqlDb.insert(users).values(values).onDuplicateKeyUpdate({
-        set: updateSet
-      });
-      return;
-    } catch (error) {
-      console.error("[Database:MySQL] Failed to upsert user:", error);
-      throw error;
-    }
-  }
   console.warn("[Database] Cannot upsert user: database not available");
 }
 async function getUserByOpenId(openId) {
@@ -518,12 +442,7 @@ async function getUserByOpenId(openId) {
     }
   }
   if (isTursoConfigured()) {
-    return getTursoUserByOpenId(openId);
-  }
-  const mysqlDb = await getDb();
-  if (mysqlDb) {
-    const result = await mysqlDb.select().from(users).where(eq(users.openId, openId)).limit(1);
-    return result.length > 0 ? result[0] : void 0;
+    return await getTursoUserByOpenId(openId);
   }
   console.warn("[Database] Cannot get user: database not available");
   return void 0;
@@ -4351,9 +4270,9 @@ var VAKA_SAMPLE_CASES = [
 ];
 
 // server/services/vakaLlmService.ts
-function stripReasoningBlocks(text2) {
-  if (!text2) return "";
-  return text2.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/<think>[\s\S]*$/gi, "").replace(/^[\s\S]*?<\/think>/gi, "").replace(/<thought>[\s\S]*?<\/thought>/gi, "").replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "").replace(/\[THINK\][\s\S]*?\[\/THINK\]/gi, "").replace(/^\s+|\s+$/g, "");
+function stripReasoningBlocks(text) {
+  if (!text) return "";
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/<think>[\s\S]*$/gi, "").replace(/^[\s\S]*?<\/think>/gi, "").replace(/<thought>[\s\S]*?<\/thought>/gi, "").replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "").replace(/\[THINK\][\s\S]*?\[\/THINK\]/gi, "").replace(/^\s+|\s+$/g, "");
 }
 function getSecretKey(name) {
   return process.env[name]?.trim() || "";
