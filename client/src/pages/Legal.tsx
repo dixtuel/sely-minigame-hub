@@ -405,15 +405,14 @@ function PrivacyContent() {
       </section>
 
       <section>
-        <h2>2. Cihazınızda Saklananlar (Yerel Depolama & Çevrimdışı Kolaylık)</h2>
+        <h2>2. Cihazınızda Saklananlar (Güvenli Yerel Depolama & Çevrimdışı Kolaylık)</h2>
         <p>
-          Skorlarınızı ve tercihlerinizi sunucuya kullanıcı hesabı kaydetmeden hatırlayabilmek için yalnızca kendi
-          telefonunuzun veya bilgisayarınızın yerel depolama alanı kullanılır:
+          Skorlarınızı, oyun durumlarınızı ve tercihlerinizi sunucuya kullanıcı hesabı kaydetmeden hatırlayabilmek için yalnızca kendi
+          telefonunuzun veya bilgisayarınızın yerel depolama alanı kullanılır. Tüm bu veriler <strong>güvenli yerel depolama (SecureStorage)</strong> mimarisiyle korunur:
         </p>
         <ul>
           <li>
-            <strong>Oyun Rekorlarınız (<code>sely_mini_scores_v1</code>):</strong> Her oyunda elde ettiğiniz en yüksek
-            puanlar yalnızca kendi tarayıcınızda saklanır.
+            <strong>Uçtan Uca Şifreli & Sıkıştırılmış Güvenli Depolama (SecureStorage):</strong> Oyun skorlarınız (<code>sely-scorebook-v1</code>, <code>sely_mini_scores_v1</code>) ve Vaka dedektiflik oturum verileriniz, tarayıcınızın yerel hafızasına doğrudan düz metin olarak değil; cihaz içinde istemci tarafında şifrelenerek ve LZW algoritmasıyla sıkıştırılarak yazılır. Bu sayede hem tarayıcı bellek kotanız korunur hem de verileriniz manipülasyona veya hileye karşı bütünlük kontrolüyle (anti-tamper) güvence altına alınır.
           </li>
           <li>
             <strong>Görünüm ve Dil Tercihleriniz:</strong> Karanlık/aydınlık tema tercihiniz (<code>theme</code>),
@@ -426,7 +425,7 @@ function PrivacyContent() {
           </li>
         </ul>
         <p>
-          Bu veriler <strong>kesinlikle sizin cihazınızın dışına çıkmaz</strong>. İstediğiniz zaman tarayıcı
+          Bu veriler <strong>kesinlikle sizin cihazınızın dışına çıkmaz ve sunucuya iletilmez</strong>. İstediğiniz zaman tarayıcı
           geçmişinizi veya site verilerinizi temizleyerek bu kayıtları sıfırlayabilirsiniz.
         </p>
       </section>
@@ -452,9 +451,9 @@ function PrivacyContent() {
       </section>
 
       <section>
-        <h2>4. &ldquo;Vaka: Trende Cinayet&rdquo; Oyununda Yapay Zekâ ile Dedektiflik</h2>
+        <h2>4. &ldquo;Vaka&rdquo; Oyununda Yapay Zekâ ile Dedektiflik</h2>
         <p>
-          Trende Cinayet oyununda şüphelilere klavyeden dilediğiniz soruları sorabilir ve blöf yapabilirsiniz:
+          &ldquo;Vaka&rdquo; dedektiflik oyununda şüphelilere klavyeden dilediğiniz soruları sorabilir ve blöf yapabilirsiniz:
         </p>
         <ul>
           <li>
@@ -592,7 +591,7 @@ function TermsContent() {
       <section>
         <h2>4. Yapay Zekâ ile Saygılı Etkileşim (Vaka Dedektiflik Alanı)</h2>
         <p>
-          &ldquo;Vaka: Trende Cinayet&rdquo; oyunundaki serbest sorgu alanı, şüphelilerle yaratıcı diyaloglar kurmanız
+          &ldquo;Vaka&rdquo; oyunundaki serbest sorgu alanı, şüphelilerle yaratıcı diyaloglar kurmanız
           için sunulmuştur. Bu alanı kullanırken:
         </p>
         <ul>
