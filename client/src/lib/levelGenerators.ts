@@ -1,19 +1,10 @@
 import type { GameId } from "./catalog";
 import type { SiteLocale } from "./i18n";
+import { segmentDistance } from "./geometry";
+import { mulberry32 as rng } from "./rng";
 
 export type Point = { x: number; y: number };
 export type Direction = "N" | "E" | "S" | "W";
-
-function rng(seed: number) {
-  let value = (seed >>> 0) || 1;
-  return () => {
-    value += 0x6d2b79f5;
-    let t = value;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
-  };
-}
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const indexFor = (seed: number, salt: number, length: number) => Math.abs(Math.imul(seed + salt, 1103515245)) % length;
@@ -691,12 +682,6 @@ export function generateCutLevel(seed: number, mastery: number): CutLevel {
     if (isCutLevelSolvable(candidate)) return candidate;
   }
   return buildCutLevelCandidate(seed, mastery);
-}
-
-function segmentDistance(point: Point, a: Point, b: Point) {
-  const dx = b.x - a.x; const dy = b.y - a.y; const length = dx * dx + dy * dy;
-  const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length));
-  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
 }
 
 export function isCutLevelSolvable(level: CutLevel) {

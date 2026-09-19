@@ -5,9 +5,10 @@ import VakaBoard from "@/components/VakaBoard";
 import VakaHub from "@/components/VakaHub";
 import AdSenseResultUnit from "@/components/AdSenseResultUnit";
 import type { GameId, GameMeta } from "@/lib/catalog";
-import type { SiteLocale } from "@/lib/i18n";
+import { local, type SiteLocale } from "@/lib/i18n";
 import { playComplete, playFail, playHit, playSlice, playStamp, playThrust } from "@/lib/sfx";
 import { trackEvent } from "@/lib/analytics";
+import { segmentDistance } from "@/lib/geometry";
 import {
   generateCutLevel,
   generateHaneLevel,
@@ -42,7 +43,6 @@ type GameStudioProps = {
 export type ResultOutcome = "success" | "failure";
 type GameResult = { score: number; label: string; detail: string; outcome: ResultOutcome; answer?: string };
 type Position = { r: number; c: number };
-const local = (locale: SiteLocale, tr: string, en: string) => locale === "en" ? en : tr;
 export const runMasteryFor = (highScore: number, dailyDifficulty: number) => Math.min(4, Math.max(masteryBand(highScore), dailyDifficulty));
 export function resultActionsFor(outcome: ResultOutcome, failureCount: number, gameId?: GameId) {
   if (gameId === "spark") {
@@ -358,11 +358,6 @@ function KnotGame({ locale, seed, mastery, soundOn = true, onFinish }: { locale:
 }
 
 type CutShape = ReturnType<typeof generateCutLevel>["shapes"][number] & { cut: boolean };
-function segmentDistance(point: Point, a: Point, b: Point) {
-  const dx = b.x - a.x; const dy = b.y - a.y; const length = dx * dx + dy * dy;
-  const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length));
-  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
-}
 
 function CutGame({ locale, seed, mastery, demo = false, soundOn = true, onFinish }: { locale: SiteLocale; seed: number; mastery: number; demo?: boolean; soundOn?: boolean; onFinish: (result: GameResult) => void }) {
   const level = useMemo(() => generateCutLevel(seed, mastery), [seed, mastery]);

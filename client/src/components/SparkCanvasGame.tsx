@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { SiteLocale } from "@/lib/i18n";
+import { local as worldWord, type SiteLocale } from "@/lib/i18n";
+import { mulberry32 } from "@/lib/rng";
+import { getContext as getSharedAudioContext } from "@/lib/sfx";
 
 export type Outcome = "success" | "failure";
 export type SparkResult = { score: number; label: string; detail: string; outcome: Outcome };
@@ -54,17 +56,6 @@ export type SparkParticle = {
 };
 
 const clamp = (value: number, lower: number, upper: number) => Math.max(lower, Math.min(upper, value));
-
-/** Deterministik sözde rastlantısal sayı üreticisi (PRNG) */
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return function () {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** Pylon yüksekliğini deterministik seed, index ve önceki pilon üzerinden dengeli hesaplar */
 export function sparkCalculatePylonHeight(
@@ -145,18 +136,12 @@ export function sparkFlightCollision(
 
 /* =========================================================================
    Web Audio API Sentezleyicisi (Sıfır Dış Medya Varlığı)
+   Ses zarfı (envelope) şekillendirmesi Spark'a özel kalır; AudioContext
+   kendisi artık lib/sfx.ts ile paylaşılıyor (aynı sayfada 2 ayrı context
+   açılmasını önlemek için).
    ========================================================================= */
-let sharedAudioCtx: AudioContext | null = null;
 function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!sharedAudioCtx) {
-    const CtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (CtxClass) sharedAudioCtx = new CtxClass();
-  }
-  if (sharedAudioCtx && sharedAudioCtx.state === "suspended") {
-    sharedAudioCtx.resume().catch(() => {});
-  }
-  return sharedAudioCtx;
+  return getSharedAudioContext();
 }
 
 function playSynthTone(freqStart: number, freqEnd: number, duration: number, type: OscillatorType, gainVal: number, delay = 0) {
@@ -208,7 +193,6 @@ function playSparkComplete(soundOn: boolean) {
   });
 }
 
-const worldWord = (locale: SiteLocale, tr: string, en: string) => locale === "en" ? en : tr;
 
 /* =========================================================================
    Kıvılcım Canvas Bileşeni

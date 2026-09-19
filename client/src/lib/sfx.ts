@@ -4,7 +4,12 @@
 
 let sharedContext: AudioContext | null = null;
 
-function getContext(): AudioContext | null {
+/**
+ * Lazily creates (or reuses) the one AudioContext for the whole app. Exported
+ * so other game components (e.g. SparkCanvasGame) can synthesize their own
+ * tone envelopes against the same context instead of opening a second one.
+ */
+export function getContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!sharedContext) {
     const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;

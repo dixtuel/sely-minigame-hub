@@ -1,5 +1,10 @@
 export type SiteLocale = "tr" | "en";
 
+/** Picks the Turkish or English variant of a string pair for the given locale. */
+export function local(locale: SiteLocale | undefined, tr: string, en: string): string {
+  return locale === "en" ? en : tr;
+}
+
 const turkicPrefixes = ["tr", "az"];
 const preferenceKey = "sely-locale";
 

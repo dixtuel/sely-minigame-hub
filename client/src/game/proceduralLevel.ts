@@ -1,5 +1,6 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { cellCenter, findMazePath, generateMaze, type MazeResult, type MazeWall } from "./maze";
+import { mulberry32 as rng } from "../lib/rng";
 
 export type WallPlacement = [number, number, number, number, number]; // x, z, width, depth, height
 
@@ -22,17 +23,6 @@ export type Echo3DLayout = {
   listenerPath: Vector3[];
   rooms: { x: number; z: number; theme: 0 | 1 | 2 | 3 }[];
 };
-
-function rng(seed: number) {
-  let value = (seed >>> 0) || 1;
-  return () => {
-    value += 0x6d2b79f5;
-    let t = value;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
-  };
-}
 
 const WALL_HEIGHT_BASE = 1.18;
 const WALL_THICKNESS = 0.28;

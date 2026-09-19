@@ -9,7 +9,7 @@ import { Expand, HelpCircle, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX }
 import { assets } from "@/game/assets";
 import { createGameScene } from "@/game/scene";
 import { createInitialSnapshot, type GameHandle, type GameSnapshot } from "@/game/types";
-import type { SiteLocale } from "@/lib/i18n";
+import { local, type SiteLocale } from "@/lib/i18n";
 import "@/styles/echo-room.css";
 
 export type GameResult = { score: number; label: string; detail: string; outcome: "success" | "failure" };
@@ -22,8 +22,6 @@ type EchoRoom3DProps = {
   mastery?: number;
   onFinish?: (result: GameResult) => void;
 };
-
-const local = (locale: SiteLocale | undefined, tr: string, en: string) => (locale === "en" ? en : tr);
 
 export default function EchoRoom3D({ locale = "tr", seed, mastery = 0, onFinish }: EchoRoom3DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
