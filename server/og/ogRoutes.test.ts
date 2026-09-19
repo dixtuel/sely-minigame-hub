@@ -100,7 +100,7 @@ describe("OG Image and Dynamic Social Sharing Routes", () => {
     expect(svg).toContain("GÜNLÜK SEFER KATALOĞU");
     expect(svg).toContain("DÜĞÜM");
     expect(svg).toContain("GÜNÜN MEYDAN OKUMASI");
-    expect(svg).toContain("dugum-poster_684e5a01.png");
+    expect(svg).toContain("data:image/jpeg;base64,");
     expect(svg).not.toContain("<!--");
   });
 

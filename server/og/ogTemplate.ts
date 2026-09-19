@@ -1,3 +1,5 @@
+import { GAME_POSTERS_DATA_URI } from "./postersDataUri";
+
 export type OgParams = {
   game?: string;
   score?: number;
@@ -231,6 +233,7 @@ export function generateOgSvg(params: OgParams): string {
   const scoreText = hasScore ? params.score!.toLocaleString(isEn ? "en-US" : "tr-TR") : "";
   const dateStr = escapeXml(params.date || new Date().toISOString().slice(0, 10));
   const performanceNotice = escapeXml(getPerformanceNotice(params.score, isEn));
+  const posterDataUri = GAME_POSTERS_DATA_URI[gameKey] || theme.poster;
 
   // ==========================================
   // ÖZEL VAKA GİZEMİ / POLİS ARŞİV DOSYASI
@@ -431,7 +434,7 @@ export function generateOgSvg(params: OgParams): string {
   <g transform="translate(70, 145)">
     <rect x="12" y="12" width="410" height="375" fill="#1B1A1B" />
     <rect width="410" height="375" fill="#1E2033" stroke="#1B1A1B" stroke-width="2.5" />
-    <image href="${theme.poster}" x="0" y="0" width="410" height="375" preserveAspectRatio="xMidYMid slice" />
+    <image href="${posterDataUri}" x="0" y="0" width="410" height="375" preserveAspectRatio="xMidYMid slice" />
     <rect width="410" height="8" fill="${accent}" />
 
     <g transform="translate(18, 305)">
@@ -507,7 +510,7 @@ export function generateOgSvg(params: OgParams): string {
   <g transform="translate(70, 145)">
     <rect x="12" y="12" width="280" height="375" fill="#1B1A1B" />
     <rect width="280" height="375" fill="#1E2033" stroke="#1B1A1B" stroke-width="2.5" />
-    <image href="${theme.poster}" x="0" y="0" width="280" height="375" preserveAspectRatio="xMidYMid slice" />
+    <image href="${posterDataUri}" x="0" y="0" width="280" height="375" preserveAspectRatio="xMidYMid slice" />
     <rect width="280" height="8" fill="${accent}" />
 
     <g transform="translate(18, 320)">
