@@ -48,20 +48,32 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath =
-    process.env.NODE_ENV === "development"
-      ? path.resolve(import.meta.dirname, "../..", "dist", "public")
-      : path.resolve(import.meta.dirname, "public");
+  const candidatePaths = [
+    path.resolve(import.meta.dirname, "public"), // dist/index.js running in standalone production
+    path.resolve(import.meta.dirname, "../..", "dist", "public"), // running from source (tsx server/_core/index.ts)
+    path.resolve(process.cwd(), "dist", "public"), // running from repo root (npm start / docker)
+    path.resolve(process.cwd(), "client", "dist"),
+  ];
+
+  const distPath = candidatePaths.find(candidate => fs.existsSync(candidate)) || candidatePaths[0];
+
   if (!fs.existsSync(distPath)) {
-    console.error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    console.warn(
+      `[Static] Build directory not found: ${distPath}. Make sure to build the client (pnpm run build) first.`
     );
+  } else {
+    console.log(`[Static] Serving static assets from: ${distPath}`);
   }
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
+  // Fall through to index.html for client-side SPA routing
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    const indexPath = path.resolve(distPath, "index.html");
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(503).type("text/plain").send("Service Unavailable: Application build is in progress or missing. Please run build first.");
+    }
   });
 }

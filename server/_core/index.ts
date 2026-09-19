@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createServer } from "http";
 import net from "net";
 import app from "../app";
+import { ensureDailyContent } from "../dailyContent";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -42,6 +43,10 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    // Pre-warm today's daily game content on standalone server startup
+    ensureDailyContent().catch(err => {
+      console.warn("[Startup] Failed to pre-warm daily content:", err.message);
+    });
   });
 }
 

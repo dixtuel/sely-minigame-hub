@@ -33,18 +33,36 @@ const CACHE_TTL_MS = 15_000; // 15 seconds
 
 /**
  * Resolves the Turso connection configuration from environment variables.
+ * In standalone self-hosted environments (PC/VPS/VDS), defaults to a local SQLite
+ * database file (file:./data/sely.db) if no external database is configured.
  */
 export function getTursoConfig(): { url: string; authToken?: string } | null {
-  const url =
+  const explicitUrl =
     process.env.TURSO_DATABASE_URL ||
     process.env.TURSO_URL ||
     process.env.LIBSQL_URL ||
     null;
 
-  if (!url) return null;
+  if (explicitUrl) {
+    const authToken = process.env.TURSO_AUTH_TOKEN || undefined;
+    return { url: explicitUrl, authToken };
+  }
 
-  const authToken = process.env.TURSO_AUTH_TOKEN || undefined;
-  return { url, authToken };
+  // Self-Hosted / Standalone Fallback:
+  // When not running on Vercel and no external database is configured,
+  // enable zero-config local SQLite storage at ./data/sely.db.
+  const isVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
+  const hasPostgres = Boolean(
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL ||
+    process.env.CONTENT_DB_URL
+  );
+
+  if (!isVercel && !hasPostgres && process.env.NODE_ENV !== "test") {
+    return { url: "file:./data/sely.db" };
+  }
+
+  return null;
 }
 
 export function isTursoConfigured(): boolean {

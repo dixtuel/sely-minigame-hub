@@ -52,10 +52,19 @@ var schemaInitialized = false;
 var boardCache = /* @__PURE__ */ new Map();
 var CACHE_TTL_MS = 15e3;
 function getTursoConfig() {
-  const url = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || process.env.LIBSQL_URL || null;
-  if (!url) return null;
-  const authToken = process.env.TURSO_AUTH_TOKEN || void 0;
-  return { url, authToken };
+  const explicitUrl = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || process.env.LIBSQL_URL || null;
+  if (explicitUrl) {
+    const authToken = process.env.TURSO_AUTH_TOKEN || void 0;
+    return { url: explicitUrl, authToken };
+  }
+  const isVercel = process.env.VERCEL === "1" || Boolean(process.env.VERCEL_ENV);
+  const hasPostgres = Boolean(
+    process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.CONTENT_DB_URL
+  );
+  if (!isVercel && !hasPostgres && process.env.NODE_ENV !== "test") {
+    return { url: "file:./data/sely.db" };
+  }
+  return null;
 }
 function isTursoConfigured() {
   return getTursoConfig() !== null;
@@ -769,7 +778,17 @@ function registerStorageProxy(app2) {
       res.status(400).send("Missing storage key");
       return;
     }
-    const localDir = process.env.NODE_ENV === "development" ? path2.resolve(import.meta.dirname, "../..", "client", "public", "storage") : path2.resolve(import.meta.dirname, "public", "storage");
+    const candidateDirs = [
+      path2.resolve(import.meta.dirname, "public", "storage"),
+      // dist/index.js running in production
+      path2.resolve(import.meta.dirname, "../..", "client", "public", "storage"),
+      // development or tsx from source
+      path2.resolve(process.cwd(), "dist", "public", "storage"),
+      // production from project root
+      path2.resolve(process.cwd(), "client", "public", "storage")
+      // source fallback
+    ];
+    const localDir = candidateDirs.find((dir) => fs2.existsSync(dir)) || candidateDirs[0];
     const localPath = path2.resolve(localDir, key);
     if (localPath.startsWith(localDir) && fs2.existsSync(localPath)) {
       res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");

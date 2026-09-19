@@ -160,3 +160,10 @@ GAME_REVISION_PLAN_2026-08.md
 .agents/
 .claude/
 .gemini/
+
+# Local SQLite storage (self-hosted standalone)
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

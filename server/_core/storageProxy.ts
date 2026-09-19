@@ -14,10 +14,13 @@ export function registerStorageProxy(app: Express) {
       return;
     }
 
-    const localDir =
-      process.env.NODE_ENV === "development"
-        ? path.resolve(import.meta.dirname, "../..", "client", "public", "storage")
-        : path.resolve(import.meta.dirname, "public", "storage");
+    const candidateDirs = [
+      path.resolve(import.meta.dirname, "public", "storage"), // dist/index.js running in production
+      path.resolve(import.meta.dirname, "../..", "client", "public", "storage"), // development or tsx from source
+      path.resolve(process.cwd(), "dist", "public", "storage"), // production from project root
+      path.resolve(process.cwd(), "client", "public", "storage"), // source fallback
+    ];
+    const localDir = candidateDirs.find(dir => fs.existsSync(dir)) || candidateDirs[0];
     const localPath = path.resolve(localDir, key);
 
     if (localPath.startsWith(localDir) && fs.existsSync(localPath)) {
