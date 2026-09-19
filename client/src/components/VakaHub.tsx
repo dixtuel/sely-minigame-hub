@@ -213,11 +213,12 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
       {/* Aktif Mod Ekranı */}
       <div className="vaka-hub-content-area">
         {activeMode === "dossier" && (
-          <VakaDossier vakaCase={activeCase} locale={locale} />
+          <VakaDossier key={activeCase.id} vakaCase={activeCase} locale={locale} />
         )}
 
         {activeMode === "interrogation" && (
           <VakaInterrogation
+            key={activeCase.id}
             vakaCase={activeCase}
             locale={locale}
             soundOn={soundOn}
@@ -228,6 +229,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
 
         {activeMode === "contradiction" && (
           <VakaContradiction
+            key={activeCase.id}
             vakaCase={activeCase}
             locale={locale}
             soundOn={soundOn}
@@ -239,6 +241,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
 
         {activeMode === "daily" && (
           <VakaDailyBoard
+            key={dailyQuery.data?.case?.id || activeCase.id}
             vakaCase={dailyQuery.data?.case as any || activeCase}
             caseIndex={dailyQuery.data?.caseIndex || 1}
             dateStr={dailyQuery.data?.date || new Date().toISOString().split("T")[0]}
@@ -252,6 +255,7 @@ export default function VakaHub({ locale, soundOn, onSolved }: Props) {
       {/* Mahkeme & Duruşma Modali */}
       {showVerdictModal && (
         <VakaVerdictModal
+          key={`${activeCase.id}-${indictSuspectId || "default"}`}
           vakaCase={activeCase}
           locale={locale}
           soundOn={soundOn}

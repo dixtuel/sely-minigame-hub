@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { VakaDetailedCase } from "@shared/vakaTypes";
 import type { SiteLocale } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
@@ -49,6 +49,15 @@ export default function VakaVerdictModal({
     culpritName: string;
     shareCard: string;
   } | null>(null);
+
+  // Vaka değiştiğinde iddianame formunu ve sonucu sıfırla
+  useEffect(() => {
+    setSelectedSuspectId(defaultSuspectId || vakaCase.suspects[0]?.id || "");
+    setSelectedClueId(vakaCase.clues[0]?.id || "");
+    setMethodText("");
+    setMotiveText("");
+    setResult(null);
+  }, [vakaCase.id, defaultSuspectId]);
 
   const accuseMutation = trpc.vaka.accuse.useMutation();
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { VakaDetailedCase, VakaSuspect } from "@shared/vakaTypes";
 import type { SiteLocale } from "@/lib/i18n";
 import { trpc } from "@/lib/trpc";
@@ -27,6 +27,16 @@ export default function VakaContradiction({
   const [penalty, setPenalty] = useState(0);
   const [feedback, setFeedback] = useState<{ text: string; isSuccess: boolean } | null>(null);
   const [solved, setSolved] = useState(false);
+
+  // Vaka değiştiğinde çelişki masasını sıfırla
+  useEffect(() => {
+    setSelectedSuspectId(vakaCase.suspects[0]?.id || "");
+    setSelectedSentenceId(null);
+    setSelectedClueId(null);
+    setPenalty(0);
+    setFeedback(null);
+    setSolved(false);
+  }, [vakaCase.id]);
 
   const activeSuspect = vakaCase.suspects.find((s) => s.id === selectedSuspectId) || vakaCase.suspects[0];
   const contradictionMutation = trpc.vaka.checkContradiction.useMutation();

@@ -49,6 +49,30 @@ export default function VakaInterrogation({
 
   const interrogateMutation = trpc.vaka.interrogate.useMutation();
 
+  // Vaka değiştiğinde sorgu odasını, şüpheliyi, mesajları, delilleri ve stres haritasını sıfırla
+  useEffect(() => {
+    setSelectedSuspectId(vakaCase.suspects[0]?.id || "");
+    const map: Record<string, number> = {};
+    vakaCase.suspects.forEach((s) => (map[s.id] = 12));
+    setStressMap(map);
+    setMessages([
+      {
+        id: `init-${vakaCase.id}-${Date.now()}`,
+        sender: "system",
+        text: isEn
+          ? "Interrogation room prepared. Choose a suspect and use questions, evidence confrontation, cross-examination, silence or bluffs to break them."
+          : "Sorgu odası hazırlandı. Bir şüpheli seçin; sorular, delil yüzleştirme, çapraz sorgu, sessizlik veya blöf ile baskı kurarak çözün.",
+        timestamp: Date.now(),
+      },
+    ]);
+    setInputText("");
+    setSelectedClueId("");
+    setCrossSuspectId("");
+    setSolved(false);
+    setVerdictText(null);
+    setActiveActionTab("chips");
+  }, [vakaCase.id, locale]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
