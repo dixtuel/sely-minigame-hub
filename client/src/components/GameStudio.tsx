@@ -41,6 +41,7 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
   const [result, setResult] = useState<GameResult | null>(null);
   const [failureCount, setFailureCount] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
+  const [sparkHud, setSparkHud] = useState<{ score: number; voltage: number; speed: number } | null>(null);
   const displayMastery = runMasteryFor(highScore, dailyDifficulty);
   const [runMastery, setRunMastery] = useState(() => displayMastery);
   const sparkActive = game.id === "spark" && started;
@@ -58,6 +59,7 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
 
   const restart = () => {
     setResult(null);
+    setSparkHud({ score: 0, voltage: 100, speed: 2.6 });
     setRunMastery(runMasteryFor(highScore, dailyDifficulty));
     setStarted(true);
     setRunKey(value => value + 1);
@@ -82,7 +84,34 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
     <main ref={shellRef} className={`studio-shell ${sparkActive ? "studio-shell-spark" : ""}`} lang={locale} style={{ "--game-accent": game.accent, "--game-ink": game.ink } as React.CSSProperties}>
       <header className="studio-topbar">
         <button className="back-button" onClick={onBack} aria-label={locale === "en" ? "Return to game catalogue" : "Oyun kataloğuna dön"}><ArrowLeft size={18} /> {locale === "en" ? "Catalogue" : "Katalog"}</button>
-        <div className="studio-title"><span>{game.number}</span><strong>{game.title}</strong><em>{game.eyebrow}</em></div>
+        <div className="studio-title">
+          {sparkActive && sparkHud ? (
+            <div className="spark-topbar-hud" aria-live="polite">
+              <div className="spark-topbar-cell">
+                <span className="spark-topbar-label">{locale === "en" ? "SCORE" : "SKOR"}</span>
+                <b className="spark-topbar-val spark-val-score">{sparkHud.score}</b>
+              </div>
+              <div className="spark-topbar-cell">
+                <span className="spark-topbar-label">{locale === "en" ? "VOLTAGE" : "VOLTAJ"}</span>
+                <b className="spark-topbar-val spark-val-voltage">%{sparkHud.voltage}</b>
+              </div>
+              <div className="spark-topbar-cell">
+                <span className="spark-topbar-label">{locale === "en" ? "SPEED" : "HIZ"}</span>
+                <b className="spark-topbar-val">{sparkHud.speed}x</b>
+              </div>
+              <div className="spark-topbar-cell">
+                <span className="spark-topbar-label">{locale === "en" ? "GRID" : "ŞEBEKE"}</span>
+                <b className="spark-topbar-val">{locale === "en" ? "ARC" : "ARK"}</b>
+              </div>
+            </div>
+          ) : (
+            <>
+              <span>{game.number}</span>
+              <strong>{game.title}</strong>
+              <em>{game.eyebrow}</em>
+            </>
+          )}
+        </div>
         <div className="studio-actions">
           <span className="best-score">{locale === "en" ? "BEST" : "EN İYİ"} <b>{highScore.toLocaleString(locale === "en" ? "en-US" : "tr-TR")}</b></span>
           <button className="icon-button" onClick={onToggleSound} aria-label={soundOn ? (locale === "en" ? "Mute sound" : "Sesi kapat") : (locale === "en" ? "Enable sound" : "Sesi aç")}><Volume2 size={18} className={soundOn ? "" : "sound-muted"} /></button>
@@ -104,7 +133,7 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
           </div>
         ) : (
           <div className={`game-stage ${sparkActive ? "game-stage-spark" : ""}`}>
-            <GameRenderer key={runKey} game={game} locale={locale} dailySeed={game.id === "spark" ? ((dailySeed ^ ((runKey + 1) * 0x1f351f) ^ Math.imul(runKey + 7, 0x9e3779b9)) >>> 0) : game.id === "hane" ? (runKey === 0 ? dailySeed : ((dailySeed ^ ((runKey + 1) * 0x27d4eb2d) ^ Math.imul(runKey + 13, 0x1000193)) >>> 0)) : dailySeed} mastery={runMastery} demo={demo} soundOn={soundOn} onFinish={finish} />
+            <GameRenderer key={runKey} game={game} locale={locale} dailySeed={game.id === "spark" ? ((dailySeed ^ ((runKey + 1) * 0x1f351f) ^ Math.imul(runKey + 7, 0x9e3779b9)) >>> 0) : game.id === "hane" ? (runKey === 0 ? dailySeed : ((dailySeed ^ ((runKey + 1) * 0x27d4eb2d) ^ Math.imul(runKey + 13, 0x1000193)) >>> 0)) : dailySeed} mastery={runMastery} demo={demo} soundOn={soundOn} onFinish={finish} onSparkHudChange={setSparkHud} />
             {result && (
               <div className="result-panel" role="dialog" aria-modal="true" aria-label={locale === "en" ? "Run result" : "Tur sonucu"}>
                 <button className="result-close" onClick={() => setResult(null)} aria-label={locale === "en" ? "Close result" : "Sonucu kapat"}><X size={18} /></button>
@@ -158,7 +187,7 @@ const HaneGame = lazy(() => import("@/components/games/HaneGame"));
 const SparkCanvasGame = lazy(() => import("@/components/SparkCanvasGame"));
 const VakaGame = lazy(() => import("@/components/games/VakaGame"));
 
-function GameRenderer({ game, locale, dailySeed, mastery, demo, soundOn, onFinish }: { game: GameMeta; locale: SiteLocale; dailySeed: number; mastery: number; demo?: "spark" | "spark-fail" | "cut-fail"; soundOn: boolean; onFinish: (result: GameResult) => void }) {
+function GameRenderer({ game, locale, dailySeed, mastery, demo, soundOn, onFinish, onSparkHudChange }: { game: GameMeta; locale: SiteLocale; dailySeed: number; mastery: number; demo?: "spark" | "spark-fail" | "cut-fail"; soundOn: boolean; onFinish: (result: GameResult) => void; onSparkHudChange?: (hud: { score: number; voltage: number; speed: number }) => void }) {
   const loading = <div className="game-surface game-loading">{local(locale, "Oyun yükleniyor…", "Loading game…")}</div>;
 
   return (
@@ -168,7 +197,7 @@ function GameRenderer({ game, locale, dailySeed, mastery, demo, soundOn, onFinis
       {game.id === "cut" && <CutGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "cut-fail"} soundOn={soundOn} onFinish={onFinish} />}
       {game.id === "shadow" && <ShadowGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />}
       {game.id === "hane" && <HaneGame locale={locale} seed={dailySeed} mastery={mastery} onFinish={onFinish} />}
-      {game.id === "spark" && <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} soundOn={soundOn} onFinish={onFinish} />}
+      {game.id === "spark" && <SparkCanvasGame locale={locale} seed={dailySeed} mastery={mastery} demo={demo === "spark" ? "success" : demo === "spark-fail" ? "fail" : undefined} soundOn={soundOn} onFinish={onFinish} onHudChange={onSparkHudChange} />}
       {game.id === "vaka" && <VakaGame locale={locale} seed={dailySeed} mastery={mastery} soundOn={soundOn} onFinish={onFinish} />}
     </Suspense>
   );

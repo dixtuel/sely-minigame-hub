@@ -82,10 +82,12 @@ export function sparkCalculatePylonHeight(
   return raw;
 }
 
-/** Zorluk kademesi: Skor arttıkça hız hafifçe yükselir, açıklık daralır */
-export function sparkDifficulty(score: number, mastery: number) {
+/** Zorluk kademesi: Skor arttıkça hız hafifçe yükselir, açıklık daralır. Ekran genişliğine dinamik uyum sağlar. */
+export function sparkDifficulty(score: number, mastery: number, viewportWidth = 800) {
+  const widthFactor = clamp(viewportWidth / 800, 0.9, 1.25);
   const tiers = Math.min(18, score);
-  const speed = clamp(2.6 + mastery * 0.18 + tiers * 0.09, 2.6, 4.6);
+  const baseSpeed = 2.8 + mastery * 0.18 + tiers * 0.09;
+  const speed = clamp(baseSpeed * widthFactor, 2.6, 5.2);
   const gap = clamp(SPARK_DEFAULTS.baseGap - mastery * 5 - Math.floor(tiers / 3) * 3, SPARK_DEFAULTS.minGap, 165);
   return { speed, gap };
 }
@@ -204,6 +206,7 @@ export default function SparkCanvasGame({
   demo,
   soundOn = true,
   onFinish,
+  onHudChange,
 }: {
   locale?: SiteLocale;
   seed: number;
@@ -211,6 +214,7 @@ export default function SparkCanvasGame({
   demo?: "success" | "fail";
   soundOn?: boolean;
   onFinish: (result: SparkResult) => void;
+  onHudChange?: (hud: { score: number; voltage: number; speed: number }) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cabinetRef = useRef<HTMLDivElement>(null);
@@ -221,15 +225,11 @@ export default function SparkCanvasGame({
   const onFinishRef = useRef(onFinish);
   onFinishRef.current = onFinish;
 
+  const onHudChangeRef = useRef(onHudChange);
+  onHudChangeRef.current = onHudChange;
+
   const finishedRef = useRef(false);
   const flapRequestedRef = useRef(false);
-
-  const [hud, setHud] = useState({
-    score: 0,
-    voltage: 100,
-    speed: 2.6,
-    notice: worldWord(locale, "Boşluk tuşu, tıkla veya ekrana dokunarak süzül.", "Press space, click or tap screen to glide."),
-  });
 
   const levelMeta = useMemo(() => {
     return {
@@ -267,9 +267,13 @@ export default function SparkCanvasGame({
       });
     }
 
-    // Oyuncu Başlangıç Konumu: Ekranın sol çeyreği
+    // Dinamik Konumlandırma & Pylon Aralığı: Viewport ile tam senkron
+    const getSparkX = (width: number) => Math.max(90, Math.min(320, Math.floor(width * 0.2)));
+    const getPylonSpacing = (width: number) => Math.max(260, Math.min(460, Math.floor(220 + width * 0.14)));
+
+    // Oyuncu Başlangıç Konumu: Ekran genişliğine göre sol tarafta ferah ve dinamik konum
     let spark: SparkState = {
-      x: Math.max(90, Math.min(220, Math.floor(currentWidth * 0.16))),
+      x: getSparkX(currentWidth),
       y: Math.floor(currentHeight * 0.45),
       vy: 0,
       rotation: 0,
@@ -289,12 +293,9 @@ export default function SparkCanvasGame({
     let frameId = 0;
     let arcPhase = 0;
 
-    // Dinamik pylon mesafesi: geniş ekranda daha ferah aralık
-    const getPylonSpacing = () => Math.max(220, Math.min(360, Math.floor(currentWidth * 0.24)));
-
-    // İlk pylonları oluştur
+    // Pylon oluşturucu
     function spawnPylon(index: number, startX: number, prevTopHeight?: number) {
-      const { gap } = sparkDifficulty(score, mastery);
+      const { gap } = sparkDifficulty(score, mastery, currentWidth);
       const topHeight = sparkCalculatePylonHeight(seed, index, SPARK_DEFAULTS.minTopHeight, groundY - gap - 50, prevTopHeight);
       const bottomY = topHeight + gap;
       const bottomHeight = groundY - bottomY;
@@ -310,13 +311,28 @@ export default function SparkCanvasGame({
       };
     }
 
-    const spacing = getPylonSpacing();
-    const firstPylon = spawnPylon(nextPylonIndex++, currentWidth + 80);
+    // İlk pylonları oyuncunun hemen önünde (1.8 - 2.5 saniye mesafede) başlayacak şekilde diz
+    const spacing = getPylonSpacing(currentWidth);
+    const firstPylonX = spark.x + Math.max(340, Math.min(580, Math.floor(currentWidth * 0.48)));
+    const firstPylon = spawnPylon(nextPylonIndex++, firstPylonX);
     pylons.push(firstPylon);
-    const secondPylon = spawnPylon(nextPylonIndex++, currentWidth + 80 + spacing, firstPylon.topHeight);
-    pylons.push(secondPylon);
-    const thirdPylon = spawnPylon(nextPylonIndex++, currentWidth + 80 + spacing * 2, secondPylon.topHeight);
-    pylons.push(thirdPylon);
+
+    let currPylonX = firstPylonX + spacing;
+    let prevH = firstPylon.topHeight;
+    while (currPylonX < currentWidth + spacing) {
+      const p = spawnPylon(nextPylonIndex++, currPylonX, prevH);
+      pylons.push(p);
+      prevH = p.topHeight;
+      currPylonX += spacing;
+    }
+
+    // İlk HUD durumunu üst çubuktaki scoreboard'a bildir
+    const { speed: initialSpeed } = sparkDifficulty(0, mastery, currentWidth);
+    onHudChangeRef.current?.({
+      score: 0,
+      voltage: 100,
+      speed: Number(initialSpeed.toFixed(1)),
+    });
 
     // Parçacık patlaması üretici
     function createSparks(x: number, y: number, count: number, color = "#f8d77a", speed = 140) {
@@ -358,7 +374,7 @@ export default function SparkCanvasGame({
       currentWidth = newWidth;
       currentHeight = newHeight;
       groundY = currentHeight - GROUND_HEIGHT;
-      spark.x = Math.max(90, Math.min(220, Math.floor(currentWidth * 0.16)));
+      spark.x = getSparkX(currentWidth);
     };
 
     handleResize();
@@ -402,7 +418,7 @@ export default function SparkCanvasGame({
 
       // 60fps normalize katsayısı (dt = 1 @ 60fps)
       const simDt = rawDt * 60;
-      const { speed } = sparkDifficulty(score, mastery);
+      const { speed } = sparkDifficulty(score, mastery, currentWidth);
 
       // Sarsıntı ve parlama sönümleme
       shake = Math.max(0, shake - rawDt * 3.6);
@@ -467,11 +483,10 @@ export default function SparkCanvasGame({
           playSparkScore(soundOnRef.current);
           createSparks(spark.x + 8, spark.y, 8, "#fcd34d", 90);
 
-          setHud({
+          onHudChangeRef.current?.({
             score,
             voltage: Math.min(100, 80 + score * 2),
             speed: Number(speed.toFixed(1)),
-            notice: worldWord(locale, "Akım dengede! Bir sonraki hatta ilerle.", "Current stable! Advance to the next line."),
           });
 
           // Demo başarı sonlandırma
@@ -491,8 +506,8 @@ export default function SparkCanvasGame({
       // Ekrandan çıkan pylonları sil ve yenisini ekle
       pylons = pylons.filter(p => p.x + p.width > -60);
       const lastPylon = pylons[pylons.length - 1];
-      const spacingNow = getPylonSpacing();
-      if (lastPylon && lastPylon.x < currentWidth) {
+      const spacingNow = getPylonSpacing(currentWidth);
+      if (lastPylon && lastPylon.x < currentWidth + spacingNow) {
         pylons.push(spawnPylon(nextPylonIndex++, lastPylon.x + spacingNow, lastPylon.topHeight));
       }
 
@@ -960,13 +975,13 @@ export default function SparkCanvasGame({
 
       ctx.restore();
 
-      // 10. Canlı Skor Metni (Orta Üst)
+      // 10. Canlı Skor Metni (Orta Üst - Topbarın hemen altında ferah sayaç)
       ctx.font = '700 36px "DM Mono", monospace';
       ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-      ctx.fillText(String(score), currentWidth / 2 + 2, 54);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(String(score), currentWidth / 2, 52);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+      ctx.fillText(String(score), currentWidth / 2 + 2, 92);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+      ctx.fillText(String(score), currentWidth / 2, 90);
 
       ctx.restore();
 
@@ -1008,27 +1023,12 @@ export default function SparkCanvasGame({
   };
 
   return (
-    <div className="spark-canvas-game" ref={containerRef}>
-      {/* Kompakt Neo-Brutalist HUD (Üstte Merkezlenmiş) */}
-      <header className="spark-canvas-hud" aria-live="polite">
-        <div className="spark-hud-cell">
-          <span className="spark-hud-label">{worldWord(locale, "SKOR", "SCORE")}</span>
-          <b className="spark-hud-val spark-val-score">{hud.score}</b>
-        </div>
-        <div className="spark-hud-cell">
-          <span className="spark-hud-label">{worldWord(locale, "VOLTAJ", "VOLTAGE")}</span>
-          <b className="spark-hud-val spark-val-voltage">%{hud.voltage}</b>
-        </div>
-        <div className="spark-hud-cell">
-          <span className="spark-hud-label">{worldWord(locale, "HIZ", "SPEED")}</span>
-          <b className="spark-hud-val">{hud.speed}x</b>
-        </div>
-        <div className="spark-hud-cell">
-          <span className="spark-hud-label">{worldWord(locale, "ŞEBEKE", "GRID")}</span>
-          <b className="spark-hud-val">{worldWord(locale, "ARK", "ARC")}</b>
-        </div>
-      </header>
-
+    <div
+      className="spark-canvas-game"
+      ref={containerRef}
+      onPointerDown={handlePointerDown}
+      style={{ touchAction: "none" }}
+    >
       {/* Chrome Dinozor / Edge Surf Modeli Full-Width Oyun Kabini */}
       <div className="spark-stage-cabinet" ref={cabinetRef}>
         <canvas
@@ -1044,22 +1044,6 @@ export default function SparkCanvasGame({
           )}
         />
       </div>
-
-      {/* Alt Kontrol & İpucu Paneli */}
-      <footer className="spark-canvas-footer-panel">
-        <p className="spark-canvas-tip">{hud.notice}</p>
-        <div className="spark-canvas-controls" aria-label={worldWord(locale, "Kıvılcım kontrolleri", "Spark controls")}>
-          <button
-            type="button"
-            onPointerDown={handlePointerDown}
-            className="spark-flap-button"
-            aria-label={worldWord(locale, "Kıvılcımı uçur", "Flap spark")}
-          >
-            <span className="spark-btn-icon">⚡</span>
-            <span className="spark-btn-text">{worldWord(locale, "DOKUN / SÜZÜL (BOŞLUK)", "TAP / GLIDE (SPACE)")}</span>
-          </button>
-        </div>
-      </footer>
     </div>
   );
 }
