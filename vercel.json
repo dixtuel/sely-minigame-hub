@@ -4,6 +4,11 @@
   "outputDirectory": "dist/public",
   "fluid": true,
   "regions": ["fra1"],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/scheduled/daily-content",
