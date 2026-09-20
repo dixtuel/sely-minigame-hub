@@ -34,7 +34,7 @@ rand = "0.8"
 regex = "1.10"
 
 # Güvenlik, Kriptografi & Token
-sha2 = "0.10"
+sha2 = "0.11"
 subtle = "2.6"
 base64 = "0.22"
 flate2 = "1.0"
