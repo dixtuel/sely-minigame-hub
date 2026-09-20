@@ -30,7 +30,7 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 
 # Tarih, Zaman & Matematik
 chrono = { version = "0.4", features = ["serde"] }
-rand = "0.8"
+rand = "0.10"
 regex = "1.10"
 
 # Güvenlik, Kriptografi & Token
