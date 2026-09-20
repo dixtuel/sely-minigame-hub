@@ -35,7 +35,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.2",
     "express": "^4.21.2",
-    "framer-motion": "^12.23.22",
+    "framer-motion": "^13.4.0",
     "ioredis": "^6.0.0",
     "jose": "6.1.0",
     "lucide-react": "^0.453.0",
