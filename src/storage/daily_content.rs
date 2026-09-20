@@ -44,7 +44,8 @@ pub fn compute_checksum(payload: &serde_json::Value) -> String {
     let raw = serde_json::to_string(payload).unwrap_or_default();
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
-    let hex = format!("{:x}", hasher.finalize());
+    let result = hasher.finalize();
+    let hex: String = result.iter().map(|b| format!("{b:02x}")).collect();
     hex[..16].to_string()
 }
 
