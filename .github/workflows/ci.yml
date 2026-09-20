@@ -20,10 +20,6 @@ jobs:
     name: Frontend Test & Build (Node.js)
     runs-on: ubuntu-24.04
 
-    strategy:
-      matrix:
-        node-version: [24.x]
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v7
@@ -31,10 +27,10 @@ jobs:
     - name: Install pnpm
       uses: pnpm/action-setup@v6
 
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js 24.x
       uses: actions/setup-node@v7
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 24.x
         cache: 'pnpm'
 
     - name: Install dependencies (frozen lockfile)
