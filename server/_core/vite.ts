@@ -1,11 +1,15 @@
-import express, { type Express } from "express";
+// Dev-only: imports the "vite" devDependency. Never statically imported from
+// index.ts -- loaded via a dynamic import() gated behind NODE_ENV==="development"
+// so production builds (which run `pnpm prune --prod` and no longer have
+// vite installed) never touch this module. See staticServe.ts for the
+// production static-file server.
+import { type Express } from "express";
 import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
-import { logger } from "./logger";
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -44,35 +48,6 @@ export async function setupVite(app: Express, server: Server) {
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
-    }
-  });
-}
-
-export function serveStatic(app: Express) {
-  const candidatePaths = [
-    path.resolve(import.meta.dirname, "public"), // dist/index.js running in standalone production
-    path.resolve(import.meta.dirname, "../..", "dist", "public"), // running from source (tsx server/_core/index.ts)
-    path.resolve(process.cwd(), "dist", "public"), // running from repo root (npm start / docker)
-    path.resolve(process.cwd(), "client", "dist"),
-  ];
-
-  const distPath = candidatePaths.find(candidate => fs.existsSync(candidate)) || candidatePaths[0];
-
-  if (!fs.existsSync(distPath)) {
-    logger.warn("static", `Build directory not found: ${distPath}. Make sure to build client first.`);
-  } else {
-    logger.info("static", `Serving static assets from: ${distPath}`);
-  }
-
-  app.use(express.static(distPath));
-
-  // Fall through to index.html for client-side SPA routing
-  app.use("*", (_req, res) => {
-    const indexPath = path.resolve(distPath, "index.html");
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      res.status(503).type("text/plain").send("Service Unavailable: Application build is in progress or missing. Please run build first.");
     }
   });
 }

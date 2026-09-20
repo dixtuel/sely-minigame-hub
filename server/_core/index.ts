@@ -4,7 +4,7 @@ import net from "net";
 import app from "../app";
 import { ensureDailyContent } from "../dailyContent";
 import { logger } from "./logger";
-import { serveStatic, setupVite } from "./vite";
+import { serveStatic } from "./staticServe";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -28,8 +28,12 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const server = createServer(app);
 
-  // development mode uses Vite, production mode uses static files
+  // development mode uses Vite, production mode uses static files.
+  // setupVite is dynamically imported here (never statically from the top of
+  // this file) so the "vite" devDependency is never touched in a production
+  // build/runtime, where `pnpm prune --prod` has removed it.
   if (process.env.NODE_ENV === "development") {
+    const { setupVite } = await import("./vite");
     await setupVite(app, server);
   } else {
     serveStatic(app);
