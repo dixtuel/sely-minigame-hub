@@ -36,7 +36,7 @@ async fn main() -> Result<(), Error> {
         .merge(trpc_routes())
         .with_state(state);
 
-    let app = axum::Router::new()
+    let router = axum::Router::new()
         .merge(seo_routes())
         .merge(config_routes())
         .merge(scheduled_routes())
@@ -44,8 +44,11 @@ async fn main() -> Result<(), Error> {
         .merge(og_routes())
         .merge(api_routes)
         .layer(CompressionLayer::new())
-        .layer(cors)
-        .layer(VercelLayer);
+        .layer(cors);
+
+    let app = tower::ServiceBuilder::new()
+        .layer(VercelLayer::new())
+        .service(router);
 
     run(app).await
 }
