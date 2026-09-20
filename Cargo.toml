@@ -21,7 +21,7 @@ urlencoding = "2.1"
 dotenvy = "0.15"
 
 # Veritabanı & Önbellek
-libsql = "0.6"
+libsql = "0.9"
 fred = { version = "10.1", features = ["enable-rustls", "i-sorted-sets"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
 

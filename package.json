@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "license": "AGPL-3.0",
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
     "dev": "vite",
     "dev:rust": "cargo run --bin standalone",
