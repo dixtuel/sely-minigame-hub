@@ -14,6 +14,23 @@ use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    // Vercel Serverless environment compatibility shim
+    if std::env::var("AWS_LAMBDA_FUNCTION_NAME").is_err() {
+        std::env::set_var("AWS_LAMBDA_FUNCTION_NAME", "index");
+    }
+    if std::env::var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE").is_err() {
+        std::env::set_var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE", "128");
+    }
+    if std::env::var("AWS_LAMBDA_FUNCTION_VERSION").is_err() {
+        std::env::set_var("AWS_LAMBDA_FUNCTION_VERSION", "$LATEST");
+    }
+    if std::env::var("AWS_LAMBDA_LOG_STREAM_NAME").is_err() {
+        std::env::set_var("AWS_LAMBDA_LOG_STREAM_NAME", "default");
+    }
+    if std::env::var("AWS_LAMBDA_LOG_GROUP_NAME").is_err() {
+        std::env::set_var("AWS_LAMBDA_LOG_GROUP_NAME", "/aws/lambda/index");
+    }
+
     let turso_conn = if is_turso_configured() {
         create_turso_connection().await.ok().map(|c| Arc::new(Mutex::new(c)))
     } else {
