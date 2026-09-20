@@ -6,7 +6,7 @@
   "regions": ["fra1"],
   "functions": {
     "api/index.rs": {
-      "runtime": "vercel-rust@latest",
+      "runtime": "vercel-rust@4.0.11",
       "maxDuration": 60
     }
   },
