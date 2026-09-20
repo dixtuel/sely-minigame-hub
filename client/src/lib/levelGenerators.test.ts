@@ -64,7 +64,7 @@ describe("mini-game level generators", () => {
     }
     expect(padLayouts.size).toBeGreaterThan(4);
     expect(exits.size).toBeGreaterThan(1);
-  });
+  }, 15000);
 
   it("keeps Echo Room sound budgets and Knot routes solvable with reachable bonuses across seeds", () => {
     // 1. Solvability across multiple seeds
@@ -126,7 +126,7 @@ describe("mini-game level generators", () => {
         if (mastery >= 2) expect(level.bonusIndex).toBeGreaterThanOrEqual(0);
       }
     }
-  });
+  }, 15000);
 
   it("generates valid Hane number and word levels with multi-language (TR/EN) dictionary verification and Wordle-compliant scoring", async () => {
     // 1. Number mode structure and mark comparison

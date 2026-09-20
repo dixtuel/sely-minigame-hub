@@ -6,6 +6,7 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
@@ -22,6 +23,7 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
@@ -38,6 +40,7 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore"
+      prefix-development: "chore"
       include: "scope"
     labels:
       - "dependencies"
@@ -55,6 +58,7 @@ updates:
       interval: "monthly"
     commit-message:
       prefix: "ci"
+      prefix-development: "ci"
       include: "scope"
     labels:
       - "dependencies"

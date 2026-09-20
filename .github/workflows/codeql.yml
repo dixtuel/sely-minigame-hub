@@ -3,8 +3,22 @@ name: "CodeQL Analysis"
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - '**/*.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/dependabot.yml'
+      - '.github/pull_request_template.md'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - '**/*.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/dependabot.yml'
+      - '.github/pull_request_template.md'
   schedule:
     - cron: '0 6 * * 1'
 
@@ -12,7 +26,7 @@ jobs:
   analyze-js:
     name: Analyze JS/TS
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 60
     permissions:
       security-events: write
       packages: read
@@ -33,6 +47,7 @@ jobs:
       with:
         languages: javascript-typescript
         build-mode: none
+        dependency-caching: true
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
@@ -42,7 +57,7 @@ jobs:
   analyze-rust:
     name: Analyze Rust
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 60
     permissions:
       security-events: write
       packages: read
@@ -53,17 +68,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v7
 
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Cache cargo registry & build artifacts
-      uses: Swatinem/rust-cache@v2
-
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v4
       with:
         languages: rust
         build-mode: none
+        dependency-caching: true
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
