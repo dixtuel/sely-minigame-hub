@@ -11,7 +11,7 @@ description = "High-performance Rust backend and game logic engine for SELY Mini
 axum = { version = "0.8", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = ["cors", "set-header", "trace", "fs", "compression-full"] }
+tower-http = { version = "0.7", features = ["cors", "set-header", "trace", "fs", "compression-full"] }
 tower-cookies = "0.11"
 
 # Serileştirme & JSON
@@ -23,22 +23,22 @@ dotenvy = "0.15"
 # Veritabanı & Önbellek
 libsql = "0.9"
 fred = { version = "10.1", features = ["enable-rustls", "i-sorted-sets"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
 
 # HTTP İstemcisi & Dış İstekler
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 
 # Tarih, Zaman & Matematik
 chrono = { version = "0.4", features = ["serde"] }
-rand = "0.8"
+rand = "0.10"
 regex = "1.10"
 
 # Güvenlik, Kriptografi & Token
-sha2 = "0.10"
+sha2 = "0.11"
 subtle = "2.6"
-base64 = "0.22"
+base64 = "0.23"
 flate2 = "1.0"
-governor = "0.8"
+governor = "0.10"
 
 # Loglama & Teletıp
 tracing = "0.1"
