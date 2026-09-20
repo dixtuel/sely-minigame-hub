@@ -113,6 +113,22 @@ pub async fn seo_verification_handler(Path(file): Path<String>) -> Response {
     }
 }
 
+pub async fn bing_verification_handler() -> Response {
+    let token = env::var("BING_SITE_VERIFICATION")
+        .or_else(|_| env::var("VITE_BING_SITE_VERIFICATION"))
+        .unwrap_or_default();
+
+    if !token.is_empty() {
+        let body = format!("<?xml version=\"1.0\"?>\n<users>\n\t<user>{}</user>\n</users>\n", token);
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_1WEEK));
+        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/xml; charset=utf-8"));
+        (StatusCode::OK, headers, body).into_response()
+    } else {
+        (StatusCode::NOT_FOUND, "Not Found").into_response()
+    }
+}
+
 pub fn seo_routes() -> Router {
     Router::new()
         .route("/ads.txt", get(ads_txt_handler))
