@@ -3,6 +3,12 @@ import { local as worldWord, type SiteLocale } from "@/lib/i18n";
 import { mulberry32 } from "@/lib/rng";
 import { getContext as getSharedAudioContext } from "@/lib/sfx";
 import { getAdaptiveDpr, isLowPowerMode } from "@/lib/devicePerformance";
+import {
+  isWasmReady,
+  wasm_spark_physics_step,
+  wasm_spark_calculate_pylon_height,
+  wasm_spark_flight_collision,
+} from "@/lib/wasmBridge";
 
 export type Outcome = "success" | "failure";
 export type SparkResult = { score: number; label: string; detail: string; outcome: Outcome };
@@ -74,6 +80,20 @@ export function sparkCalculatePylonHeight(
   prevHeight?: number,
   maxDelta = 140
 ): number {
+  if (isWasmReady()) {
+    try {
+      return wasm_spark_calculate_pylon_height(
+        seed >>> 0,
+        index,
+        minHeight,
+        maxAvailable,
+        prevHeight !== undefined ? prevHeight : undefined,
+        maxDelta
+      );
+    } catch {
+      // Fallback to JS implementation
+    }
+  }
   const prng = mulberry32(seed ^ Math.imul(index + 37, 0x1f351f) ^ 0x9e3779b9);
   let raw = Math.floor(minHeight + prng() * (maxAvailable - minHeight));
   if (prevHeight !== undefined) {
@@ -102,6 +122,23 @@ export function sparkPhysicsStep(
   flapImpulse = SPARK_DEFAULTS.flapImpulse,
   maxFall = SPARK_DEFAULTS.maxFallSpeed
 ): SparkState {
+  if (isWasmReady()) {
+    try {
+      return wasm_spark_physics_step(
+        spark.x,
+        spark.y,
+        spark.vy,
+        spark.rotation,
+        dt,
+        flap,
+        gravity,
+        flapImpulse,
+        maxFall
+      ) as SparkState;
+    } catch {
+      // Fallback to JS implementation
+    }
+  }
   let vy = spark.vy;
   if (flap) {
     vy = flapImpulse;
@@ -130,6 +167,23 @@ export function sparkFlightCollision(
   pylon: Pylon,
   groundY = GROUND_Y
 ): boolean {
+  if (isWasmReady()) {
+    try {
+      return wasm_spark_flight_collision(
+        sparkX,
+        sparkY,
+        hitRadius,
+        pylon.x,
+        pylon.width,
+        pylon.topHeight,
+        pylon.bottomY,
+        pylon.bottomHeight,
+        groundY
+      );
+    } catch {
+      // Fallback to JS implementation
+    }
+  }
   if (sparkY - hitRadius <= 0) return true;
   if (sparkY + hitRadius >= groundY) return true;
 

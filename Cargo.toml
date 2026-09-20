@@ -44,8 +44,8 @@ governor = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
-# Lambda / Serverless
-lambda_http = "0.13"
+# Vercel Official Rust Runtime (with native Axum support)
+vercel_runtime = { version = "2.4", features = ["axum"] }
 
 [features]
 default = []

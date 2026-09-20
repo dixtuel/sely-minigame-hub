@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 use super::rng::Mulberry32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ShadowPoint {
     pub x: i32,
     pub y: i32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ShadowLevel {
     pub size: usize,
     pub pads: Vec<ShadowPoint>,

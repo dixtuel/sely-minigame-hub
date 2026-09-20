@@ -6,6 +6,7 @@ use super::rng::Mulberry32;
 use super::shadow::index_for;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct HaneLevel {
     pub digits: usize,
     pub max_guesses: usize,
@@ -25,6 +26,7 @@ pub enum HaneMark {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct HaneFeedback {
     pub marks: Vec<HaneMark>,
     pub exact: usize,
@@ -32,6 +34,7 @@ pub struct HaneFeedback {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct HaneWordLevel {
     pub length: usize,
     pub max_guesses: usize,

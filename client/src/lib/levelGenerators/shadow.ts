@@ -1,5 +1,6 @@
 import { Point, clamp, indexFor } from "./shared";
 import { mulberry32 as rng } from "../rng";
+import { isWasmReady, wasm_generate_shadow_level } from "../wasmBridge";
 
 export type ShadowLevel = {
   size: number;
@@ -90,6 +91,16 @@ function buildShadowLevelCandidate(seed: number, mastery: number): ShadowLevel {
 }
 
 export function generateShadowLevel(seed: number, mastery: number): ShadowLevel {
+  if (isWasmReady()) {
+    try {
+      const wasmLevel = wasm_generate_shadow_level(seed >>> 0, mastery) as ShadowLevel;
+      if (wasmLevel && wasmLevel.pads && wasmLevel.pads.length > 0) {
+        return wasmLevel;
+      }
+    } catch {
+      // Fallback below
+    }
+  }
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const candidate = buildShadowLevelCandidate(seed + attempt * 7331, mastery);
     if (isShadowLevelSolvable(candidate)) return candidate;

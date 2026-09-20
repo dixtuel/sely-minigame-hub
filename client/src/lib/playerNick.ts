@@ -1,5 +1,6 @@
 import type { SiteLocale } from "./i18n";
 import { secureStorage } from "./secureStorage";
+import { isWasmReady, wasm_get_player_nick, wasm_get_player_signature } from "./wasmBridge";
 
 const ANON_ID_KEY = "sely_anon_player_id_v2";
 
@@ -138,6 +139,13 @@ export function getPlayerNick(
   explicitAnonId?: string
 ): string {
   const anonId = explicitAnonId || getOrCreateAnonymousId();
+  if (isWasmReady()) {
+    try {
+      return wasm_get_player_nick(locale, dateStr, anonId);
+    } catch {
+      // Fallback to JS implementation
+    }
+  }
   const seed = `${anonId}::sely_nick_v2::${dateStr}`;
   const h1 = fnv1a(seed);
   const h2 = fnv1a(seed + "::secondary");
@@ -166,6 +174,13 @@ export async function getPlayerSignature(
   explicitAnonId?: string
 ): Promise<string> {
   const anonId = explicitAnonId || getOrCreateAnonymousId();
+  if (isWasmReady()) {
+    try {
+      return wasm_get_player_signature(gameId, dateStr, anonId);
+    } catch {
+      // Fallback
+    }
+  }
   const raw = `${anonId}:${gameId}:${dateStr}:sely_leaderboard_v2`;
   try {
     if (typeof crypto !== "undefined" && crypto.subtle) {

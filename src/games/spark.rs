@@ -2,6 +2,7 @@
 //! Matches client/src/components/SparkCanvasGame.tsx and SparkCanvasGame.test.ts.
 
 use crate::games::rng::Mulberry32;
+use serde::{Deserialize, Serialize};
 
 pub const CANVAS_WIDTH: f64 = 420.0;
 pub const CANVAS_HEIGHT: f64 = 600.0;
@@ -25,7 +26,8 @@ impl SparkDefaults {
     pub const MIN_TOP_HEIGHT: f64 = 60.0;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SparkState {
     pub x: f64,
     pub y: f64,
@@ -33,7 +35,8 @@ pub struct SparkState {
     pub rotation: f64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Pylon {
     pub id: usize,
     pub x: f64,
@@ -45,7 +48,8 @@ pub struct Pylon {
     pub passed: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Difficulty {
     pub speed: f64,
     pub gap: f64,

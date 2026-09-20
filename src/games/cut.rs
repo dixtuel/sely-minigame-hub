@@ -7,6 +7,7 @@ use super::geometry::{segment_distance, Point2D};
 use super::rng::Mulberry32;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct CutShapePlan {
     pub id: usize,
     pub x: f64,
@@ -18,6 +19,7 @@ pub struct CutShapePlan {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct CutLevel {
     pub shapes: Vec<CutShapePlan>,
     pub cuts: usize,

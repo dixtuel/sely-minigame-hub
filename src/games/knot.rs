@@ -51,6 +51,7 @@ impl Direction {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KnotLevel {
     pub tile_shapes: Vec<Vec<Direction>>,
     pub rotations: Vec<usize>,

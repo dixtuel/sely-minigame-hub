@@ -1,6 +1,7 @@
 import type { SiteLocale } from "../i18n";
 import { indexFor } from "./shared";
 import { mulberry32 as rng } from "../rng";
+import { isWasmReady, wasm_generate_hane_level, wasm_compare_hane_number_guess } from "../wasmBridge";
 
 export type HaneLevel = {
   digits: number;
@@ -185,6 +186,13 @@ export async function haneWordGuessSetFor(length: number, locale: SiteLocale = "
 
 
 export function generateHaneLevel(seed: number, mastery: number): HaneLevel {
+  if (isWasmReady()) {
+    try {
+      return wasm_generate_hane_level(seed >>> 0, mastery >>> 0) as HaneLevel;
+    } catch {
+      // Fallback to JS implementation
+    }
+  }
   const random = rng(seed ^ Math.imul(mastery + 17, 0x45d9f3b));
   const digits = mastery >= 4 ? 5 : 4;
   const allowsRepeats = mastery >= 3;
@@ -213,6 +221,13 @@ export function isHaneGuessValid(guess: string, level: Pick<HaneLevel, "digits">
  * net görünür. Algoritma compareHaneWordGuess ile birebir aynı iki-geçişli,
  * tekrarlı-rakam-güvenli mantık. */
 export function compareHaneNumberGuess(target: string, guess: string): HaneFeedback {
+  if (isWasmReady()) {
+    try {
+      return wasm_compare_hane_number_guess(target, guess) as HaneFeedback;
+    } catch {
+      // Fallback to JS implementation
+    }
+  }
   const targetDigits = target.split("");
   const guessDigits = guess.split("");
   const marks: HaneNumberMark[] = Array.from({ length: targetDigits.length }, () => "absent");

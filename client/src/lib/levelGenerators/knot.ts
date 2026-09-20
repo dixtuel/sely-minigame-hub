@@ -1,5 +1,6 @@
 import { Direction } from "./shared";
 import { mulberry32 as rng } from "../rng";
+import { isWasmReady, wasm_generate_knot_level } from "../wasmBridge";
 
 /**
  * Düğüm tahtası her seviyede YENİDEN üretilir: rastgele bir kapsayan ağaç (spanning tree)
@@ -149,6 +150,16 @@ function buildKnotCandidate(seed: number, mastery: number): KnotLevel {
 }
 
 export function generateKnotLevel(seed: number, mastery: number): KnotLevel {
+  if (isWasmReady()) {
+    try {
+      const wasmLevel = wasm_generate_knot_level(seed >>> 0, mastery) as KnotLevel;
+      if (wasmLevel && wasmLevel.tileShapes && wasmLevel.rotations) {
+        return wasmLevel;
+      }
+    } catch {
+      // Fallback below
+    }
+  }
   let fallback: KnotLevel | null = null;
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const candidate = buildKnotCandidate(seed + attempt * 7919, mastery);

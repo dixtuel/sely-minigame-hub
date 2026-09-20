@@ -1,6 +1,7 @@
 import { Point } from "./shared";
 import { mulberry32 as rng } from "../rng";
 import { segmentDistance } from "../geometry";
+import { isWasmReady, wasm_generate_cut_level } from "../wasmBridge";
 
 export type CutShapePlan = { id: number; x: number; y: number; size: number; color: string; target: boolean; linked: boolean };
 export type CutLevel = { shapes: CutShapePlan[]; cuts: number; stainLimit: number; lesson: string };
@@ -48,6 +49,16 @@ function buildCutLevelCandidate(seed: number, mastery: number): CutLevel {
 }
 
 export function generateCutLevel(seed: number, mastery: number): CutLevel {
+  if (isWasmReady()) {
+    try {
+      const wasmLevel = wasm_generate_cut_level(seed >>> 0, mastery) as CutLevel;
+      if (wasmLevel && wasmLevel.shapes && wasmLevel.shapes.length > 0) {
+        return wasmLevel;
+      }
+    } catch {
+      // Fallback below
+    }
+  }
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const candidate = buildCutLevelCandidate(seed + attempt * 6229, mastery);
     if (isCutLevelSolvable(candidate)) return candidate;

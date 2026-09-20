@@ -1,6 +1,6 @@
-//! SELY MiniGame Hub - Serverless Lambda / Vercel Adapter
+//! SELY MiniGame Hub - Serverless Vercel Adapter
+//! Official Vercel Rust Runtime on Fluid Compute
 
-use lambda_http::{run, Error};
 use sely_minigame_hub::routes::config::config_routes;
 use sely_minigame_hub::routes::leaderboard::{leaderboard_routes, AppState};
 use sely_minigame_hub::routes::og::og_routes;
@@ -13,26 +13,11 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
+use vercel_runtime::axum::VercelLayer;
+use vercel_runtime::{run, Error};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    // Vercel Serverless environment compatibility shim
-    if std::env::var("AWS_LAMBDA_FUNCTION_NAME").is_err() {
-        std::env::set_var("AWS_LAMBDA_FUNCTION_NAME", "index");
-    }
-    if std::env::var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE").is_err() {
-        std::env::set_var("AWS_LAMBDA_FUNCTION_MEMORY_SIZE", "128");
-    }
-    if std::env::var("AWS_LAMBDA_FUNCTION_VERSION").is_err() {
-        std::env::set_var("AWS_LAMBDA_FUNCTION_VERSION", "$LATEST");
-    }
-    if std::env::var("AWS_LAMBDA_LOG_STREAM_NAME").is_err() {
-        std::env::set_var("AWS_LAMBDA_LOG_STREAM_NAME", "default");
-    }
-    if std::env::var("AWS_LAMBDA_LOG_GROUP_NAME").is_err() {
-        std::env::set_var("AWS_LAMBDA_LOG_GROUP_NAME", "/aws/lambda/index");
-    }
-
     let turso_conn = if is_turso_configured() {
         create_turso_connection().await.ok().map(|c| Arc::new(Mutex::new(c)))
     } else {
@@ -59,7 +44,8 @@ async fn main() -> Result<(), Error> {
         .merge(og_routes())
         .merge(api_routes)
         .layer(CompressionLayer::new())
-        .layer(cors);
+        .layer(cors)
+        .layer(VercelLayer);
 
     run(app).await
 }

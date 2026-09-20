@@ -6,7 +6,13 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
+import { ensureWasmInitialized } from "@/lib/wasmBridge";
 import "./index.css";
+
+// Warm up Rust WebAssembly Game Core asynchronously
+ensureWasmInitialized().catch(err => {
+  console.warn("[App] WASM background initialization:", err);
+});
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

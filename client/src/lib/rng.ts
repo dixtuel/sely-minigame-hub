@@ -1,3 +1,5 @@
+import { isWasmReady, WasmPrng } from "./wasmBridge";
+
 /**
  * Seeded PRNG (mulberry32) shared by levelGenerators.ts, game/proceduralLevel.ts,
  * and SparkCanvasGame.tsx — all three previously reimplemented the same algorithm
@@ -7,6 +9,14 @@
  * already did, coercing it to 1 instead of degenerating).
  */
 export function mulberry32(seed: number): () => number {
+  if (isWasmReady()) {
+    try {
+      const prng = new WasmPrng((seed >>> 0) || 1);
+      return () => prng.nextFloat();
+    } catch {
+      // Fallback to JS implementation below
+    }
+  }
   let value = (seed >>> 0) || 1;
   return () => {
     value += 0x6d2b79f5;
