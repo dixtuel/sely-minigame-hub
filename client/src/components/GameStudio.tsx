@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Maximize, Minimize, RotateCcw, Share2, Volume2, X } from "lucide-react";
-import AdSenseResultUnit from "@/components/AdSenseResultUnit";
+// AdSense disabled on sely.tr, see the commented-out <AdSenseResultUnit /> usage below.
+// import AdSenseResultUnit from "@/components/AdSenseResultUnit";
 import ShareResultModal from "@/components/ShareResultModal";
 import type { GameMeta } from "@/lib/catalog";
 import { local, type SiteLocale } from "@/lib/i18n";
@@ -229,7 +230,10 @@ export default function GameStudio({ game, locale = "tr", autoStart = false, dem
                   <button className="quiet-button" onClick={onBack}>{locale === "en" ? "Choose a route" : "Rota seç"}</button>
                 </div>
                 {game.id !== "spark" && result.outcome === "failure" && failureCount >= 3 && <p className="result-nudge">{locale === "en" ? "A new route is available after three attempts." : "Üç denemeden sonra yeni rota açıldı."}</p>}
-                <AdSenseResultUnit locale={locale} />
+                {/* AdSense disabled on sely.tr (Vercel Hobby's fair-use terms treat ad-monetized
+                    deployments as commercial usage). Kept for self-hosters who deploy on their
+                    own infra/Pro plan and want it back — uncomment and set the AdSense env vars. */}
+                {/* <AdSenseResultUnit locale={locale} /> */}
                 {shareOpen && (
                   <ShareResultModal
                     isOpen={shareOpen}
