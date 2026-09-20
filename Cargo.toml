@@ -36,7 +36,7 @@ regex = "1.10"
 # Güvenlik, Kriptografi & Token
 sha2 = "0.10"
 subtle = "2.6"
-base64 = "0.22"
+base64 = "0.23"
 flate2 = "1.0"
 governor = "0.8"
 
