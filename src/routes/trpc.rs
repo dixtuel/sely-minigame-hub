@@ -312,6 +312,6 @@ pub async fn trpc_post_handler(
 
 pub fn trpc_routes() -> Router<AppState> {
     Router::new()
-        .route("/api/trpc/:path", get(trpc_get_handler))
-        .route("/api/trpc/:path", post(trpc_post_handler))
+        .route("/api/trpc/{path}", get(trpc_get_handler))
+        .route("/api/trpc/{path}", post(trpc_post_handler))
 }

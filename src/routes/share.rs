@@ -230,6 +230,6 @@ pub async fn share_bridge_en_handler(
 
 pub fn share_routes() -> Router {
     Router::new()
-        .route("/share/:game", get(share_bridge_handler))
-        .route("/en/share/:game", get(share_bridge_en_handler))
+        .route("/share/{game}", get(share_bridge_handler))
+        .route("/en/share/{game}", get(share_bridge_en_handler))
 }

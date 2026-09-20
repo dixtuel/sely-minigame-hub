@@ -75,53 +75,39 @@ pub async fn sitemap_xml_handler() -> Response {
     (StatusCode::OK, headers, sitemap).into_response()
 }
 
-pub async fn google_verification_handler(Path(token_ext): Path<String>) -> Response {
-    let token = token_ext.trim_end_matches(".html");
-    let expected = env::var("GOOGLE_SITE_VERIFICATION")
-        .or_else(|_| env::var("VITE_GOOGLE_SITE_VERIFICATION"))
-        .unwrap_or_default();
+pub async fn seo_verification_handler(Path(file): Path<String>) -> Response {
+    if file.starts_with("google") && file.ends_with(".html") {
+        let token = file.trim_start_matches("google").trim_end_matches(".html");
+        let expected = env::var("GOOGLE_SITE_VERIFICATION")
+            .or_else(|_| env::var("VITE_GOOGLE_SITE_VERIFICATION"))
+            .unwrap_or_default();
 
-    if !expected.is_empty() && expected == token {
-        let mut headers = HeaderMap::new();
-        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_1WEEK));
-        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"));
-        (StatusCode::OK, headers, format!("google-site-verification: google{}.html\n", token)).into_response()
-    } else {
-        (StatusCode::NOT_FOUND, "Not Found").into_response()
-    }
-}
+        if !expected.is_empty() && expected == token {
+            let mut headers = HeaderMap::new();
+            headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_1WEEK));
+            headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"));
+            (StatusCode::OK, headers, format!("google-site-verification: google{}.html\n", token)).into_response()
+        } else {
+            (StatusCode::NOT_FOUND, "Not Found").into_response()
+        }
+    } else if file.starts_with("yandex_") && file.ends_with(".html") {
+        let token = file.trim_start_matches("yandex_").trim_end_matches(".html");
+        let expected = env::var("YANDEX_SITE_VERIFICATION")
+            .or_else(|_| env::var("VITE_YANDEX_SITE_VERIFICATION"))
+            .unwrap_or_default();
 
-pub async fn bing_verification_handler() -> Response {
-    let token = env::var("BING_SITE_VERIFICATION")
-        .or_else(|_| env::var("VITE_BING_SITE_VERIFICATION"))
-        .unwrap_or_default();
-
-    if !token.is_empty() {
-        let body = format!("<?xml version=\"1.0\"?>\n<users>\n\t<user>{}</user>\n</users>\n", token);
-        let mut headers = HeaderMap::new();
-        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_1WEEK));
-        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/xml; charset=utf-8"));
-        (StatusCode::OK, headers, body).into_response()
-    } else {
-        (StatusCode::NOT_FOUND, "Not Found").into_response()
-    }
-}
-
-pub async fn yandex_verification_handler(Path(token_ext): Path<String>) -> Response {
-    let token = token_ext.trim_end_matches(".html");
-    let expected = env::var("YANDEX_SITE_VERIFICATION")
-        .or_else(|_| env::var("VITE_YANDEX_SITE_VERIFICATION"))
-        .unwrap_or_default();
-
-    if !expected.is_empty() && expected == token {
-        let body = format!(
-            "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"></head><body>Verification: {}</body></html>\n",
-            token
-        );
-        let mut headers = HeaderMap::new();
-        headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_1WEEK));
-        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"));
-        (StatusCode::OK, headers, body).into_response()
+        if !expected.is_empty() && expected == token {
+            let body = format!(
+                "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"></head><body>Verification: {}</body></html>\n",
+                token
+            );
+            let mut headers = HeaderMap::new();
+            headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_1WEEK));
+            headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"));
+            (StatusCode::OK, headers, body).into_response()
+        } else {
+            (StatusCode::NOT_FOUND, "Not Found").into_response()
+        }
     } else {
         (StatusCode::NOT_FOUND, "Not Found").into_response()
     }
@@ -132,7 +118,6 @@ pub fn seo_routes() -> Router {
         .route("/ads.txt", get(ads_txt_handler))
         .route("/robots.txt", get(robots_txt_handler))
         .route("/sitemap.xml", get(sitemap_xml_handler))
-        .route("/google:token_ext", get(google_verification_handler))
         .route("/BingSiteAuth.xml", get(bing_verification_handler))
-        .route("/yandex_:token_ext", get(yandex_verification_handler))
+        .route("/{file}", get(seo_verification_handler))
 }
