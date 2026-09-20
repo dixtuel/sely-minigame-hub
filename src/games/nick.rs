@@ -115,7 +115,7 @@ pub fn get_player_signature(game_id: &str, date_str: &str, anon_id: &str) -> Str
     let mut hasher = Sha256::new();
     hasher.update(raw.as_bytes());
     let result = hasher.finalize();
-    let hex_full = format!("{result:x}");
+    let hex_full: String = result.iter().map(|b| format!("{b:02x}")).collect();
     hex_full[..20].to_string()
 }
 
