@@ -4,13 +4,19 @@
  * duplicated between those two call sites today.
  */
 
+const CLOUD_POSTGRES_HOST_SUFFIXES = [".neon.tech", ".vercel-storage.com", ".aws.connect"];
+
 /** Detects whether a Postgres connection string points at a managed/cloud host that needs TLS. */
 export function isCloudPostgresUrl(url: string): boolean {
-  return (
-    url.includes("sslmode=require") ||
-    url.includes("neon.tech") ||
-    url.includes("vercel-storage.com") ||
-    url.includes("aws.connect")
+  if (url.includes("sslmode=require")) return true;
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    return false;
+  }
+  return CLOUD_POSTGRES_HOST_SUFFIXES.some(
+    suffix => hostname === suffix.slice(1) || hostname.endsWith(suffix)
   );
 }
 

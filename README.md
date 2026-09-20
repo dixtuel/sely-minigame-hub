@@ -167,13 +167,14 @@ Nginx veya Caddy reverse proxy ile `127.0.0.1:3000` portundan servis edilir.
 
 ### Docker Compose
 
-> [!NOTE]
-> `docker/Dockerfile` şu an hâlâ Node.js tabanlı — `main`'in Rust backend'i için henüz güncellenmedi. Docker ile çalıştırmak istersen bu adımlar için `nodejs-legacy` branch'ini kullan:
-> ```bash
-> git checkout nodejs-legacy
-> cp .env.example .env
-> docker compose up -d
-> ```
+`docker/Dockerfile`, React/Vite frontend'ini ve Rust Axum `standalone` ikilisini çok aşamalı (multi-stage) olarak derler. Tek komutla Redis ve SQLite destekli yerel veya sunucu ortamını ayağa kaldırmak için:
+
+```bash
+cp .env.example .env
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Servis ayağa kalktıktan sonra `http://localhost:3000` adresinden erişilebilir.
 
 ## Ortam değişkenleri
 

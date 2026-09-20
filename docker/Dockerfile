@@ -1,60 +1,57 @@
 # ==============================================================================
-# SELY MiniGame Hub — Multi-stage Dockerfile for Self-Hosted Deployment
+# SELY MiniGame Hub — Multi-stage Dockerfile for Self-Hosted Deployment (Rust)
 # ==============================================================================
 
-# --- Stage 1: Build ---
-FROM node:22-alpine AS builder
+# --- Stage 1: Frontend build (Vite + React) ---
+FROM node:22-alpine AS frontend
 
 WORKDIR /app
 
-# Enable Corepack for pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy dependency manifests
 COPY package.json pnpm-lock.yaml ./
-
-# Install all dependencies (including devDependencies needed for build)
 RUN pnpm install --frozen-lockfile
 
-# Copy application source
 COPY . .
 
-# Build Vite client, Express server, and Vercel serverless bundle
+# publicDir (client/public) is copied into dist/public by Vite itself,
+# so this stage's output already contains audio/textures/storage assets.
 RUN pnpm run build
 
-# Prune devDependencies to keep runtime slim
-RUN pnpm prune --prod
-
-# --- Stage 2: Production Runtime ---
-FROM node:22-alpine AS runner
+# --- Stage 2: Rust backend build (Axum standalone binary) ---
+FROM rust:1-slim-bookworm AS backend
 
 WORKDIR /app
 
-ENV NODE_ENV=production
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config && rm -rf /var/lib/apt/lists/*
+
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+
+RUN cargo build --release --bin standalone
+
+# --- Stage 3: Production runtime ---
+FROM debian:bookworm-slim AS runner
+
+WORKDIR /app
+
 ENV PORT=3000
 
-# Install curl for container health checks
-RUN apk add --no-cache curl
+# ca-certificates for rustls TLS (Turso, Redis, reqwest); curl for the healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+  && rm -rf /var/lib/apt/lists/* \
+  && useradd --system --create-home --uid 1000 sely
 
-# Create persistent data directory for local SQLite database
-RUN mkdir -p /app/data && chown -R node:node /app
+RUN mkdir -p /app/data && chown -R sely:sely /app
 
-# Copy production artifacts and pruned node_modules
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/client/public ./client/public
-COPY --from=builder /app/server/storage/schema ./server/storage/schema
+COPY --from=backend /app/target/release/standalone ./standalone
+COPY --from=frontend /app/dist/public ./dist/public
 
-# Set ownership to unprivileged user
-USER node
+USER sely
 
-# Expose HTTP port
 EXPOSE 3000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/api/config || exit 1
 
-# Start standalone server
-CMD ["node", "dist/index.js"]
+CMD ["./standalone"]

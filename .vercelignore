@@ -9,6 +9,10 @@ dist
 target
 .manus-logs
 
+# CI/CD & self-hosted deployment (irrelevant to the Vercel build)
+.github/
+docker/
+
 # AI Assistant configs, memory & guidelines
 CLAUDE.md
 AGENTS.md

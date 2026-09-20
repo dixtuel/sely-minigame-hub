@@ -1,0 +1,34 @@
+# Dependencies & build outputs (rebuilt inside the image)
+node_modules
+target
+dist
+crates/*/target
+
+# VCS & editor
+.git
+.github
+
+# Docs, plans & local-only notes (not needed inside the image)
+docs/
+*.md
+!README.md
+
+# AI assistant configs
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.claude/
+.gemini/
+.agents/
+
+# Local env & secrets (compose injects these via env_file/environment)
+.env
+.env.*
+!.env.example
+
+# Test coverage & temp files
+coverage/
+*.tsbuildinfo
+.nyc_output
+tmp/
+temp/

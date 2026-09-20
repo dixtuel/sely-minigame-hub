@@ -8,7 +8,6 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     environment:
-      - NODE_ENV=production
       - PORT=3000
       - TURSO_DATABASE_URL=file:/app/data/sely.db
       - REDIS_URL=redis://redis:6379

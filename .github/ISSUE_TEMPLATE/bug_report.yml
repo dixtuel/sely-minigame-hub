@@ -1,0 +1,47 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+
+  - type: input
+    id: game
+    attributes:
+      label: Which game (if applicable)?
+      placeholder: "Echo Room, Knot, Cutout, Shadow Share, Case, Hane, Spark — or N/A"
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. actual behavior
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser / device
+      placeholder: "e.g. Chrome 128 / Android, Safari / iOS 17"
+    validations:
+      required: true
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch / commit (if self-hosting or running from source)
+      placeholder: "main @ <commit sha>, or leave blank if using sely.tr"

@@ -58,8 +58,8 @@ self.addEventListener("fetch", (event) => {
   // B) CACHE-FIRST: Content-addressed static assets (JS, CSS, Audio, 3D Textures, Google Fonts)
   const isImmutableAsset =
     url.pathname.startsWith("/assets/") ||
-    url.hostname.includes("fonts.gstatic.com") ||
-    url.hostname.includes("fonts.googleapis.com") ||
+    url.hostname === "fonts.gstatic.com" ||
+    url.hostname === "fonts.googleapis.com" ||
     url.pathname.endsWith(".woff2") ||
     url.pathname.endsWith(".ogg") ||
     url.pathname.endsWith(".jpg") ||

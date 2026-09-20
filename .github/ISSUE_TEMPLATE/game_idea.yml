@@ -1,0 +1,27 @@
+name: New Game Idea / Gameplay & Balance Feedback
+description: Suggest a new mini-game, or feedback on an existing game's difficulty/balance
+labels: ["enhancement", "gameplay"]
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - New game idea
+        - Balance/difficulty feedback on an existing game
+        - Mechanic improvement suggestion
+    validations:
+      required: true
+
+  - type: input
+    id: game
+    attributes:
+      label: Which existing game (if applicable)?
+      placeholder: "Echo Room, Knot, Cutout, Shadow Share, Case, Hane, Spark"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe your idea or feedback
+    validations:
+      required: true

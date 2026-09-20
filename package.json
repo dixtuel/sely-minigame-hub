@@ -6,12 +6,9 @@
   "scripts": {
     "dev": "vite",
     "dev:rust": "cargo run --bin standalone",
-    "dev:node": "NODE_ENV=development tsx watch server/_core/index.ts",
     "build": "vite build",
     "build:wasm": "wasm-pack build crates/sely-game-core --target web --out-dir ../../client/src/wasm --out-name sely_game_core",
-    "build:all": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --external:./vite --bundle --format=esm --outdir=dist && esbuild server/serverless.ts --platform=node --packages=external --bundle --format=esm --outfile=api/index.js",
     "start": "cargo run --bin standalone --release",
-    "start:node": "NODE_ENV=production node --max-old-space-size=1536 dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
@@ -31,7 +28,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/global-config": "^1.5.1",
     "@vercel/speed-insights": "^2.0.0",
-    "axios": "^1.12.0",
+    "axios": "^1.20.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cookie": "^1.0.2",
@@ -42,7 +39,7 @@
     "ioredis": "^6.0.0",
     "jose": "6.1.0",
     "lucide-react": "^0.453.0",
-    "nanoid": "^5.1.5",
+    "nanoid": "^5.1.16",
     "next-themes": "^0.4.6",
     "pg": "^8.23.0",
     "react": "^19.2.1",
@@ -69,27 +66,29 @@
     "@vitejs/plugin-react": "^5.0.4",
     "add": "^2.0.6",
     "autoprefixer": "^10.4.20",
-    "esbuild": "^0.25.0",
-    "pnpm": "^10.15.1",
-    "postcss": "^8.4.47",
+    "esbuild": "^0.25.1",
+    "postcss": "^8.5.3",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.19.1",
     "tw-animate-css": "^1.4.0",
     "typescript": "5.9.3",
-    "vite": "^7.1.7",
+    "vite": "^7.3.6",
     "vite-plugin-manus-runtime": "0.0.59",
-    "vitest": "^2.1.4"
+    "vitest": "^4.1.11"
   },
-  "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5ff21679aa834db094987129aa4d488b86df57f7b634981b2f827cdcacc698cc0cfb88af",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@tailwindcss/oxide",
-      "esbuild"
-    ],
-    "overrides": {
-      "tailwindcss>nanoid": "3.3.7"
-    }
+  "onlyBuiltDependencies": [
+    "@tailwindcss/oxide",
+    "esbuild"
+  ],
+  "overrides": {
+    "tar": ">=7.5.18",
+    "postcss": ">=8.5.23",
+    "nanoid": ">=5.1.5",
+    "picomatch": ">=4.0.3",
+    "esbuild": ">=0.25.1",
+    "@babel/core": ">=7.29.6",
+    "baseline-browser-mapping": ">=2.11.0"
   },
   "prettier": {
     "semi": true,
