@@ -5,7 +5,8 @@
   "fluid": true,
   "regions": ["fra1"],
   "functions": {
-    "api/index.js": {
+    "api/index.rs": {
+      "runtime": "vercel-rust@latest",
       "maxDuration": 60
     }
   },
@@ -112,51 +113,51 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/ads.txt",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/BingSiteAuth.xml",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/google(.*).html",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/yandex_(.*).html",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/robots.txt",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/sitemap.xml",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/share/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/en/share/(.*)",
-      "destination": "/api/index.js"
+      "destination": "/api/index.rs"
     },
     {
       "source": "/storage/(.*)",
       "destination": "/storage/$1"
     },
     {
-      "source": "/sw.js",
-      "destination": "/sw.js"
-    },
-    {
       "source": "/manus-storage/(.*)",
       "destination": "/storage/$1"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/sw.js"
     },
     {
       "source": "/(.*)",

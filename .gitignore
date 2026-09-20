@@ -175,3 +175,7 @@ data/
 bun.lock
 bun.lockb
 .env*
+
+# Rust build artifacts
+target/
+**/*.rs.bk
