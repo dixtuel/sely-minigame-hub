@@ -10,9 +10,6 @@
       "maxDuration": 60
     }
   },
-  "env": {
-    "AWS_LAMBDA_FUNCTION_NAME": "index"
-  },
   "crons": [
     {
       "path": "/api/scheduled/daily-content",
