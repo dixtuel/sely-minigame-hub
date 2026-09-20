@@ -23,7 +23,7 @@ dotenvy = "0.15"
 # Veritabanı & Önbellek
 libsql = "0.6"
 fred = { version = "10.1", features = ["enable-rustls", "i-sorted-sets"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
 
 # HTTP İstemcisi & Dış İstekler
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
