@@ -8,6 +8,7 @@
     "dev:rust": "cargo run --bin standalone",
     "dev:node": "NODE_ENV=development tsx watch server/_core/index.ts",
     "build": "vite build",
+    "build:wasm": "wasm-pack build crates/sely-game-core --target web --out-dir ../../client/src/wasm --out-name sely_game_core",
     "build:all": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --external:./vite --bundle --format=esm --outdir=dist && esbuild server/serverless.ts --platform=node --packages=external --bundle --format=esm --outfile=api/index.js",
     "start": "cargo run --bin standalone --release",
     "start:node": "NODE_ENV=production node --max-old-space-size=1536 dist/index.js",

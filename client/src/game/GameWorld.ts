@@ -466,6 +466,7 @@ export class GameWorld {
   }
 
   private updateListener(delta: number) {
+    if (this.state.phase !== "explore") return;
     const isInvestigating = this.listenerState === "investigate";
 
     // 1. Emit terrifying dual-frequency red acoustic warning shockwave:

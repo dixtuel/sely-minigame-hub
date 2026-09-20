@@ -113,46 +113,76 @@ SELY MiniGame Hub arayüzünde kullanılan tüm web yazı tipleri Google Fonts a
 - **Telif Hakkı:** Copyright (c) 2013-2026 BabylonJS
 - **Kaynak:** https://github.com/BabylonJS/Babylon.js
 
-### [Three.js](https://threejs.org/) & [React Three Fiber](https://r3f.docs.pmnd.rs/) (`three`, `@react-three/fiber`, `@react-three/drei`)
-- **İşlev:** 3D sahne bileşenleri, geometri işleme ve kamera matris yönetimi.
-- **Lisans:** MIT Lisansı
-- **Telif Hakkı:** Copyright (c) 2010-2026 Three.js Authors; Copyright (c) 2019-2026 pmndrs
-- **Kaynak:** https://github.com/mrdoob/three.js | https://github.com/pmndrs/react-three-fiber
+*Not: `three`, `@react-three/fiber` ve `@react-three/drei` `package.json`'da hâlâ görünür ama `main` branch'in canlı istemcisinde hiç import edilmez (0 kullanım) — Echo Room'un 3D motoru tamamen Babylon.js'tir. Bu paketler yalnız dondurulmuş `nodejs-legacy` branch'inde kullanılıyordu.*
 
 ---
 
 ## 7. Yazılım Kütüphaneleri ve Bağımlılık Matrisi
 
-Aşağıdaki tablo, projede kullanılan doğrudan kod kütüphanelerini, sürümlerini, lisanslarını ve telif hakkı sahiplerini listeler:
+Bu bölüm, `main` branch'in gerçekten derlediği/bundle'ladığı doğrudan bağımlılıkları listeler (`cargo tree --depth 1` ve `client/src` içindeki gerçek import taraması ile doğrulanmıştır — kaynak ağacında bulunan ama derlemeye dahil olmayan hiçbir paket burada yer almaz).
 
-| Paket Adı | Sürüm | SPDX Lisans | Telif Hakkı Sahibi | İşlev |
-| :--- | :--- | :--- | :--- | :--- |
-| `react` & `react-dom` | `^19.2.1` | `MIT` | Meta Platforms, Inc. and affiliates | Çekirdek UI kütüphanesi ve bileşen mimarisi |
-| `vite` | `^7.1.7` | `MIT` | Yuxi (Evan) You & Vite contributors | İstemci tarafı paketleyici ve geliştirme sunucusu |
-| `tailwindcss` | `^4.1.14` | `MIT` | Tailwind Labs, Inc. | Utility-first CSS motoru |
-| `wouter` | `^3.3.5` | `MIT` | Alexey Taktarov | Minimalist (~1.5KB) hafif SPA yönlendiricisi |
-| `lucide-react` | `^0.453.0` | `ISC` | Lucide Contributors | Kullanıcı arayüzü ve navigasyon simgeleri |
-| `framer-motion` | `^12.23.22` | `MIT` | Framer B.V. | Arayüz geçiş ve etkileşim animasyonları |
-| `@tanstack/react-query` | `^5.90.2` | `MIT` | TanStack (Tanner Linsley) | Asenkron sunucu veri yönetimi ve önbellekleme |
-| `@trpc/server` & `@trpc/client` | `^11.6.0` | `MIT` | Alex Johansson and tRPC contributors | Uçtan uca tip güvenli RPC API katmanı |
-| `drizzle-orm` | `^0.44.5` | `Apache-2.0` | Drizzle Team | Tip güvenli SQL modelleme ve sorgu motoru |
-| `drizzle-kit` | `^0.31.4` | `Apache-2.0` | Drizzle Team | Veritabanı şema migrasyon araçları |
-| `@libsql/client` | `^0.17.4` | `MIT` | ChiselStrike, Inc. / Turso | Sunucusuz libSQL / SQLite veritabanı sürücüsü |
-| `pg` | `^8.23.0` | `MIT` | Brian Carlson | PostgreSQL istemci sürücüsü |
-| `express` | `^4.21.2` | `MIT` | StrongLoop, Inc. & contributors | HTTP sunucusu ve REST yönlendirme katmanı |
-| `zod` | `^4.1.12` | `MIT` | Colin McDonnell | Tip güvenli şema ve girdi doğrulama kütüphanesi |
-| `sonner` | `^2.0.7` | `MIT` | Emil Kowalski | Erişilebilir bildirim (toast) bileşeni |
-| `@radix-ui/react-slot` & `tooltip` | `1.x` | `MIT` | WorkOS | İlkel erişilebilir buton ve araç ipucu bileşenleri |
-| `clsx` & `tailwind-merge` | `2.x / 3.x` | `MIT` | Luke Edwards / Dany Castillo | Dinamik Tailwind sınıf birleştirme araçları |
-| `date-fns` | `^4.1.0` | `MIT` | Sasha Koss & Lesha Koss | Tarih ve tohum formatlama araçları |
-| `nanoid` | `^5.1.5` | `MIT` | Andrey Sitnik | Kriptografik güvenli benzersiz kimlik üretimi |
-| `vitest` | `^2.1.4` | `MIT` | Anthony Fu & Vitest contributors | Birim ve entegrasyon test koşucusu |
-| `typescript` | `5.9.3` | `Apache-2.0` | Microsoft Corporation | Statik tip denetimi ve geliştirme araç seti |
-| `esbuild` | `^0.25.0` | `MIT` | Evan Wallace | Hızlı sunucu derleme ve paketleme aracı |
-| `@vercel/analytics` | `^2.0.1` | `MIT` | Vercel, Inc. | Opsiyonel web analitiği ve sayfa görüntüleme ölçümü (`VITE_ENABLE_VERCEL_ANALYTICS` bayrağıyla opt-in; hardcoded kimlik barındırmaz) |
-| `@vercel/speed-insights` | `^2.0.0` | `MIT` | Vercel, Inc. | Opsiyonel gerçek kullanıcı performans takibi (Core Web Vitals - LCP/INP/CLS, `VITE_ENABLE_VERCEL_SPEED_INSIGHTS` bayrağıyla opt-in) |
+### 7.1. Rust Backend (`api/index.rs`, `src/`)
 
-*Not: `@vercel/analytics` ve `@vercel/speed-insights` entegrasyonları tamamen opsiyoneldir (opt-in). Kod tabanında hiçbir analitik kimliği sabit kodlanmamıştır (zero hardcoded ID). Yalnızca `VITE_ENABLE_VERCEL_ANALYTICS=true` veya `VITE_ENABLE_VERCEL_SPEED_INSIGHTS=true` ortam değişkenleri açık olduğunda ve kullanıcı çerez/gizlilik iznini reddetmediğinde devreye girerler; bağımsız barındırılan veya yerel çalışan kurulumlarda hiçbir veri göndermezler (no-op).*
+| Crate | Sürüm | SPDX Lisans | İşlev |
+| :--- | :--- | :--- | :--- |
+| `axum` | `0.8.9` | `MIT` | HTTP router ve middleware katmanı |
+| `tokio` | `1.53.1` | `MIT` | Asenkron çalışma zamanı |
+| `tower` / `tower-http` | `0.5.3` / `0.6.11` | `MIT` | CORS, sıkıştırma, trace middleware'leri |
+| `tower-cookies` | `0.11.0` | `MIT` | Cookie jar extractor'ı |
+| `vercel_runtime` | `2.4.0` | `Apache-2.0` | Vercel'in resmi Rust serverless runtime'ı (`axum` feature) |
+| `libsql` | `0.6.0` | `MIT` | Turso / libSQL veritabanı istemcisi |
+| `fred` | `10.1.0` | `MIT` | Redis (RESP) async istemcisi |
+| `sqlx` | `0.8.6` | `MIT OR Apache-2.0` | Derleme zamanı doğrulamalı SQL istemcisi |
+| `reqwest` | `0.12.28` | `MIT OR Apache-2.0` | HTTP istemcisi (Vercel Global Config, LLM çağrıları) |
+| `serde` / `serde_json` | `1.0.229` / `1.0.151` | `MIT OR Apache-2.0` | Serileştirme |
+| `chrono` | `0.4.45` | `MIT OR Apache-2.0` | Tarih/saat |
+| `rand` | `0.8.8` | `MIT OR Apache-2.0` | Rastgelelik (WASM dışı yardımcı yollar) |
+| `regex` | `1.13.1` | `MIT OR Apache-2.0` | Girdi doğrulama |
+| `sha2` | `0.10.9` | `MIT OR Apache-2.0` | Skor imzalama |
+| `subtle` | `2.6.1` | `BSD-3-Clause` | Zamanlama saldırısına dayanıklı karşılaştırma |
+| `base64` | `0.22.1` | `MIT OR Apache-2.0` | Kodlama |
+| `flate2` | `1.1.10` | `MIT OR Apache-2.0` | Sıkıştırma |
+| `governor` | `0.8.1` | `MIT` | Rate limiting |
+| `tracing` / `tracing-subscriber` | `0.1.44` / `0.3.23` | `MIT` | Yapılandırılmış loglama |
+| `dotenvy` | `0.15.7` | `MIT` | Yerel `.env` yükleme (yalnız `standalone` binary) |
+| `urlencoding` | `2.1.3` | `MIT` | URL kodlama |
+
+### 7.2. Rust WASM Çekirdeği (`crates/sely-game-core`)
+
+Backend ile `src/games/` kaynak dosyalarını göreceli symlink üzerinden paylaşır; aşağıdakiler yalnızca WASM derlemesine özgü ek bağımlılıklardır.
+
+| Crate | Sürüm | SPDX Lisans | İşlev |
+| :--- | :--- | :--- | :--- |
+| `wasm-bindgen` | `0.2.128` | `MIT OR Apache-2.0` | Rust ↔ JavaScript köprüsü |
+| `serde-wasm-bindgen` | `0.6.5` | `MIT` | Serde değerlerinin `JsValue`'ya dönüşümü |
+| `getrandom` | `0.2.17` | `MIT OR Apache-2.0` | Tarayıcıda kriptografik rastgelelik kaynağı (`js` feature) |
+
+### 7.3. Frontend (React / Vite)
+
+| Paket Adı | Sürüm | SPDX Lisans | İşlev |
+| :--- | :--- | :--- | :--- |
+| `react` & `react-dom` | `^19.2.1` | `MIT` | Çekirdek UI kütüphanesi ve bileşen mimarisi |
+| `vite` | `^7.1.7` | `MIT` | İstemci tarafı paketleyici ve geliştirme sunucusu |
+| `tailwindcss` | `^4.1.14` | `MIT` | Utility-first CSS motoru |
+| `wouter` | `^3.3.5` | `MIT` | Minimalist (~1.5KB) hafif SPA yönlendiricisi |
+| `lucide-react` | `^0.453.0` | `ISC` | Kullanıcı arayüzü ve navigasyon simgeleri |
+| `@tanstack/react-query` | `^5.90.2` | `MIT` | Asenkron sunucu veri yönetimi ve önbellekleme |
+| `@trpc/client` & `@trpc/react-query` | `^11.6.0` | `MIT` | tRPC wire protokolüyle uyumlu istemci (sunucu tarafı artık Rust'ta `src/routes/trpc.rs`) |
+| `sonner` | `^2.0.7` | `MIT` | Erişilebilir bildirim (toast) bileşeni |
+| `superjson` | `^1.13.3` | `MIT` | tRPC yanıtlarında Date/Map/Set serileştirme |
+| `@radix-ui/react-slot` & `react-tooltip` | `^1.2.x` | `MIT` | İlkel erişilebilir buton ve araç ipucu bileşenleri |
+| `clsx` & `tailwind-merge` | `^2.1.1` / `^3.3.1` | `MIT` | Dinamik Tailwind sınıf birleştirme araçları |
+| `class-variance-authority` | `^0.7.1` | `Apache-2.0` | Bileşen varyant (variant) yönetimi |
+| `next-themes` | `^0.4.6` | `MIT` | Karanlık/açık tema senkronizasyonu |
+| `vitest` | `^2.1.4` | `MIT` | Birim ve entegrasyon test koşucusu |
+| `typescript` | `5.9.3` | `Apache-2.0` | Statik tip denetimi |
+| `esbuild` | `^0.25.0` | `MIT` | (Yalnız `nodejs-legacy` branch build script'lerinde) |
+| `@vercel/analytics` | `^2.0.1` | `MIT` | Opsiyonel web analitiği (`VITE_ENABLE_VERCEL_ANALYTICS` ile opt-in, hardcoded kimlik yok) |
+| `@vercel/speed-insights` | `^2.0.0` | `MIT` | Opsiyonel Core Web Vitals takibi (`VITE_ENABLE_VERCEL_SPEED_INSIGHTS` ile opt-in) |
+
+*Not: `@vercel/analytics` ve `@vercel/speed-insights` tamamen opsiyoneldir (opt-in), kod tabanında hiçbir analitik kimliği sabit kodlanmamıştır. İlgili `VITE_ENABLE_*` değişkeni açık olmadıkça veya kullanıcı çerez iznini reddettiğinde hiçbir veri göndermezler.*
+
+*`package.json`'da görünen ama `main` branch'in canlı ürününde artık derlenmeyen/bundle'lanmayan paketler (`express`, `pg`, `@trpc/server`, `@libsql/client`, `ioredis`, `jose`, `axios`, `zod`, `three`, `@react-three/*`, `framer-motion`, `@vercel/global-config` vb.) yalnız dondurulmuş `nodejs-legacy` branch'inin `server/` ağacına ait kalıntılardır; bilerek bu tablonun dışında bırakılmıştır.*
 
 ---
 

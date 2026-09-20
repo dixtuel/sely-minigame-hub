@@ -1,0 +1,25 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const __wbg_wasmprng_free: (a: number, b: number) => void;
+export const init: () => void;
+export const wasm_compare_hane_number_guess: (a: number, b: number, c: number, d: number) => [number, number, number];
+export const wasm_generate_cut_level: (a: number, b: number) => [number, number, number];
+export const wasm_generate_hane_level: (a: number, b: number) => [number, number, number];
+export const wasm_generate_knot_level: (a: number, b: number) => [number, number, number];
+export const wasm_generate_shadow_level: (a: number, b: number) => [number, number, number];
+export const wasm_get_player_nick: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+export const wasm_get_player_signature: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+export const wasm_is_knot_level_solvable: (a: number, b: number) => number;
+export const wasm_segment_distance: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+export const wasm_spark_calculate_pylon_height: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+export const wasm_spark_flight_collision: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
+export const wasm_spark_physics_step: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number, number];
+export const wasmprng_new: (a: number) => number;
+export const wasmprng_nextFloat: (a: number) => number;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __externref_table_dealloc: (a: number) => void;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_start: () => void;
