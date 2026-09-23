@@ -1,0 +1,140 @@
+import { trpc } from "@/lib/trpc";
+import { COOKIE_NAME, UNAUTHED_ERR_MSG } from '@shared/const';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { httpBatchLink, TRPCClientError } from "@trpc/client";
+import { createRoot } from "react-dom/client";
+import superjson from "superjson";
+import App from "./App";
+import { startLogin } from "./const";
+import { ensureWasmInitialized } from "@/lib/wasmBridge";
+import "./index.css";
+
+// Warm up Rust WebAssembly Game Core asynchronously
+ensureWasmInitialized().catch(err => {
+  console.warn("[App] WASM background initialization:", err);
+});
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 10 * 60 * 1000, // 10 dakika boyunca taze kabul et
+      gcTime: 60 * 60 * 1000, // 1 saat bellekte tut
+      refetchOnWindowFocus: false, // Sekme değişimlerinde arka plan tRPC isteklerini kes
+      refetchOnReconnect: false,
+      retry: 1,
+    },
+  },
+});
+const redirectToLoginIfUnauthorized = (error: unknown) => {
+  if (!(error instanceof TRPCClientError)) return;
+  if (typeof window === "undefined") return;
+
+  const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
+
+  if (!isUnauthorized) return;
+
+  startLogin();
+};
+
+queryClient.getQueryCache().subscribe(event => {
+  if (event.type === "updated" && event.action.type === "error") {
+    const error = event.query.state.error;
+    redirectToLoginIfUnauthorized(error);
+    console.error("[API Query Error]", error);
+  }
+});
+
+queryClient.getMutationCache().subscribe(event => {
+  if (event.type === "updated" && event.action.type === "error") {
+    const error = event.mutation.state.error;
+    redirectToLoginIfUnauthorized(error);
+    console.error("[API Mutation Error]", error);
+  }
+});
+
+const trpcClient = trpc.createClient({
+  links: [
+    httpBatchLink({
+      url: "/api/trpc",
+      transformer: superjson,
+      headers() {
+        // Preview auto-login fallback: when the browser blocks iframe cookies
+        // (Safari ITP / private browsing / WebView), the runtime mirrors the
+        // session into sessionStorage so we can forward it as a Bearer token.
+        // The regular OAuth cookie flow keeps working and takes priority server-side.
+        try {
+          const raw = sessionStorage.getItem("manus-cookie");
+          if (raw) {
+            const prefix = `${COOKIE_NAME}=`;
+            const pair = raw.split(";").find(s => s.trim().startsWith(prefix));
+            const token = pair?.trim().slice(prefix.length);
+            if (token) {
+              return { Authorization: `Bearer ${token}` };
+            }
+          }
+        } catch {
+          // sessionStorage unavailable
+        }
+        return {};
+      },
+      fetch(input, init) {
+        return globalThis.fetch(input, {
+          ...(init ?? {}),
+          credentials: "include",
+        });
+      },
+    }),
+  ],
+});
+
+createRoot(document.getElementById("root")!).render(
+  <trpc.Provider client={trpcClient} queryClient={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
+  </trpc.Provider>
+);
+
+// Register Service Worker for Client Bandwidth & Zero-Egress Repeat Visits
+// Supports: Chrome, Edge, Brave, Opera, Vivaldi, Firefox (limited), Safari, Android, iOS
+if (typeof window !== "undefined" && "serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        // Check for updates every 30 minutes while app is open
+        setInterval(() => {
+          registration.update().catch(() => {});
+        }, 30 * 60 * 1000);
+
+        // If a new SW is waiting, notify it to activate
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+
+        // Listen for new SW installations
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              // New version available — activate it immediately
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        });
+      })
+      .catch(() => {
+        // Graceful fallback if SW cannot register
+      });
+
+    // Reload when new SW takes control (seamless update)
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+  });
+}

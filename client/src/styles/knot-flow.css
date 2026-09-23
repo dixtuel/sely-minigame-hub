@@ -1,0 +1,8 @@
+.knot-seal-button { margin-top: 16px; background: var(--coral); color: var(--paper); font-weight: 700; animation: knot-seal-pulse 1.4s infinite ease-in-out; }
+.knot-seal-button:hover { background: var(--mustard); color: var(--ink); }
+@keyframes knot-seal-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(233,86,63,.45); }
+  50% { transform: scale(1.03); box-shadow: 0 0 0 6px rgba(233,86,63,0); }
+}
+@media (max-width: 800px) { .knot-seal-button { margin-top: 13px; } }
+

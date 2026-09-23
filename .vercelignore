@@ -1,0 +1,49 @@
+# Dependencies & cache
+node_modules
+.git
+.pnpm-store
+.cache
+
+# Build outputs & logs
+dist
+target
+.manus-logs
+
+# CI/CD & self-hosted deployment (irrelevant to the Vercel build)
+.github/
+docker/
+
+# AI Assistant configs, memory & guidelines
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.claude/
+.gemini/
+.agents/
+
+# Internal planning, research, design & task docs
+VAKA_CASE_PLAN.md
+SPARK_UPGRADE_PLAN.md
+GAME_REVISION_PLAN_*.md
+ASSETS.md
+GAME_DESIGN.md
+HANE_NUMBER_GAME_RESEARCH.md
+KIVILCIM_RUNNER_RESEARCH.md
+MEMORY.md
+PLAN.md
+PUBLIC_RELEASE.md
+STRUCTURE.md
+VDS_AGENT_COMMAND.md
+VDS_PACKAGE_MANIFEST.md
+PRIVATE_DELIVERY_MANIFEST.md
+ideas.md
+legal_research.md
+todo.md
+verification_notes.md
+
+# Local test coverage and temporary files
+coverage/
+*.tsbuildinfo
+.nyc_output
+tmp/
+temp/

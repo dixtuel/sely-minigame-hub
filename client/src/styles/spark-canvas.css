@@ -1,0 +1,172 @@
+/* =========================================================================
+   SELY Kıvılcım (Spark) - Dinamik Full-Width Viewport & Topbar Scoreboard
+   Üst bar hariç tüm alanı kaplayan kesintisiz tuval (Chrome Dino / Edge Surf)
+   ========================================================================= */
+
+.spark-stage-wrap {
+  width: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.game-stage-spark {
+  width: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: #080c18 !important;
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  padding: 0 !important;
+}
+
+.spark-canvas-game {
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+/* Orta Kabin & Tuval Alanı */
+.spark-stage-cabinet {
+  flex: 1 1 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  position: relative;
+  overflow: hidden;
+}
+
+.spark-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #080c18;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  touch-action: none;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Üst Çubuktaki Ortalı Scoreboard (07 Kıvılcım Ark / Kaçış Yerine) */
+.studio-shell-spark .studio-topbar {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 clamp(8px, 2.5vw, 24px) !important;
+  z-index: 25 !important;
+  background: rgba(8, 12, 24, 0.82) !important;
+  border-bottom: 1px solid rgba(246, 240, 227, 0.16) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.studio-shell-spark .studio-title {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+}
+
+.spark-topbar-hud {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  border: 1.5px solid rgba(246, 240, 227, 0.28);
+  box-shadow: 2px 2px 0 var(--coral);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.spark-topbar-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px clamp(6px, 1.2vw, 12px);
+  background: var(--paper);
+  border-right: 1px solid var(--ink);
+}
+
+.spark-topbar-cell:last-child {
+  border-right: none;
+}
+
+.spark-topbar-label {
+  font: 700 9px var(--font-mono);
+  color: rgba(27, 26, 27, 0.68);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.spark-topbar-val {
+  font: 700 12px var(--font-mono);
+  color: var(--ink);
+}
+
+.spark-topbar-val.spark-val-score {
+  color: var(--coral);
+  font-weight: 800;
+}
+
+.spark-topbar-val.spark-val-voltage {
+  color: #059669;
+}
+
+/* Küçük Ekranlar (Mobil) İçin Hassas İnce Ayar */
+@media (max-width: 640px) {
+  .spark-topbar-cell {
+    padding: 3px 6px;
+    gap: 3px;
+  }
+  .spark-topbar-cell:nth-child(4) {
+    display: none; /* Mobilde ŞEBEKE gizlenir, SKOR/VOLTAJ/HIZ ferah kalır */
+  }
+  .spark-topbar-label {
+    font-size: 8px;
+  }
+  .spark-topbar-val {
+    font-size: 11px;
+  }
+}
+
+/* Low-Power Mode & Legacy WebView Fallbacks */
+.low-power-mode .studio-shell-spark .studio-topbar {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: #080c18 !important;
+}

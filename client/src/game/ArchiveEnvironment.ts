@@ -1,0 +1,876 @@
+import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
+import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder";
+import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
+import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
+import { CreateTorus } from "@babylonjs/core/Meshes/Builders/torusBuilder";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Scene } from "@babylonjs/core/scene";
+import { assets } from "./assets";
+import { MAZE_CELL_SIZE, MAZE_COLS, MAZE_ROWS } from "./maze";
+import { generate3DEchoLayout, type Echo3DLayout, type WallPlacement } from "./proceduralLevel";
+
+type Rect = { xMin: number; xMax: number; zMin: number; zMax: number };
+
+function placementToRect([x, z, width, depth]: WallPlacement): Rect {
+  return { xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 };
+}
+
+/**
+ * Merges many static props into a single draw call. Thin instances would do the same job
+ * with less setup, but the production build's tree-shaking silently drops part of
+ * Babylon's thin-instance prototype patch (thinInstanceAdd exists and runs, but the
+ * instance buffer never gets allocated — instancesCount stays 0, so nothing renders).
+ * Mesh.MergeMeshes is a plain static method on the always-fully-bundled Mesh class, so it
+ * doesn't have that failure mode.
+ */
+function mergeIntoOne(name: string, material: StandardMaterial, parts: Mesh[]): Mesh | null {
+  if (!parts.length) return null;
+  const merged = Mesh.MergeMeshes(parts, true, true, undefined, false, false);
+  if (!merged) return null;
+  merged.name = name;
+  merged.material = material;
+  return merged;
+}
+
+export type Marker = {
+  id: string;
+  label: string;
+  point: Vector3;
+  root: TransformNode;
+  coreMaterial: StandardMaterial;
+  ringMaterial: StandardMaterial;
+  complete: boolean;
+};
+
+export type Trap = {
+  id: string;
+  point: Vector3;
+  radius: number;
+  mesh: AbstractMesh;
+  material: StandardMaterial;
+  triggered: boolean;
+};
+
+type RevealEntry = {
+  mesh: AbstractMesh;
+  point: Vector3;
+  pointGetter?: () => Vector3;
+  persistent: boolean;
+  baseVisibility: number;
+  /** Once an echo pulse reveals it for the first time, it stays dimly visible from then on. */
+  sticky: boolean;
+  /** Distance within which merely walking close also counts as a reveal signal (0 = proximity-immune). */
+  proximityRadius: number;
+  /** Ceiling proximity alone can reach — kept below 1 for objectives so a full echo pulse still matters. */
+  proximityCap: number;
+  /** Secret doors: once the combined reveal crosses a threshold, they open for good (see OPEN_THRESHOLD). */
+  autoOpens: boolean;
+  /** Doors drive their own alpha/frame-glow visuals instead of the plain mesh.visibility fade. */
+  apply?: (reveal: number, opened: boolean) => void;
+};
+
+type RevealWave = { origin: Vector3; age: number };
+
+const copper = Color3.FromHexString("#c9824a");
+const turquoise = Color3.FromHexString("#70c6bd");
+const charcoal = Color3.FromHexString("#171a1c");
+// The wavefront travels roughly WAVE_SPEED * (WAVE_LIFETIME + 0.12) units before dying out —
+// keep that well under the maze size (cells are MAZE_CELL_SIZE apart) so one echo reveals a
+// nearby pocket of the maze, not most of the map.
+const WAVE_SPEED = 5.0;
+const WAVE_LIFETIME = 1.05;
+const REVEAL_TRAIL = 0.85;
+
+// Secret doors: reads as an ordinary wall at rest, then telegraphs itself as a passable,
+// slightly-transparent doorway once the player is close or pings it with an echo pulse.
+// Whichever signal gets there first opens it for the rest of the run.
+const DOOR_PROXIMITY_RADIUS = 3.2;
+const DOOR_OPEN_THRESHOLD = 0.3;
+const DOOR_OPEN_FLOOR = 0.65;
+// Checkpoints stay only partially readable on approach — full clarity still rewards an echo ping.
+const MARKER_PROXIMITY_RADIUS = 4.2;
+const MARKER_PROXIMITY_CAP = 0.45;
+// The exit gate itself should never be a total surprise either, though unlocking it still needs
+// every marker — this only controls whether the player can *see* it before that.
+const GATE_PROXIMITY_RADIUS = 4.5;
+
+const staticMesh = (mesh: AbstractMesh) => {
+  mesh.isPickable = false;
+  mesh.freezeWorldMatrix();
+  return mesh;
+};
+
+export class ArchiveEnvironment {
+  markers: Marker[] = [];
+  traps: Trap[] = [];
+  startPoint = new Vector3(-12.0, 0, -10.2);
+  initialHeading = new Vector3(0.62, 0, 0.78);
+  exitPoint = new Vector3(13.2, 0, 8.4);
+  listenerPath: Vector3[] = [];
+
+  private readonly scene: Scene;
+  private readonly stoneMaterial: StandardMaterial;
+  private readonly ambientStoneMaterial: StandardMaterial;
+  private readonly grassMaterial: StandardMaterial;
+  private readonly copperMaterial: StandardMaterial;
+  private gateSeal!: StandardMaterial;
+  private gateRoot!: TransformNode;
+  private readonly revealables: RevealEntry[] = [];
+  private readonly waves: RevealWave[] = [];
+  private readonly gateMeshes: AbstractMesh[] = [];
+  private readonly dynamicNodes: TransformNode[] = [];
+  private readonly dynamicMeshes: AbstractMesh[] = [];
+  private revealClock = 0;
+  private readonly boundaryRects: Rect[] = [];
+  private readonly wallRects: Rect[] = [];
+  private readonly doorRects: { rect: Rect; entry: RevealEntry }[] = [];
+  private gateRect: Rect | null = null;
+  private doorIsOpen = false;
+  rooms: { x: number; z: number; theme: 0 | 1 | 2 | 3 }[] = [];
+
+  constructor(scene: Scene, seed = 618071, mastery = 0) {
+    this.scene = scene;
+    const floorMaterial = this.createMaterial("basalt-floor", "#2e3d3c", assets.floor, 8.5, 7.5, assets.floorNormal);
+    floorMaterial.emissiveColor = Color3.FromHexString("#040807");
+    const floor = CreateGround("archive-floor", { width: 34, height: 30, subdivisions: 2 }, scene);
+    floor.material = floorMaterial;
+    floor.receiveShadows = true;
+    staticMesh(floor);
+    floorMaterial.freeze();
+
+    this.stoneMaterial = this.createMaterial("archive-stone", "#181e1f", assets.archiveStone, 3.2, 1.5, assets.archiveStoneNormal);
+
+    // A slightly lighter, always-visible twin of the stone material for ordinary maze walls,
+    // columns, rubble and the boundary — real geometry the player's own lamp lights up as they
+    // get close, dungeon-crawler style, rather than a self-glowing surface. Only a minority of
+    // walls (hidden "traps") and the markers/gate stay in the pulse-only reveal system.
+    this.ambientStoneMaterial = this.stoneMaterial.clone("archive-stone-ambient");
+    this.ambientStoneMaterial.diffuseColor = Color3.FromHexString("#54605f");
+    this.ambientStoneMaterial.emissiveColor = Color3.FromHexString("#050807");
+    this.ambientStoneMaterial.freeze();
+
+    this.grassMaterial = new StandardMaterial("dry-grass", scene);
+    this.grassMaterial.diffuseColor = Color3.FromHexString("#8a7a52");
+    this.grassMaterial.emissiveColor = Color3.FromHexString("#221f12");
+    this.grassMaterial.alpha = 0.75;
+    this.grassMaterial.freeze();
+
+    this.copperMaterial = new StandardMaterial("gate-accent", scene);
+    this.copperMaterial.diffuseColor = copper;
+    this.copperMaterial.emissiveColor = Color3.FromHexString("#26150d");
+
+    this.buildOuterPerimeter();
+    this.buildLevel(seed, mastery);
+  }
+
+  private createMaterial(name: string, color: string, textureUrl: string, uScale: number, vScale: number, normalUrl?: string) {
+    const material = new StandardMaterial(name, this.scene);
+    material.diffuseColor = Color3.FromHexString(color);
+    material.specularColor = Color3.Black();
+    const texture = new Texture(textureUrl, this.scene, true, false);
+    texture.uScale = uScale;
+    texture.vScale = vScale;
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    material.diffuseTexture = texture;
+    if (normalUrl) {
+      const bump = new Texture(normalUrl, this.scene, true, false);
+      bump.uScale = uScale;
+      bump.vScale = vScale;
+      bump.wrapU = Texture.WRAP_ADDRESSMODE;
+      bump.wrapV = Texture.WRAP_ADDRESSMODE;
+      material.bumpTexture = bump;
+    }
+    return material;
+  }
+
+  private registerRevealable(
+    mesh: AbstractMesh,
+    position: Vector3,
+    baseVisibility = 1,
+    sticky = false,
+    options?: {
+      proximityRadius?: number;
+      proximityCap?: number;
+      autoOpens?: boolean;
+      apply?: (reveal: number, opened: boolean) => void;
+      pointGetter?: () => Vector3;
+    },
+  ) {
+    mesh.isPickable = false;
+    // Objectives with a proximity radius get a faint "tell" purely from walking close, on top of
+    // the sticky echo tell below — nothing in the maze should be a total, unwarned surprise.
+    mesh.visibility = sticky ? 0.07 : 0;
+    this.revealables.push({
+      mesh,
+      point: new Vector3(position.x, 0, position.z),
+      pointGetter: options?.pointGetter,
+      persistent: false,
+      baseVisibility,
+      sticky,
+      proximityRadius: options?.proximityRadius ?? 0,
+      proximityCap: options?.proximityCap ?? 1,
+      autoOpens: options?.autoOpens ?? false,
+      apply: options?.apply,
+    });
+    return mesh;
+  }
+
+  registerDynamicReveal(
+    mesh: AbstractMesh,
+    positionOrGetter: Vector3 | (() => Vector3),
+    baseVisibility = 1,
+    options?: {
+      proximityRadius?: number;
+      proximityCap?: number;
+      apply?: (reveal: number, opened: boolean) => void;
+    },
+  ) {
+    const isGetter = typeof positionOrGetter === "function";
+    const initialPos = isGetter ? positionOrGetter() : positionOrGetter;
+    return this.registerRevealable(mesh, initialPos, baseVisibility, false, {
+      proximityRadius: options?.proximityRadius ?? 0,
+      proximityCap: options?.proximityCap ?? 1,
+      apply: options?.apply,
+      pointGetter: isGetter ? positionOrGetter : undefined,
+    });
+  }
+
+  checkTrap(playerX: number, playerZ: number): Trap | null {
+    for (const trap of this.traps) {
+      if (trap.triggered) continue;
+      const d = Math.hypot(trap.point.x - playerX, trap.point.z - playerZ);
+      if (d <= trap.radius) {
+        trap.triggered = true;
+        return trap;
+      }
+    }
+    return null;
+  }
+
+  private registerPersistent(mesh: AbstractMesh, position: Vector3, baseVisibility = 1) {
+    this.registerRevealable(mesh, position, baseVisibility);
+    const entry = this.revealables[this.revealables.length - 1];
+    entry.persistent = true;
+    return mesh;
+  }
+
+  private buildOuterPerimeter() {
+    const thickness = 0.72;
+    const halfW = (MAZE_COLS * MAZE_CELL_SIZE) / 2;
+    const halfH = (MAZE_ROWS * MAZE_CELL_SIZE) / 2;
+    const height = 1.18;
+
+    const parts: Mesh[] = [];
+    const addWall = (x: number, z: number, width: number, depth: number) => {
+      const box = CreateBox("boundary-part", { width, height, depth }, this.scene);
+      box.position.set(x, height / 2, z);
+      parts.push(box);
+      this.boundaryRects.push({ xMin: x - width / 2, xMax: x + width / 2, zMin: z - depth / 2, zMax: z + depth / 2 });
+    };
+
+    addWall(0, -halfH - thickness / 2, halfW * 2 + thickness * 2, thickness);
+    addWall(0, halfH + thickness / 2, halfW * 2 + thickness * 2, thickness);
+    addWall(-halfW - thickness / 2, 0, thickness, halfH * 2);
+    addWall(halfW + thickness / 2, 0, thickness, halfH * 2);
+
+    const boundary = mergeIntoOne("boundary-walls", this.ambientStoneMaterial, parts);
+    if (boundary) staticMesh(boundary);
+  }
+
+  rebuild(seed: number, mastery: number) {
+    for (const mesh of this.dynamicMeshes) {
+      mesh.dispose(false, true);
+    }
+    this.dynamicMeshes.length = 0;
+
+    for (const node of this.dynamicNodes) {
+      node.dispose(false, true);
+    }
+    this.dynamicNodes.length = 0;
+
+    this.revealables.length = 0;
+    this.waves.length = 0;
+    this.gateMeshes.length = 0;
+    this.markers.length = 0;
+    this.traps.length = 0;
+    this.wallRects.length = 0;
+    this.doorRects.length = 0;
+    this.gateRect = null;
+    this.rooms = [];
+
+    this.buildLevel(seed, mastery);
+  }
+
+  private buildLevel(seed: number, mastery: number) {
+    const layout = generate3DEchoLayout(seed, mastery);
+
+    this.startPoint.copyFrom(layout.startPoint);
+    this.initialHeading.copyFrom(layout.initialHeading);
+    this.exitPoint.copyFrom(layout.exitPoint);
+    this.listenerPath = layout.listenerPath.map((p) => p.clone());
+
+    // 1. Maze walls. Most stay ambiently visible (merged into one draw call) so the
+    // corridors actually read as a maze; a minority — always off the solution route to
+    // every marker and the gate (see selectHiddenWalls) — are secret doors instead: they
+    // look like an ordinary wall at rest (never truly invisible), and getting close or
+    // pinging one with an echo fades it into a passable, faintly transparent doorway
+    // that stays open and visible for the rest of the run.
+    const hiddenKeys = new Set(layout.hiddenWalls.map((wall) => wall.join(",")));
+    const ambientWallParts: Mesh[] = [];
+
+    layout.walls.forEach((placement, index) => {
+      const [x, z, width, depth, height] = placement;
+      if (hiddenKeys.has(placement.join(","))) {
+        this.buildSecretDoor(placement, index);
+      } else {
+        this.wallRects.push(placementToRect(placement));
+        const box = CreateBox(`maze-wall-part-${index}`, { width, height, depth }, this.scene);
+        box.position.set(x, height / 2, z);
+        ambientWallParts.push(box);
+      }
+    });
+    const ambientWallMesh = mergeIntoOne("maze-walls-ambient", this.ambientStoneMaterial, ambientWallParts);
+    if (ambientWallMesh) {
+      staticMesh(ambientWallMesh);
+      this.dynamicMeshes.push(ambientWallMesh);
+    }
+
+    this.gateRect = placementToRect(layout.gateWallPlacement);
+    this.rooms = layout.rooms;
+
+    // 2. Procedural Columns — ambient decor, merged into one draw call.
+    const columnParts: Mesh[] = layout.columns.map(([x, z, height, width], index) => {
+      const column = CreateBox(`column-part-${index}`, { width: 0.62, height: 1, depth: 0.62 }, this.scene);
+      column.position.set(x, height / 2, z);
+      column.scaling.set(width, height, width * (index % 3 === 0 ? 1.25 : 0.92));
+      column.rotation.y = (index % 4) * 0.19;
+      return column;
+    });
+    const columnMesh = mergeIntoOne("archive-columns", this.ambientStoneMaterial, columnParts);
+    if (columnMesh) {
+      staticMesh(columnMesh);
+      this.dynamicMeshes.push(columnMesh);
+    }
+
+    // 3. Procedural Rubble & Grass Props — ambient decor, merged into one draw call each.
+    const rubbleParts: Mesh[] = layout.rubble.map(([x, z, scale, rotation], index) => {
+      const rock = CreateBox(`rubble-part-${index}`, { width: 0.7, height: 0.35, depth: 0.55 }, this.scene);
+      rock.position.set(x, 0.17, z);
+      rock.scaling.set(scale, scale * (index % 3 === 0 ? 1.2 : 0.85), scale * 0.82);
+      rock.rotation.y = rotation;
+      return rock;
+    });
+    const rubbleMesh = mergeIntoOne("archive-rubble", this.ambientStoneMaterial, rubbleParts);
+    if (rubbleMesh) {
+      staticMesh(rubbleMesh);
+      this.dynamicMeshes.push(rubbleMesh);
+    }
+
+    const grassParts: Mesh[] = [];
+    layout.grass.forEach(([x, z], index) => {
+      for (let blade = 0; blade < 3; blade += 1) {
+        const grassBlade = CreateBox(`grass-part-${index}-${blade}`, { width: 0.06, height: 0.55, depth: 0.06 }, this.scene);
+        grassBlade.position.set(x + (blade - 1) * 0.12, 0.26, z + (blade % 2) * 0.1);
+        grassBlade.rotation.z = (blade - 1) * 0.26;
+        grassBlade.rotation.y = blade * 0.9;
+        grassParts.push(grassBlade);
+      }
+    });
+    const grassMesh = mergeIntoOne("archive-grass", this.grassMaterial, grassParts);
+    if (grassMesh) {
+      staticMesh(grassMesh);
+      this.dynamicMeshes.push(grassMesh);
+    }
+
+    // 4. Procedural Acoustic Traps (Tuzaklar - Titreşim/Yankı Kırık Plakaları)
+    this.traps = layout.traps.map(([tx, tz, radius], index) => {
+      const trapMesh = CreateBox(`trap-plate-${index}`, { width: 1.28, height: 0.03, depth: 1.28 }, this.scene);
+      trapMesh.position.set(tx, 0.015, tz);
+
+      const trapMaterial = new StandardMaterial(`trap-mat-${index}`, this.scene);
+      trapMaterial.diffuseColor = Color3.FromHexString("#1c2220");
+      trapMaterial.emissiveColor = Color3.FromHexString("#0e1413");
+      trapMaterial.specularColor = Color3.Black();
+
+      const trapGlyph = CreatePlane(`trap-glyph-${index}`, { size: 0.92 }, this.scene);
+      trapGlyph.parent = trapMesh;
+      trapGlyph.rotation.x = Math.PI / 2;
+      trapGlyph.position.y = 0.02;
+      const glyphMat = new StandardMaterial(`trap-glyph-mat-${index}`, this.scene);
+      const glyphTexture = new Texture(assets.echoGlyph, this.scene, true, false);
+      glyphTexture.hasAlpha = true;
+      glyphMat.diffuseTexture = glyphTexture;
+      glyphMat.emissiveTexture = glyphTexture;
+      glyphMat.useAlphaFromDiffuseTexture = true;
+      glyphMat.backFaceCulling = false;
+      glyphMat.emissiveColor = Color3.FromHexString("#ff4422");
+      trapGlyph.material = glyphMat;
+      trapGlyph.visibility = 0.08;
+
+      trapMesh.material = trapMaterial;
+      staticMesh(trapMesh);
+      this.dynamicMeshes.push(trapMesh, trapGlyph);
+
+      this.registerRevealable(trapMesh, new Vector3(tx, 0, tz), 1, false, {
+        proximityRadius: 2.2,
+        proximityCap: 0.65,
+        apply: (reveal) => {
+          const intensity = Math.max(0.08, reveal);
+          trapGlyph.visibility = intensity;
+          trapMaterial.emissiveColor = Color3.FromHexString("#ff3311").scale(intensity * 0.9);
+          glyphMat.emissiveColor = Color3.FromHexString("#ff2200").scale(intensity * 1.3);
+        },
+      });
+
+      return {
+        id: `trap-${index}`,
+        point: new Vector3(tx, 0, tz),
+        radius,
+        mesh: trapMesh,
+        material: trapMaterial,
+        triggered: false,
+      };
+    });
+
+    // 5. Procedural Markers
+    this.markers = layout.markers.map((definition) => {
+      const root = new TransformNode(definition.id, this.scene);
+      root.position.copyFrom(definition.point);
+      this.dynamicNodes.push(root);
+
+      const baseMaterial = new StandardMaterial(`${definition.id}-base`, this.scene);
+      baseMaterial.diffuseColor = Color3.FromHexString("#293033");
+      baseMaterial.specularColor = Color3.Black();
+
+      const ringMaterial = new StandardMaterial(`${definition.id}-ring`, this.scene);
+      ringMaterial.diffuseColor = Color3.FromHexString("#273738");
+      ringMaterial.emissiveColor = Color3.FromHexString("#142425");
+
+      const coreMaterial = new StandardMaterial(`${definition.id}-core`, this.scene);
+      coreMaterial.diffuseColor = Color3.FromHexString("#553b2c");
+      coreMaterial.emissiveColor = Color3.FromHexString("#201510");
+
+      const plinth = CreateCylinder(`${definition.id}-plinth`, { diameterTop: 0.95, diameterBottom: 1.3, height: 0.5, tessellation: 8 }, this.scene);
+      plinth.parent = root;
+      plinth.position.y = 0.25;
+      plinth.material = baseMaterial;
+
+      const ring = CreateCylinder(`${definition.id}-ring-geometry`, { diameter: 0.92, height: 0.13, tessellation: 32 }, this.scene);
+      ring.parent = root;
+      ring.position.y = 0.53;
+      ring.material = ringMaterial;
+
+      // A readable low-poly acoustic key: a shaft, a vertical bow, and two
+      // small teeth. It keeps the same reveal/activation behavior but reads as
+      // an objective from a distance instead of a stack of generic cylinders.
+      const core = CreateBox(`${definition.id}-key-shaft`, { width: 0.14, height: 0.78, depth: 0.14 }, this.scene);
+      core.parent = root;
+      core.position.set(0, 0.88, 0);
+      core.material = coreMaterial;
+
+      const keyBow = CreateTorus(`${definition.id}-key-bow`, { diameter: 0.44, thickness: 0.085, tessellation: 16 }, this.scene);
+      keyBow.parent = root;
+      keyBow.position.set(0, 1.34, 0);
+      keyBow.rotation.x = Math.PI / 2;
+      keyBow.material = coreMaterial;
+
+      const keyToothA = CreateBox(`${definition.id}-key-tooth-a`, { width: 0.24, height: 0.1, depth: 0.16 }, this.scene);
+      keyToothA.parent = root;
+      keyToothA.position.set(0.06, 0.53, 0);
+      keyToothA.material = coreMaterial;
+
+      const keyToothB = CreateBox(`${definition.id}-key-tooth-b`, { width: 0.18, height: 0.1, depth: 0.16 }, this.scene);
+      keyToothB.parent = root;
+      keyToothB.position.set(-0.08, 0.43, 0);
+      keyToothB.material = coreMaterial;
+
+      const glyph = CreatePlane(`${definition.id}-glyph`, { size: 1.1 }, this.scene);
+      glyph.parent = root;
+      glyph.rotation.x = Math.PI / 2;
+      glyph.position.y = 0.61;
+      const glyphMaterial = new StandardMaterial(`${definition.id}-glyph-material`, this.scene);
+      const glyphTexture = new Texture(assets.echoGlyph, this.scene, true, false);
+      glyphTexture.hasAlpha = true;
+      glyphMaterial.diffuseTexture = glyphTexture;
+      glyphMaterial.emissiveTexture = glyphTexture;
+      glyphMaterial.useAlphaFromDiffuseTexture = true;
+      glyphMaterial.backFaceCulling = false;
+      glyphMaterial.emissiveColor = Color3.FromHexString("#507f7b");
+      glyph.material = glyphMaterial;
+
+      const accentRing = CreateTorus(`${definition.id}-accent-ring`, { diameter: 1.15, thickness: 0.045, tessellation: 32 }, this.scene);
+      accentRing.parent = root;
+      accentRing.position.y = 0.52;
+      accentRing.material = this.copperMaterial;
+
+      [plinth, ring, core, keyBow, keyToothA, keyToothB, glyph, accentRing].forEach((mesh) => {
+        this.registerRevealable(mesh, root.position, 1, false, {
+          proximityRadius: MARKER_PROXIMITY_RADIUS,
+          proximityCap: MARKER_PROXIMITY_CAP,
+        });
+        this.dynamicMeshes.push(mesh);
+      });
+
+      return { id: definition.id, label: definition.label, point: root.position.clone(), root, coreMaterial, ringMaterial, complete: false };
+    });
+
+    // 6. Procedural Exit Gate
+    this.buildGate(layout.exitPoint, layout.gateRotation);
+  }
+
+  /**
+   * A "secret door": built as an ancient stone portal archway with sturdy side pillars
+   * and a carved lintel. The central stone slab is flush with the wall at rest.
+   * When pinged by an echo or approached closely, the archway frame and turquoise runic
+   * sigil glow brightly, and the door slab smoothly sinks into the floor, opening the way!
+   */
+  private buildSecretDoor(placement: WallPlacement, index: number) {
+    const [x, z, width, depth, height] = placement;
+    const rect = placementToRect(placement);
+    const horizontal = depth <= width;
+
+    // Moving central stone slab
+    const doorMaterial = this.stoneMaterial.clone(`secret-door-mat-${index}`);
+    doorMaterial.alpha = 1;
+    const slabWidth = horizontal ? Math.max(0.6, width * 0.72) : width;
+    const slabDepth = horizontal ? depth : Math.max(0.6, depth * 0.72);
+    const slab = CreateBox(`maze-door-slab-${index}`, { width: slabWidth, height, depth: slabDepth }, this.scene);
+    slab.material = doorMaterial;
+    slab.position.set(x, height / 2, z);
+    slab.visibility = 1;
+
+    // Archway Pillars (Left & Right / North & South)
+    const pillarThickness = horizontal ? (width - slabWidth) / 2 : (depth - slabDepth) / 2;
+    const pillarMaterial = this.ambientStoneMaterial;
+
+    const p1 = CreateBox(
+      `maze-door-p1-${index}`,
+      horizontal
+        ? { width: pillarThickness + 0.08, height: height * 1.08, depth: depth + 0.16 }
+        : { width: width + 0.16, height: height * 1.08, depth: pillarThickness + 0.08 },
+      this.scene,
+    );
+    const p1Offset = (horizontal ? slabWidth / 2 + pillarThickness / 2 : slabDepth / 2 + pillarThickness / 2);
+    p1.position.set(
+      horizontal ? x - p1Offset : x,
+      (height * 1.08) / 2,
+      horizontal ? z : z - p1Offset,
+    );
+    p1.material = pillarMaterial;
+
+    const p2 = CreateBox(
+      `maze-door-p2-${index}`,
+      horizontal
+        ? { width: pillarThickness + 0.08, height: height * 1.08, depth: depth + 0.16 }
+        : { width: width + 0.16, height: height * 1.08, depth: pillarThickness + 0.08 },
+      this.scene,
+    );
+    p2.position.set(
+      horizontal ? x + p1Offset : x,
+      (height * 1.08) / 2,
+      horizontal ? z : z + p1Offset,
+    );
+    p2.material = pillarMaterial;
+
+    // Lintel (Top Arch Crossbeam)
+    const lintel = CreateBox(
+      `maze-door-lintel-${index}`,
+      horizontal
+        ? { width: width + 0.22, height: 0.38, depth: depth + 0.22 }
+        : { width: width + 0.22, height: 0.38, depth: depth + 0.22 },
+      this.scene,
+    );
+    lintel.position.set(x, height + 0.19, z);
+    lintel.material = pillarMaterial;
+
+    // Glowing Arch Trim
+    const trimMaterial = this.copperMaterial.clone(`secret-door-trim-${index}`);
+    trimMaterial.alpha = 0.9;
+    const trim = CreateBox(
+      `maze-door-trim-${index}`,
+      horizontal
+        ? { width: slabWidth * 0.96, height: 0.1, depth: depth + 0.18 }
+        : { width: width + 0.18, height: 0.1, depth: slabDepth * 0.96 },
+      this.scene,
+    );
+    trim.position.set(x, height + 0.02, z);
+    trim.material = trimMaterial;
+    trim.visibility = 0.2;
+
+    // Runic Sigil Glyph on the Door
+    const glyph = CreatePlane(`maze-door-glyph-${index}`, { size: 0.9 }, this.scene);
+    glyph.rotation.y = horizontal ? 0 : Math.PI / 2;
+    glyph.position.set(x, height * 0.55, z + (horizontal ? depth / 2 + 0.02 : 0));
+    if (!horizontal) glyph.position.x = x + width / 2 + 0.02;
+    const glyphMaterial = new StandardMaterial(`secret-door-glyph-${index}`, this.scene);
+    const glyphTexture = new Texture(assets.echoGlyph, this.scene, true, false);
+    glyphTexture.hasAlpha = true;
+    glyphMaterial.diffuseTexture = glyphTexture;
+    glyphMaterial.emissiveTexture = glyphTexture;
+    glyphMaterial.useAlphaFromDiffuseTexture = true;
+    glyphMaterial.backFaceCulling = false;
+    glyphMaterial.emissiveColor = turquoise.scale(0.5);
+    glyph.material = glyphMaterial;
+    glyph.visibility = 0.15;
+
+    [slab, p1, p2, lintel, trim, glyph].forEach((mesh) => {
+      mesh.isPickable = false;
+    });
+    this.dynamicMeshes.push(slab, p1, p2, lintel, trim, glyph);
+
+    const closedY = height / 2;
+    const openY = -height * 0.85;
+
+    this.registerRevealable(slab, new Vector3(x, 0, z), 1, false, {
+      proximityRadius: DOOR_PROXIMITY_RADIUS,
+      proximityCap: 1,
+      autoOpens: true,
+      apply: (reveal, opened) => {
+        const openness = opened ? 1 : Math.min(1, reveal * 1.25);
+        slab.position.y = closedY + (openY - closedY) * openness;
+        doorMaterial.alpha = 1 - openness * 0.4;
+        trim.visibility = Math.max(0.2, reveal);
+        glyph.visibility = Math.max(0.15, (1 - openness) * reveal * 1.2);
+        trimMaterial.emissiveColor = copper.scale(opened ? 0.75 : 0.3 * reveal);
+        glyphMaterial.emissiveColor = turquoise.scale(opened ? 0.9 : 0.4 + reveal * 0.6);
+      },
+    });
+    const entry = this.revealables[this.revealables.length - 1];
+    this.doorRects.push({ rect, entry });
+  }
+
+  private buildGate(position: Vector3, rotationY: number) {
+    this.gateRoot = new TransformNode("gate-root", this.scene);
+    this.gateRoot.position.copyFrom(position);
+    this.gateRoot.rotation.y = rotationY;
+    this.dynamicNodes.push(this.gateRoot);
+
+    const addGateChild = (mesh: AbstractMesh, persistent = false) => {
+      mesh.material = this.stoneMaterial;
+      mesh.parent = this.gateRoot;
+      if (persistent) this.registerPersistent(mesh, position, 1);
+      else this.registerRevealable(mesh, position, 0.95, true, { proximityRadius: GATE_PROXIMITY_RADIUS, proximityCap: 1 });
+      this.gateMeshes.push(mesh);
+      this.dynamicMeshes.push(mesh);
+      staticMesh(mesh);
+      return mesh;
+    };
+
+    const left = CreateBox("gate-left", { width: 0.72, height: 3.0, depth: 0.9 }, this.scene);
+    left.position.set(-0.85, 1.5, 0);
+    addGateChild(left);
+
+    const right = CreateBox("gate-right", { width: 0.72, height: 3.0, depth: 0.9 }, this.scene);
+    right.position.set(0.85, 1.5, 0);
+    addGateChild(right);
+
+    const top = CreateBox("gate-top", { width: 2.42, height: 0.62, depth: 0.9 }, this.scene);
+    top.position.set(0, 2.72, 0);
+    addGateChild(top);
+
+    const lintel = CreateBox("gate-lintel", { width: 2.8, height: 0.18, depth: 1.12 }, this.scene);
+    lintel.position.set(0, 0.18, 0);
+    addGateChild(lintel);
+
+    const seal = CreatePlane("exit-seal", { size: 1.35 }, this.scene);
+    seal.parent = this.gateRoot;
+    seal.position.set(0, 1.55, -0.52);
+    seal.rotation.y = Math.PI;
+    const sealMaterial = new StandardMaterial("exit-seal-material", this.scene);
+    const sealTexture = new Texture(assets.echoGlyph, this.scene, true, false);
+    sealTexture.hasAlpha = true;
+    sealMaterial.diffuseTexture = sealTexture;
+    sealMaterial.emissiveTexture = sealTexture;
+    sealMaterial.useAlphaFromDiffuseTexture = true;
+    sealMaterial.backFaceCulling = false;
+    sealMaterial.diffuseColor = Color3.FromHexString("#3d2b20");
+    sealMaterial.emissiveColor = Color3.FromHexString("#1d110d");
+    seal.material = sealMaterial;
+    this.registerRevealable(seal, position, 1, true, { proximityRadius: GATE_PROXIMITY_RADIUS, proximityCap: 1 });
+    this.gateMeshes.push(seal);
+    this.dynamicMeshes.push(seal);
+    this.gateSeal = sealMaterial;
+
+    [0.72, 1.1].forEach((diameter, index) => {
+      const ring = CreateTorus(`gate-ring-${index}`, { diameter, thickness: 0.055, tessellation: 32 }, this.scene);
+      ring.parent = this.gateRoot;
+      ring.position.set(0, 1.55, -0.57);
+      ring.rotation.x = Math.PI / 2;
+      ring.material = this.copperMaterial;
+      this.registerRevealable(ring, position, 1, true, { proximityRadius: GATE_PROXIMITY_RADIUS, proximityCap: 1 });
+      this.gateMeshes.push(ring);
+      this.dynamicMeshes.push(ring);
+      staticMesh(ring);
+    });
+
+    [-0.82, 0.82].forEach((offset, index) => {
+      const lamp = CreateCylinder(`gate-lamp-${index}`, { diameter: 0.16, height: 0.46, tessellation: 8 }, this.scene);
+      lamp.parent = this.gateRoot;
+      lamp.material = this.copperMaterial;
+      lamp.position.set(offset, 0.7, -0.5);
+      this.registerRevealable(lamp, position, 1, true, { proximityRadius: GATE_PROXIMITY_RADIUS, proximityCap: 1 });
+      this.gateMeshes.push(lamp);
+      this.dynamicMeshes.push(lamp);
+      staticMesh(lamp);
+    });
+  }
+
+
+  private nearRect(px: number, pz: number, radius: number, rect: Rect) {
+    return px > rect.xMin - radius && px < rect.xMax + radius && pz > rect.zMin - radius && pz < rect.zMax + radius;
+  }
+
+  private blocked(px: number, pz: number, radius: number) {
+    for (const rect of this.boundaryRects) {
+      if (this.nearRect(px, pz, radius, rect)) return true;
+    }
+    for (const rect of this.wallRects) {
+      if (this.nearRect(px, pz, radius, rect)) return true;
+    }
+    for (const door of this.doorRects) {
+      if (!door.entry.persistent && this.nearRect(px, pz, radius, door.rect)) return true;
+    }
+    if (!this.doorIsOpen && this.gateRect && this.nearRect(px, pz, radius, this.gateRect)) return true;
+    return false;
+  }
+
+  /** Axis-separated slide collision against maze walls + the locked gate. */
+  resolveMove(x: number, z: number, dx: number, dz: number, radius = 0.34) {
+    let nx = x + dx;
+    if (this.blocked(nx, z, radius)) nx = x;
+    let nz = z + dz;
+    if (this.blocked(nx, nz, radius)) nz = z;
+    return { x: nx, z: nz };
+  }
+
+  themeAt(x: number, z: number): 0 | 1 | 2 | 3 {
+    let best: { x: number; z: number; theme: 0 | 1 | 2 | 3 } | null = null;
+    let bestDist = Infinity;
+    for (const room of this.rooms) {
+      const d = Math.hypot(room.x - x, room.z - z);
+      if (d < bestDist) {
+        bestDist = d;
+        best = room;
+      }
+    }
+    return best?.theme ?? 0;
+  }
+
+  private setReveal(entry: RevealEntry, reveal: number) {
+    entry.mesh.visibility = reveal;
+  }
+
+  triggerPulse(origin: Vector3) {
+    this.waves.push({ origin: origin.clone(), age: 0 });
+    if (this.waves.length > 3) this.waves.shift();
+  }
+
+  update(delta: number, playerX = 0, playerZ = 0) {
+    this.revealClock += delta;
+    this.waves.forEach((wave) => { wave.age += delta; });
+    while (this.waves[0] && this.waves[0].age > WAVE_LIFETIME) this.waves.shift();
+
+    this.revealables.forEach((entry) => {
+      if (entry.pointGetter) {
+        const live = entry.pointGetter();
+        entry.point.set(live.x, 0, live.z);
+      }
+      let waveReveal = 0;
+      this.waves.forEach((wave) => {
+        const distance = Math.hypot(entry.point.x - wave.origin.x, entry.point.z - wave.origin.z);
+        const waveTime = wave.age - distance / WAVE_SPEED;
+        if (waveTime < -0.12 || waveTime > REVEAL_TRAIL) return;
+        const front = waveTime < 0.18 ? Math.max(0, (waveTime + 0.12) / 0.3) : 1;
+        const trail = waveTime <= 0.18 ? 1 : Math.max(0, 1 - (waveTime - 0.18) / (REVEAL_TRAIL - 0.18));
+        waveReveal = Math.max(waveReveal, front * trail * entry.baseVisibility);
+      });
+
+      let proximityReveal = 0;
+      if (entry.proximityRadius > 0) {
+        const distance = Math.hypot(entry.point.x - playerX, entry.point.z - playerZ);
+        if (distance < entry.proximityRadius) {
+          proximityReveal = Math.min(entry.proximityCap, (1 - distance / entry.proximityRadius) * entry.proximityCap) * entry.baseVisibility;
+        }
+      }
+
+      const combined = Math.max(waveReveal, proximityReveal);
+
+      // A hidden trap/gate that an echo (or plain proximity) has ever touched stays dimly
+      // visible from then on — you shouldn't have to keep re-pinging something you already
+      // found. The 0.05 threshold is deliberately above the passive "tell" baseline (0.07
+      // visibility but no actual signal) so just standing near one doesn't count on its own.
+      if (entry.sticky && !entry.persistent && combined > 0.05) entry.persistent = true;
+      // Secret doors open for good — and stay passable — once either signal crosses the
+      // open threshold, whether that came from walking close or from an echo pulse.
+      if (entry.autoOpens && !entry.persistent && combined > DOOR_OPEN_THRESHOLD) entry.persistent = true;
+
+      const reveal = entry.persistent
+        ? Math.max(combined, (entry.sticky ? 0.55 : entry.autoOpens ? DOOR_OPEN_FLOOR : 0.82) * entry.baseVisibility)
+        : entry.sticky
+          ? Math.max(combined, 0.07)
+          : combined;
+
+      if (entry.apply) entry.apply(reveal, entry.persistent);
+      else this.setReveal(entry, reveal);
+    });
+  }
+
+  activateMarker(marker: Marker) {
+    marker.complete = true;
+    marker.coreMaterial.emissiveColor.copyFrom(copper.scale(0.95));
+    marker.coreMaterial.diffuseColor.copyFrom(copper);
+    marker.ringMaterial.emissiveColor.copyFrom(turquoise.scale(0.65));
+    marker.root.scaling.setAll(1.08);
+    const markerMeshes = new Set(marker.root.getChildMeshes());
+    this.revealables.forEach((entry) => {
+      if (markerMeshes.has(entry.mesh)) {
+        entry.persistent = true;
+        this.setReveal(entry, 0.82);
+      }
+    });
+  }
+
+  setDoorOpen(open: boolean) {
+    this.doorIsOpen = open;
+    this.gateSeal.emissiveColor.copyFrom(open ? copper.scale(0.92) : Color3.FromHexString("#1d110d"));
+    this.gateSeal.diffuseColor.copyFrom(open ? Color3.FromHexString("#c9824a") : Color3.FromHexString("#3d2b20"));
+    this.revealables.forEach((entry) => {
+      if (this.gateMeshes.includes(entry.mesh)) {
+        entry.persistent = open;
+        if (!open) {
+          this.setReveal(entry, 0);
+        } else {
+          this.setReveal(entry, 0.9);
+        }
+      }
+    });
+  }
+
+  reset() {
+    this.waves.length = 0;
+    this.revealClock = 0;
+    this.markers.forEach((marker) => {
+      marker.complete = false;
+      marker.root.scaling.setAll(1);
+      marker.coreMaterial.diffuseColor.copyFrom(Color3.FromHexString("#553b2c"));
+      marker.coreMaterial.emissiveColor.copyFrom(Color3.FromHexString("#201510"));
+      marker.ringMaterial.emissiveColor.copyFrom(Color3.FromHexString("#142425"));
+    });
+    this.traps.forEach((trap) => {
+      trap.triggered = false;
+    });
+    this.revealables.forEach((entry) => {
+      entry.persistent = false;
+      if (entry.apply) entry.apply(0, false);
+      else this.setReveal(entry, 0);
+    });
+    this.setDoorOpen(false);
+  }
+}

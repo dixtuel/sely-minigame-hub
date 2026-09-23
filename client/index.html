@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="tr">
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+    <!-- Google Consent Mode v2 (AdSense Privacy Defaults) -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      try {
+        var _s = localStorage.getItem("sely-cookie-consent");
+        var _granted = _s === "accepted";
+        gtag("consent", "default", {
+          "ad_storage": _granted ? "granted" : "denied",
+          "ad_user_data": _granted ? "granted" : "denied",
+          "ad_personalization": _granted ? "granted" : "denied",
+          "analytics_storage": _granted ? "granted" : "denied",
+          "wait_for_update": 500
+        });
+        if (!_granted) {
+          (window.adsbygoogle = window.adsbygoogle || []).requestNonPersonalizedAds = 1;
+        }
+      } catch (e) {
+        gtag("consent", "default", {
+          "ad_storage": "denied",
+          "ad_user_data": "denied",
+          "ad_personalization": "denied",
+          "analytics_storage": "denied",
+          "wait_for_update": 500
+        });
+      }
+    </script>
+    <meta name="description" content="SELY.TR — Tarayıcıda oynanan kısa ve akıcı mini oyunlar. Her gün yeni bir set, ustalıkla derinleşen mekanikler ve saf oyun keyfi." />
+    <!-- PWA & Mobile Web App Capabilities (Android, iOS & Desktop) -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SELY" />
+    <meta name="application-name" content="SELY" />
+    <meta name="theme-color" content="#f6f0e3" />
+    <meta name="theme-color" content="#172842" media="(prefers-color-scheme: dark)" />
+    <meta name="msapplication-TileColor" content="#f6f0e3" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <meta name="msapplication-starturl" content="/" />
+    <meta name="msapplication-navbutton-color" content="#f6f0e3" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Icons: Full ladder for desktop + mobile PWA install -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48x48.png" />
+    <link rel="icon" type="image/png" sizes="72x72" href="/icons/icon-72x72.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/icons/icon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="128x128" href="/icons/icon-128x128.png" />
+    <link rel="icon" type="image/png" sizes="144x144" href="/icons/icon-144x144.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="256x256" href="/icons/icon-256x256.png" />
+    <link rel="icon" type="image/png" sizes="384x384" href="/icons/icon-384x384.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167x167.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
+    <link rel="canonical" href="https://sely.tr/" />
+    <!-- High-Performance Preconnected Google Fonts (Zero Render-Blocking Waterfall) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=DM+Mono:wght@400;500&display=swap" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SELY.TR" />
+    <meta property="og:title" content="SELY.TR — MiniGame Hub" />
+    <meta property="og:description" content="Tarayıcıda oynanan kısa ve akıcı mini oyunlar. Her gün yeni bir set, ustalıkla derinleşen mekanikler ve saf oyun keyfi." />
+    <meta property="og:url" content="https://sely.tr/" />
+    <meta property="og:image" content="https://sely.tr/storage/sely-social-card-title_b4649a50.png" />
+    <meta property="og:image:width" content="1920" />
+    <meta property="og:image:height" content="1080" />
+    <meta property="og:image:alt" content="SELY.TR MiniGame Hub — Günlük mini oyun kataloğu" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SELY.TR — MiniGame Hub" />
+    <meta name="twitter:description" content="Tarayıcıda oynanan kısa ve akıcı mini oyunlar. Her gün yeni bir set, ustalıkla derinleşen mekanikler ve saf oyun keyfi." />
+    <meta name="twitter:image" content="https://sely.tr/storage/sely-social-card-title_b4649a50.png" />
+    <title>SELY.TR — MiniGame Hub</title>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+
+</html>

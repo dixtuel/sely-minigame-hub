@@ -1,0 +1,91 @@
+# Combines GitHub's two official starter workflows for this repo's actual stack:
+# "Node.js" (github/starter-workflows: ci/node.js.yml) for the Vite/React frontend, and
+# "Rust" (github/starter-workflows: ci/rust.yml) for the Axum backend + sely-game-core WASM
+# crate, since the 2026-09-20 Rust migration. The Rust job adds Swatinem/rust-cache on top
+# of the bare starter template — without it, every run recompiles ~400 crates from scratch.
+
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - '**/*.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/dependabot.yml'
+      - '.github/pull_request_template.md'
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore:
+      - '**/*.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/dependabot.yml'
+      - '.github/pull_request_template.md'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  frontend:
+    name: Frontend Test & Build (Node.js)
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v6
+
+    - name: Use Node.js 24.x
+      uses: actions/setup-node@v7
+      with:
+        node-version: 24.x
+        cache: 'pnpm'
+
+    - name: Install dependencies (frozen lockfile)
+      run: pnpm install --frozen-lockfile
+
+    - name: Run TypeScript check
+      run: pnpm run check
+
+    - name: Run test suite
+      run: pnpm run test
+
+    - name: Audit public release compliance
+      run: pnpm run audit:public
+
+    - name: Verify production build
+      run: pnpm run build
+
+  backend:
+    name: Backend Check & Test (Rust)
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo registry & build artifacts
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: |
+          .
+          crates/sely-game-core
+
+    - name: Check standalone/serverless binaries
+      run: cargo check --bin standalone --bin index
+
+    - name: Run backend unit tests
+      run: cargo test --lib
+
+    - name: Check sely-game-core WASM crate
+      working-directory: crates/sely-game-core
+      run: cargo check

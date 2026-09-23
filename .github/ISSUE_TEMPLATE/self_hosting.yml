@@ -1,0 +1,37 @@
+name: Self-Hosting Issue
+description: Problem building, running, or deploying your own instance (Docker, standalone binary, Vercel)
+labels: ["self-hosting"]
+body:
+  - type: dropdown
+    id: method
+    attributes:
+      label: Deployment method
+      options:
+        - Docker Compose
+        - Standalone Rust binary (cargo run/build)
+        - Vercel (own fork)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What went wrong?
+      description: Include the exact command you ran and the full error output.
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS / environment
+      placeholder: "e.g. Ubuntu 24.04, macOS 15, Docker 27"
+
+  - type: input
+    id: commit
+    attributes:
+      label: Branch / commit
+      placeholder: "main @ <commit sha>"
+    validations:
+      required: true

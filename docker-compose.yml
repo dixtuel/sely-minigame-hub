@@ -1,0 +1,6 @@
+# ==============================================================================
+# SELY MiniGame Hub — Root Docker Compose Redirect
+# Delegates directly to the isolated multi-container setup under docker/
+# ==============================================================================
+include:
+  - docker/docker-compose.yml

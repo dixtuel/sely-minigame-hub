@@ -1,0 +1,20 @@
+{
+  "name": "sely-game-core",
+  "type": "module",
+  "collaborators": [
+    "Asrın Kılıç <asrinklcc@sely.tr>"
+  ],
+  "description": "High-performance WebAssembly game logic engine for SELY MiniGame Hub",
+  "version": "2.0.0",
+  "license": "AGPL-3.0",
+  "files": [
+    "sely_game_core_bg.wasm",
+    "sely_game_core.js",
+    "sely_game_core.d.ts"
+  ],
+  "main": "sely_game_core.js",
+  "types": "sely_game_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

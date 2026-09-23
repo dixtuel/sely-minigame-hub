@@ -1,0 +1,92 @@
+/* ==========================================================================
+   Asteroids — Mobile Virtual Controls
+   Floating overlays inside the canvas container.
+   Joystick (left) and Fire (right) at the same bottom height.
+   ========================================================================== */
+
+/* Joystick pad — analog drag area */
+.asteroids-joystick {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid rgba(246, 240, 227, 0.4);
+  background: radial-gradient(circle, rgba(233, 86, 63, 0.16), rgba(27, 26, 27, 0.55) 62%, rgba(27, 26, 27, 0.3) 63%);
+  touch-action: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Floating position: bottom-left of canvas, vertically aligned with fire btn */
+.asteroids-joystick-floating {
+  position: absolute;
+  z-index: 20;
+  left: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Crosshair lines */
+.asteroids-joystick::before,
+.asteroids-joystick::after {
+  content: "";
+  position: absolute;
+  background: rgba(246, 240, 227, 0.14);
+  pointer-events: none;
+}
+.asteroids-joystick::before { width: 1px; height: 70%; }
+.asteroids-joystick::after { width: 70%; height: 1px; }
+
+/* Draggable knob */
+.asteroids-joystick-knob {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(246, 240, 227, 0.7);
+  background: radial-gradient(circle at 35% 30%, rgba(233, 86, 63, 0.95), rgba(41, 59, 117, 0.9) 70%);
+  box-shadow: 0 0 0 6px rgba(233, 86, 63, 0.12), 0 6px 16px rgba(0, 0, 0, 0.4);
+  transform: translate(var(--joy-x, 0px), var(--joy-y, 0px));
+  transition: transform 0.08s linear;
+  pointer-events: none;
+}
+
+/* Fire button floating position: bottom-right, same height as joystick */
+.asteroids-fire-floating {
+  position: absolute;
+  z-index: 20;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Fire button — same size as joystick for visual balance */
+.asteroids-fire-btn {
+  width: 100px;
+  height: 100px;
+  background: rgba(233, 86, 63, 0.9);
+  color: #F6F0E3;
+  border: 2px solid #F6F0E3;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: transform 80ms ease, background 80ms ease;
+}
+
+.asteroids-fire-btn:active {
+  transform: scale(0.93);
+  background: #C9432E;
+}

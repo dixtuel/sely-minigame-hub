@@ -1,0 +1,781 @@
+/* ==========================================================================
+   SELY MiniGame Hub — Archive Hub Modal & 5th Game Card
+   Editorial Neobrutalist UI with Emil Kowalski Fluid Micro-Interactions
+   ========================================================================== */
+
+/* --- 5th Card in Catalog Grid: More Games Card --- */
+.game-card.card-more-games {
+  --card-accent: var(--indigo);
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+  cursor: pointer;
+  position: relative;
+  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+}
+
+.game-card.card-more-games:hover {
+  transform: translate(-3px, -4px) rotate(-0.3deg);
+  box-shadow: 10px 11px 0 var(--ink);
+}
+
+.game-card.card-more-games:active {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.card-more-badge-overlay {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--coral);
+  color: var(--paper);
+  border: 1.5px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+
+.card-more-number {
+  font-size: clamp(38px, 4.5vw, 68px);
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 0.8;
+  letter-spacing: -0.07em;
+  color: var(--paper);
+  text-shadow: 3px 3px 0 var(--ink);
+}
+
+.card-more-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(233, 86, 63, 0.12);
+  border: 1px dashed var(--coral);
+  color: var(--coral);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.card-more-meta {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  justify-content: flex-start !important;
+}
+
+.card-more-games-list {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.4;
+  color: rgba(27, 26, 27, 0.85);
+}
+
+/* --- Featured Block (Daily Note) 4 Games + 5th Archive Box --- */
+.daily-edition-list {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 6px !important;
+  margin: 0 0 16px !important;
+}
+
+.daily-edition-list button {
+  min-height: 42px !important;
+  padding: 6px 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  border: 1px solid var(--ink) !important;
+  background: rgba(246, 240, 227, 0.45) !important;
+  transition: transform 140ms var(--ease-out), background 140ms ease, box-shadow 140ms ease !important;
+  box-shadow: 2px 2px 0 var(--ink) !important;
+}
+
+.daily-edition-list button span {
+  color: var(--coral) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.daily-edition-list button:hover {
+  background: var(--paper) !important;
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+}
+
+.daily-edition-list button:active {
+  transform: translate(1px, 1px) !important;
+  box-shadow: 1px 1px 0 var(--ink) !important;
+}
+
+.daily-edition-list button.daily-more-btn {
+  grid-column: span 2 !important;
+  min-height: 42px !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+  background: var(--ink) !important;
+  color: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+  box-shadow: 3px 3px 0 var(--coral) !important;
+}
+
+.daily-edition-list button.daily-more-btn span {
+  background: var(--coral) !important;
+  color: var(--paper) !important;
+  padding: 2px 6px !important;
+  border-radius: 2px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+}
+
+.daily-edition-list button.daily-more-btn:hover {
+  background: var(--indigo) !important;
+  border-color: var(--indigo) !important;
+  color: var(--paper) !important;
+  box-shadow: 4px 4px 0 var(--coral) !important;
+}
+
+.daily-edition-list button.daily-more-btn:active {
+  transform: translate(1px, 1px) !important;
+  box-shadow: 2px 2px 0 var(--coral) !important;
+}
+
+/* --- Archive Hub Modal --- */
+.archive-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(18, 17, 18, 0.76);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 2vw, 28px);
+  animation: archive-fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes archive-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.archive-modal {
+  /* Sized against both viewport dimensions (dvw/dvh) so it fills the available space
+     dynamically in portrait AND landscape, always centered, instead of relying on a
+     width-only breakpoint that left it small/off-center on short landscape viewports. */
+  width: min(860px, 96dvw);
+  height: min(800px, 92dvh);
+  max-height: 92dvh;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  box-shadow: 10px 10px 0 var(--ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  animation: archive-scale-up 220ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  transform-origin: center center;
+}
+
+@keyframes archive-scale-up {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal Header */
+.archive-header {
+  padding: 20px 24px 18px;
+  background: var(--card);
+  border-bottom: 2px solid var(--ink);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+}
+
+.archive-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.archive-eyebrow-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--coral);
+}
+
+.archive-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  background: var(--indigo);
+  color: var(--paper);
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.archive-header h2 {
+  margin: 0;
+  font-size: clamp(24px, 3.5vw, 36px);
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+  color: var(--ink);
+}
+
+.archive-header p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: rgba(27, 26, 27, 0.78);
+  max-width: 580px;
+}
+
+.archive-close-btn {
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 140ms var(--ease-out), background 140ms ease, box-shadow 140ms ease;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.archive-close-btn:hover {
+  background: var(--coral);
+  color: var(--paper);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.archive-close-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+/* --- Archive Search Toolbar --- */
+.archive-search-toolbar {
+  padding: 12px 24px;
+  background: var(--paper);
+  border-bottom: 1.5px solid var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.archive-search-input-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.archive-search-icon {
+  position: absolute;
+  left: 12px;
+  color: rgba(27, 26, 27, 0.5);
+  pointer-events: none;
+}
+
+.archive-search-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 36px 8px 38px;
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+  outline: none;
+}
+
+.archive-search-input:focus {
+  border-color: var(--indigo);
+  box-shadow: 3px 3px 0 var(--indigo);
+}
+
+.archive-search-clear-btn {
+  position: absolute;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  background: rgba(27, 26, 27, 0.08);
+  border: none;
+  border-radius: 50%;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.archive-search-clear-btn:hover {
+  background: var(--coral);
+  color: var(--paper);
+  transform: scale(1.08);
+}
+
+/* Category Filter Chips */
+.archive-category-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.archive-category-chip {
+  min-height: 38px;
+  padding: 6px 13px;
+  background: var(--card);
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 140ms var(--ease-out), background 140ms ease, color 140ms ease, box-shadow 140ms ease;
+  white-space: nowrap;
+}
+
+.archive-category-chip:hover:not(.is-active) {
+  background: var(--paper);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.archive-category-chip:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+.archive-category-chip.is-active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--coral);
+}
+
+.archive-search-counter {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(27, 26, 27, 0.7);
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+.archive-search-counter b {
+  color: var(--coral);
+}
+
+/* Empty State */
+.archive-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--card);
+  border: 1.5px dashed rgba(27, 26, 27, 0.35);
+}
+
+.archive-empty-icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  background: rgba(233, 86, 63, 0.1);
+  color: var(--coral);
+  border: 1px solid var(--coral);
+  margin-bottom: 16px;
+}
+
+.archive-empty-state h4 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.archive-empty-state p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: rgba(27, 26, 27, 0.68);
+  max-width: 320px;
+}
+
+.archive-empty-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 16px;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 140ms var(--ease-out), background 140ms ease, box-shadow 140ms ease;
+}
+
+.archive-empty-reset-btn:hover {
+  background: var(--coral);
+  color: var(--paper);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.archive-empty-reset-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+/* Modal Scroll Area */
+.archive-body {
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 20px;
+  background-image: radial-gradient(rgba(27, 26, 27, 0.08) 0.6px, transparent 0.6px);
+  background-size: 8px 8px;
+}
+
+/* Archive Games List */
+.archive-games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.archive-game-item {
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  overflow: hidden;
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+
+.archive-game-item:hover {
+  transform: translate(-2px, -3px);
+  box-shadow: 7px 8px 0 var(--ink);
+}
+
+.archive-game-poster-wrap {
+  position: relative;
+  overflow: hidden;
+  background: #1e2033;
+}
+
+.archive-game-poster-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms var(--ease-out);
+}
+
+.archive-game-item:hover .archive-game-poster-wrap img {
+  transform: scale(1.06);
+}
+
+.archive-game-num {
+  position: absolute;
+  bottom: 4px;
+  left: 8px;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--paper);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.archive-game-details {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.archive-game-meta-top {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.archive-game-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--card-accent, var(--coral));
+  font-weight: 700;
+}
+
+.archive-game-details h3 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.05em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.archive-game-motto {
+  margin: 0;
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(27, 26, 27, 0.7);
+  line-height: 1.3;
+}
+
+.archive-game-mechanic {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.archive-game-bottom {
+  border-top: 1px dashed rgba(27, 26, 27, 0.3);
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.archive-game-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: rgba(27, 26, 27, 0.75);
+}
+
+.archive-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--card-accent, var(--coral));
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+}
+
+.archive-play-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.archive-play-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+/* Modal Footer */
+.archive-footer {
+  padding: 14px 24px;
+  background: var(--card);
+  border-top: 1px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: rgba(27, 26, 27, 0.7);
+}
+
+.archive-footer-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.archive-footer-note i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--coral);
+}
+
+/* Responsive adjustments — sizing/centering is handled by the dvw/dvh-based .archive-modal
+   rule above (works for portrait AND landscape); this block only tunes content density. */
+@media (max-width: 640px) {
+  .archive-modal {
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .archive-header {
+    padding: 14px 16px;
+    gap: 10px;
+  }
+  .archive-header h2 {
+    font-size: 22px;
+  }
+  .archive-header p {
+    font-size: 13px;
+  }
+  .archive-close-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .archive-search-toolbar {
+    padding: 10px 14px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .archive-search-input-wrap {
+    min-width: 100%;
+    order: 1;
+  }
+  .archive-search-input {
+    min-height: 44px;
+    font-size: 16px; /* Prevents auto-zoom on iOS */
+    padding: 8px 38px 8px 38px;
+  }
+  .archive-search-clear-btn {
+    width: 32px;
+    height: 32px;
+  }
+  .archive-category-chips {
+    order: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  .archive-category-chip {
+    flex: 1 1 calc(50% - 6px);
+    min-height: 38px;
+    text-align: center;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .archive-search-counter {
+    order: 3;
+    font-size: 10px;
+    padding: 0 4px;
+    width: 100%;
+    text-align: right;
+  }
+  .archive-body {
+    padding: 14px;
+    gap: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .archive-games-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .archive-game-item {
+    grid-template-columns: 100px 1fr;
+  }
+  .archive-game-details {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .archive-game-details h3 {
+    font-size: 19px;
+  }
+  .archive-game-motto {
+    font-size: 11px;
+  }
+  .archive-game-mechanic {
+    font-size: 12px;
+  }
+  .archive-play-btn {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+  .archive-footer {
+    padding: 10px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 400px) {
+  .archive-game-item {
+    grid-template-columns: 1fr;
+  }
+  .archive-game-poster-wrap {
+    height: 120px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .archive-backdrop,
+  .archive-modal,
+  .archive-game-item,
+  .archive-close-btn,
+  .archive-play-btn,
+  .game-card.card-more-games {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

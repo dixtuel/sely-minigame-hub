@@ -1,0 +1,14 @@
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+
+overrides:
+  tar: '>=7.5.18'
+  postcss: '>=8.5.23'
+  nanoid: '>=5.1.16'
+  picomatch: '>=4.0.4'
+  esbuild: '>=0.25.1'
+  '@babel/core': '>=7.29.6'
+  baseline-browser-mapping: '>=2.11.0'
+  browserslist: '>=4.26.4'
+  rollup: '>=4.63.4'

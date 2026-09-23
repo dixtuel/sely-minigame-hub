@@ -1,0 +1,82 @@
+[package]
+name = "sely-minigame-hub"
+version = "2.0.0"
+edition = "2021"
+authors = ["Asrın Kılıç <asrinklcc@sely.tr>"]
+license = "AGPL-3.0"
+description = "High-performance Rust backend and game logic engine for SELY MiniGame Hub"
+
+[dependencies]
+# Web & HTTP
+axum = { version = "0.8", features = ["macros"] }
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.7", features = ["cors", "set-header", "trace", "fs", "compression-full"] }
+tower-cookies = "0.11"
+
+# Serileştirme & JSON
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+urlencoding = "2.1"
+dotenvy = "0.15"
+
+# Veritabanı & Önbellek
+# Only local/remote SQL connections are used. Disabling unused replication and
+# sync features keeps the Vercel Rust function smaller without changing runtime
+# behavior or the Turso/SQLite API used by this project.
+libsql = { version = "0.9", default-features = false, features = ["core", "remote", "tls"] }
+fred = { version = "10.1", features = ["enable-rustls", "i-sorted-sets"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
+
+# HTTP İstemcisi & Dış İstekler
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Tarih, Zaman & Matematik
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.10"
+regex = "1.10"
+
+# SVG -> PNG Rasterizasyon (pure Rust, no system Cairo/Skia — safe on Vercel's serverless
+# runtime). Used to serve real og:image PNGs (SVG is not rendered by most social crawlers).
+resvg = { version = "0.44", default-features = false, features = ["text", "raster-images"] }
+
+# Güvenlik, Kriptografi & Token
+sha2 = "0.11"
+subtle = "2.6"
+base64 = "0.23"
+flate2 = "1.0"
+governor = "0.10"
+
+# Loglama & Teletıp
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Vercel Official Rust Runtime (with native Axum support)
+vercel_runtime = { version = "2.4", features = ["axum"] }
+
+[features]
+default = []
+serverless = []
+
+[[bin]]
+name = "standalone"
+path = "src/main.rs"
+
+[[bin]]
+name = "serverless"
+path = "src/serverless.rs"
+
+[[bin]]
+name = "index"
+path = "api/index.rs"
+
+[lib]
+name = "sely_minigame_hub"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false
+strip = "symbols"

@@ -1,0 +1,92 @@
+import { registerAudioContextForVisibility } from "@/lib/devicePerformance";
+
+// Sentezlenmiş oyun efektleri (Web Audio API) — hiçbir harici ses dosyasına bağımlı değil,
+// bu yüzden lisans/asset-pipeline riski taşımaz. Yalnız `enabled` true iken ve tarayıcı
+// AudioContext destekliyorsa ses üretir; ilk çağrıda lazy olarak tek bir context açılır.
+
+let sharedContext: AudioContext | null = null;
+
+/**
+ * Lazily creates (or reuses) the one AudioContext for the whole app. Exported
+ * so other game components (e.g. SparkCanvasGame) can synthesize their own
+ * tone envelopes against the same context instead of opening a second one.
+ */
+export function getContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedContext) {
+    const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    sharedContext = new Ctor();
+    registerAudioContextForVisibility(sharedContext);
+  }
+  if (typeof document !== "undefined" && !document.hidden && sharedContext.state === "suspended") {
+    sharedContext.resume().catch(() => {});
+  }
+  return sharedContext;
+}
+
+export function tone(freq: number, duration: number, type: OscillatorType, peakGain: number, when = 0, glideTo?: number) {
+  const audio = getContext();
+  if (!audio) return;
+  const start = audio.currentTime + when;
+  const osc = audio.createOscillator();
+  const gain = audio.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, start);
+  if (glideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20, glideTo), start + duration);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.linearRampToValueAtTime(peakGain, start + Math.min(.012, duration * .3));
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  osc.connect(gain).connect(audio.destination);
+  osc.start(start);
+  osc.stop(start + duration + .02);
+}
+
+export function playTone(freq: number, type: OscillatorType = "sine", duration = 0.1, peakGain = 0.15, when = 0, glideTo?: number) {
+  tone(freq, duration, type, peakGain, when, glideTo);
+}
+
+export function playStamp(enabled: boolean, comboLevel = 0) {
+  if (!enabled) return;
+  const freq = 640 + Math.min(comboLevel, 9) * 42;
+  tone(freq, .09, "triangle", .16);
+  tone(freq * 1.5, .07, "sine", .09, .02);
+}
+
+export function playHit(enabled: boolean) {
+  if (!enabled) return;
+  tone(170, .22, "sawtooth", .2, 0, 55);
+  tone(85, .18, "square", .13, .02, 40);
+}
+
+export function playThrust(enabled: boolean) {
+  if (!enabled) return;
+  tone(210, .06, "square", .035);
+}
+
+export function playComplete(enabled: boolean) {
+  if (!enabled) return;
+  [523.25, 659.25, 783.99, 1046.5].forEach((freq, index) => tone(freq, .17, "triangle", .15, index * .09));
+}
+
+export function playFail(enabled: boolean) {
+  if (!enabled) return;
+  tone(220, .45, "sawtooth", .16, 0, 60);
+}
+
+export function playAccuse(enabled: boolean) {
+  if (!enabled) return;
+  tone(340, .1, "square", .14);
+}
+
+export function playContradiction(enabled: boolean) {
+  if (!enabled) return;
+  tone(880, .05, "triangle", .12);
+  tone(1320, .08, "triangle", .1, .05);
+}
+
+export function playSlice(enabled: boolean) {
+  if (!enabled) return;
+  tone(1100, .08, "triangle", .16, 0, 280);
+  tone(740, .06, "sawtooth", .09, .01, 180);
+}
