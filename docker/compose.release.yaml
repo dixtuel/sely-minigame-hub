@@ -2,14 +2,10 @@ services:
   app:
     image: ghcr.io/dixtuel/sely-minigame-hub:__RELEASE_TAG__
     restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
     env_file:
       - .env
     environment:
       PORT: "3000"
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     ports:
       - "${PORT:-3000}:3000"
     volumes:
@@ -21,18 +17,5 @@ services:
       start_period: 10s
       retries: 3
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
 volumes:
   sely-data:
-  redis-data:

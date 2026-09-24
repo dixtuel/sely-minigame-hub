@@ -1,23 +1,13 @@
-# Docker release bundle
+# SELY Docker — __RELEASE_TAG__ (linux/__ARCH__)
 
-Requirements: Docker Engine with the Compose plugin. The app uses a persistent SQLite volume by default and a local Redis service for the leaderboard cache.
+Docker Engine ve Compose eklentisi gerekir. Bu paket uygulama image'ını, Compose dosyasını ve yerel ayar örneğini içerir.
 
-1. Load the platform-specific image archive first:
+```sh
+./start.sh
+```
 
-   ```sh
-   gzip -dc sely-minigame-hub-__RELEASE_TAG__-linux-__ARCH__-image.tar.gz | docker load
-   ```
+İlk çalıştırmada `.env` oluşturulur. SQLite verisi Docker volume'unda saklanır; harici veritabanı veya Redis gerekmez. Site `http://localhost:3000` adresinde açılır. Dış servis ve alan adı ayarları isteğe bağlıdır; gerektiğinde `.env` dosyasını düzenleyip `./start.sh` çalıştır.
 
-2. Copy `.env.example` to `.env` and set only the options you need. Do not publish this file or put it in source control.
-3. Start the app:
+`docker compose down` uygulamayı durdurur ve verileri korur. Veri silmek istemiyorsan `--volumes` kullanma. Güncelleme öncesi `sely-data` volume'unu yedekle.
 
-   ```sh
-   docker compose up -d --pull never
-   docker compose ps
-   ```
-
-4. Open `http://localhost:3000` (or the port selected in `.env`).
-
-To stop it without deleting data, run `docker compose down`. Do not add `--volumes` unless you intend to erase the local database and Redis cache. Back up the `sely-data` volume before replacing the installation.
-
-The bundle is a self-hosted Docker image, not a Vercel deployment. Vercel users should deploy the tagged source repository and configure their own Vercel project variables.
+Diğer yollar için [kurulum rehberine](https://github.com/dixtuel/sely-minigame-hub/blob/main/docs/DEPLOYMENT.md) bak.

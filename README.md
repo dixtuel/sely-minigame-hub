@@ -65,10 +65,10 @@ Kendi ortamında çalıştırmanın üç yolu var:
 | Yöntem                                                  | Ne sağlar?                                                                             |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | [Vercel](docs/DEPLOYMENT.md#vercel)                     | GitHub kaynağından site ve Rust serverless API. Kalıcı veri için Turso/libSQL gerekir. |
-| [Docker Compose](docs/DEPLOYMENT.md#docker-compose)     | Uygulama, Redis ve kalıcı volume'lar. Hazır paket veya kendi Docker build'in.          |
+| [Docker Compose](docs/DEPLOYMENT.md#docker-compose)     | VPS için önerilen yol: tek hazır paket ve yerel SQLite.                                |
 | [Standalone Linux](docs/DEPLOYMENT.md#standalone-linux) | Hazır Rust binary'si; doğrudan veya isteğe bağlı systemd servisi.                      |
 
-Hazır paketler [GitHub Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasındadır. Güncel release paketleri Linux amd64 içindir; diğer mimarilerde kaynaktan build al. Adım adım kurulum [dağıtım rehberinde](docs/DEPLOYMENT.md).
+Hazır Docker paketinde uygulama image'ı ve Compose dosyası birlikte gelir; paketi açıp `./start.sh` çalıştırmak yeterlidir. [GitHub Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasındaki hazır paketler Linux amd64 içindir; diğer mimarilerde kaynaktan build al. İndirme, checksum ve diğer yollar [dağıtım rehberinde](docs/DEPLOYMENT.md).
 
 ## Teknik yapı
 

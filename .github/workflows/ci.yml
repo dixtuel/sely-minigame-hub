@@ -79,13 +79,17 @@ jobs:
         workspaces: |
           .
           crates/sely-game-core
+        save-if: ${{ github.ref == 'refs/heads/main' }}
 
-    - name: Check standalone/serverless binaries
-      run: cargo check --bin standalone --bin index
+    - name: Check all backend binaries
+      run: cargo check --locked --bins
 
-    - name: Run backend unit tests
-      run: cargo test --lib
+    - name: Run all backend targets and tests
+      run: cargo test --locked --all-targets
 
-    - name: Check sely-game-core WASM crate
+    - name: Install WebAssembly target
+      run: rustup target add wasm32-unknown-unknown
+
+    - name: Check sely-game-core WebAssembly target
       working-directory: crates/sely-game-core
-      run: cargo check
+      run: cargo check --locked --target wasm32-unknown-unknown

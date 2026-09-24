@@ -25,7 +25,7 @@ say() {
       sys) printf 'Çalışan systemd bulunamadı; --systemd kullanılamaz.\n' ;;
       install) printf 'SELY standalone kuruldu: %s\n' "$1" ;;
       service) printf 'systemd servisi etkin ve çalışır durumda.\n'; printf 'Günlük timer’lar varsayılan olarak etkin değildir; kullanmak için: sudo systemctl enable --now sely-daily-content.timer sely-daily-cleanup.timer\n' ;;
-      manual) printf 'Başlatmak için: cd %s && ./standalone\n' "$1"; printf 'Önce %s/.env dosyasını düzenleyin.\n' "$1" ;;
+      manual) printf 'Başlatmak için: cd %s && ./standalone\n' "$1"; printf 'İsteğe bağlı ayarlar: %s/.env\n' "$1" ;;
       *) printf '%s\n' "$*" ;;
     esac
   else
@@ -38,7 +38,7 @@ say() {
       sys) printf 'systemd is not running; --systemd cannot be used.\n' ;;
       install) printf 'SELY standalone installed: %s\n' "$1" ;;
       service) printf 'The systemd service is enabled and running.\n'; printf 'Daily timers are not enabled by default; enable them only if needed: sudo systemctl enable --now sely-daily-content.timer sely-daily-cleanup.timer\n' ;;
-      manual) printf 'Start with: cd %s && ./standalone\n' "$1"; printf 'Edit %s/.env first.\n' "$1" ;;
+      manual) printf 'Start with: cd %s && ./standalone\n' "$1"; printf 'Optional settings: %s/.env\n' "$1" ;;
       *) printf '%s\n' "$*" ;;
     esac
   fi

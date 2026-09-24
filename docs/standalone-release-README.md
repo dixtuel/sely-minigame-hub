@@ -12,7 +12,7 @@ cd sely-minigame-hub-vX.Y.Z-linux-amd64-standalone
 ./scripts/install-standalone.sh
 ```
 
-Normal kullanıcıda varsayılan konum `~/.local/opt/sely-minigame-hub`, root ile `/opt/sely-minigame-hub` olur. Kurulum `.env` yoksa örnek oluşturur; mevcut `.env` ve SQLite verisini ezmez. Ortam ayarlarını düzenledikten sonra:
+Normal kullanıcıda varsayılan konum `~/.local/opt/sely-minigame-hub`, root ile `/opt/sely-minigame-hub` olur. Kurulum `.env` yoksa örnek oluşturur; mevcut `.env` ve SQLite verisini ezmez. Varsayılan yerel kurulum için ayar gerekmez. Başlatmak için:
 
 ```bash
 cd ~/.local/opt/sely-minigame-hub

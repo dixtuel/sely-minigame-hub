@@ -151,7 +151,6 @@ for platform in "${platforms[@]}"; do
     --output "type=docker,dest=$image_tar" \
     --file "$source_dir/docker/Dockerfile" \
     "$source_dir"
-  gzip -n -9 -c "$image_tar" > "$staging_dir/sely-minigame-hub-$tag-linux-$arch-image.tar.gz"
 
   export_dir="$temp_root/standalone-$arch"
   docker buildx build \
@@ -178,13 +177,15 @@ for platform in "${platforms[@]}"; do
   tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -cf - -C "$bundle" . \
     | gzip -n -9 > "$staging_dir/sely-minigame-hub-$tag-linux-$arch-standalone.tar.gz"
 
-  compose_bundle="$temp_root/compose-bundle-$arch"
-  mkdir -p "$compose_bundle"
-  sed "s/__RELEASE_TAG__/$tag/g" "$source_dir/docker/compose.release.yaml" > "$compose_bundle/compose.yaml"
-  install -m 0644 "$source_dir/docker/.env.release.example" "$compose_bundle/.env.example"
-  sed -e "s/__RELEASE_TAG__/$tag/g" -e "s/__ARCH__/$arch/g" "$source_dir/docker/README.release.md" > "$compose_bundle/README.md"
-  tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -cf - -C "$compose_bundle" . \
-    | gzip -n -9 > "$staging_dir/sely-minigame-hub-$tag-linux-$arch-compose.tar.gz"
+  docker_bundle="$temp_root/docker-bundle-$arch"
+  mkdir -p "$docker_bundle"
+  mv "$image_tar" "$docker_bundle/image.tar"
+  sed "s/__RELEASE_TAG__/$tag/g" "$source_dir/docker/compose.release.yaml" > "$docker_bundle/compose.yaml"
+  install -m 0644 "$source_dir/docker/.env.release.example" "$docker_bundle/.env.example"
+  install -m 0755 "$source_dir/docker/start-release.sh" "$docker_bundle/start.sh"
+  sed -e "s/__RELEASE_TAG__/$tag/g" -e "s/__ARCH__/$arch/g" "$source_dir/docker/README.release.md" > "$docker_bundle/README.md"
+  tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -cf - -C "$docker_bundle" . \
+    | gzip -n -9 > "$staging_dir/sely-minigame-hub-$tag-linux-$arch-docker.tar.gz"
 done
 
 (

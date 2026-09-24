@@ -1,74 +1,54 @@
-# Kurulum ve dağıtım
+# Kurulum
 
-Önce yöntemi seç, sonra yalnızca o bölümdeki adımları uygula. Hazır Linux paketleri [GitHub Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasındadır.
+VPS için Docker Compose en kısa yoldur. [GitHub Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasından Linux mimarine uygun `*-docker.tar.gz` dosyasını ve `SHA256SUMS` dosyasını indir. Docker Engine ile Compose eklentisi kurulu olmalı.
 
-| Yöntem           | Ne zaman seçilir?                              | Veri                                   |
-| ---------------- | ---------------------------------------------- | -------------------------------------- |
-| Vercel           | GitHub üzerinden serverless yayın              | Kalıcı veri için Turso/libSQL          |
-| Docker Compose   | VPS veya Docker sunucusu                       | SQLite volume; Redis Compose ile gelir |
-| Standalone Linux | Binary'yi doğrudan veya systemd ile çalıştırma | Yerel SQLite veya Turso                |
+## Docker Compose
+
+```bash
+sha256sum --check --ignore-missing SHA256SUMS
+mkdir sely-docker
+tar -xzf sely-minigame-hub-v2.0.1-linux-amd64-docker.tar.gz -C sely-docker
+cd sely-docker
+./start.sh
+```
+
+Örnekteki dosya adını indirdiğin sürüm ve mimariyle eşleştir. `start.sh` ilk çalıştırmada `.env` oluşturur, paket içindeki uygulama image'ını yükler ve servisi başlatır. Harici API anahtarı veya Redis gerekmez; skorlar kalıcı SQLite volume'unda tutulur. Site [localhost:3000](http://localhost:3000) adresinde açılır.
+
+Güncellemede yeni paketi **aynı `sely-docker` dizinine** açıp `./start.sh` komutunu tekrar çalıştır; `.env` ve Docker volume'ları korunur. Öncesinde `sely-data` volume'unun yedeğini al. `docker compose down` servisi durdurur; `--volumes` veri volume'unu da siler.
+
+Kaynaktan Docker build almak istersen:
+
+```bash
+git clone https://github.com/dixtuel/sely-minigame-hub.git
+cd sely-minigame-hub
+docker compose up --build -d
+```
+
+Kaynak build Rust derlemesi yaptığından hazır pakete göre uzun sürer.
+
+## Standalone Linux
+
+Docker istemiyorsan aynı Release sayfasından `*-standalone.tar.gz` ve `SHA256SUMS` dosyalarını indir:
+
+```bash
+sha256sum --check --ignore-missing SHA256SUMS
+mkdir sely-standalone
+tar -xzf sely-minigame-hub-v2.0.1-linux-amd64-standalone.tar.gz -C sely-standalone
+cd sely-standalone
+./scripts/install-standalone.sh
+~/.local/opt/sely-minigame-hub/standalone
+```
+
+Normal kullanıcı kurulumunda uygulama `~/.local/opt/sely-minigame-hub` altına yerleşir; `.env` ve yerel SQLite dosyası güncellemede korunur. systemd istersen `sudo ./scripts/install-standalone.sh --systemd` kullan. Servis ayarları `/etc/sely-minigame-hub/sely.env` dosyasındadır; günlük timer'lar ayrıca etkinleştirilir. Ayrıntı: [standalone paket rehberi](standalone-release-README.md).
 
 ## Vercel
 
 1. GitHub deposunu kendi Vercel hesabına import et.
-2. Project Settings → Environment Variables bölümünde kalıcı veri için TURSO_DATABASE_URL ve TURSO_AUTH_TOKEN; günlük görevleri doğrulamak için rastgele CRON_SECRET tanımla.
-3. Deploy et ve siteyi, /api/config endpoint'ini ve deployment loglarını kontrol et.
+2. Kalıcı skorlar ve günlük içerik için Project Settings → Environment Variables bölümüne `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` ve rastgele bir `CRON_SECRET` ekle.
+3. Deploy et; siteyi ve `/api/config` endpoint'ini kontrol et.
 
-Proje, Vercel Rust Function'ını api/index.rs üzerinden kullanır. Rust runtime'ın güncel durumu için [Vercel dokümanına](https://vercel.com/docs/functions/runtimes/rust) bak.
-
-vercel.json günlük içerik üretimi ve eski kayıt temizliği için günde birer cron tanımlar. Hobby planında her cron günde bir kez çalışabilir; tetikleme dakikası garanti edilmez, seçilen saat içinde çalışabilir. Ayrıntı: [Hobby Cron sınırları](https://vercel.com/docs/cron-jobs/usage-and-pricing).
-
-Turso/libSQL tanımlanmazsa Vercel'de skor ve günlük kayıtlar kalıcı olmaz. Bu kurulum yalnızca kendi Vercel projen içindir, sely.tr projesini değiştirmez.
-
-## Docker Compose
-
-### Hazır release paketi
-
-Aynı sürümün linux-amd64 image, compose ve SHA256SUMS dosyalarını indir. Örnekte TAG değerini kullanacağın release ile eşleştir:
-
-    TAG=v2.0.0
-    ASSET="sely-minigame-hub-$TAG-linux-amd64"
-
-    grep -E "$ASSET-(image|compose)\.tar\.gz$" SHA256SUMS | sha256sum -c -
-    mkdir sely-compose
-    tar -xzf "$ASSET-compose.tar.gz" -C sely-compose
-    gzip -dc "$ASSET-image.tar.gz" | docker load
-    cd sely-compose
-    cp .env.example .env
-    docker compose up -d --pull never
-
-Uygulama varsayılan olarak [localhost:3000](http://localhost:3000) adresinde açılır. Veriler Docker volume'larında saklanır. docker compose down --volumes komutu bu verileri siler.
-
-### Kaynaktan build
-
-Repo kökünde Docker Engine ve Compose eklentisi kurulu olmalı:
-
-    cp .env.example .env
-    docker compose --env-file .env -f docker/docker-compose.yml up --build -d
-
-## Standalone Linux
-
-linux-amd64 standalone arşivini ve SHA256SUMS dosyasını indir:
-
-    TAG=v2.0.0
-    ASSET="sely-minigame-hub-$TAG-linux-amd64"
-
-    grep -E "$ASSET-standalone\.tar\.gz$" SHA256SUMS | sha256sum -c -
-    mkdir sely-standalone
-    tar -xzf "$ASSET-standalone.tar.gz" -C sely-standalone
-    cd sely-standalone
-    ./scripts/install-standalone.sh
-
-Kurulum normal kullanıcıda ~/.local/opt/sely-minigame-hub altına yapılır. systemd istersen aynı arşivden sudo ./scripts/install-standalone.sh --systemd çalıştır; ortam ayarları /etc/sely-minigame-hub/sely.env dosyasındadır. Timer'lar otomatik açılmaz. Tam notlar: [standalone paket rehberi](standalone-release-README.md).
+Vercel `api/index.rs` Rust Function'ını kaynak koddan derler. Turso ayarlanmazsa sunucu verisi function ömrüyle sınırlı kalır. Günlük cron'lar `vercel.json` içinde tanımlıdır; Hobby planındaki güncel sınırları [Vercel belgelerinden](https://vercel.com/docs/cron-jobs/usage-and-pricing) kontrol et.
 
 ## Veri ve ayarlar
 
-Tüm değişkenler [.env.example](../.env.example) dosyasında açıklanır.
-
-- Standalone ve Docker varsayılan olarak yerel SQLite kullanır; Docker veritabanını volume'da saklar.
-- Vercel'de kalıcı skor ve günlük kayıtlar için Turso/libSQL gerekir. PostgreSQL ve genel DATABASE_URL desteklenmez.
-- Redis isteğe bağlı ve leaderboard için kısa ömürlü hız katmanıdır; kalıcı veritabanı değildir. Compose kendi Redis servisini başlatır.
-- CRON_SECRET Vercel, DAILY_JOB_TOKEN self-host günlük görevleri içindir. Aynı instance'ta Vercel Cron ve systemd timer'ı birlikte etkinleştirme.
-- PRIMARY_DOMAIN boşken uygulama gelen host'u kullanır; sely.tr'ye yönlendirme yapmaz. Reverse proxy'de Host ve X-Forwarded-Proto başlıklarını ilet.
-
-Dış Vaka LLM anahtarları isteğe bağlıdır. Ayarlanmaz veya servis hata verirse yerel oyun motoru kullanılabilir.
+Tüm değişkenler [.env.example](../.env.example) dosyasında açıklanır. Self-host varsayılanı yerel SQLite'tır; Redis yalnız leaderboard hız katmanıdır. Vercel'de kalıcılık için Turso/libSQL gerekir; PostgreSQL desteklenmez. `PRIMARY_DOMAIN` boş kalabilir; reverse proxy kullanıyorsan `Host` ve `X-Forwarded-Proto` başlıklarını ilet. Vaka için dış LLM anahtarları isteğe bağlıdır; boşken yerel motor çalışır.
