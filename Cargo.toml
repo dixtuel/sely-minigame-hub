@@ -1,6 +1,6 @@
 [package]
 name = "sely-minigame-hub"
-version = "2.0.2"
+version = "2.0.3"
 edition = "2021"
 authors = ["Asrın Kılıç <asrinklcc@sely.tr>"]
 license = "AGPL-3.0"

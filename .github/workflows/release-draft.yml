@@ -1,23 +1,19 @@
 name: Prepare Draft Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing version tag to package (for example, v2.1.0)
-        required: true
-        type: string
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: read
 
 concurrency:
-  group: manual-release-${{ inputs.tag }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   package:
-    if: github.ref == 'refs/heads/main'
     name: Package selected tag
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -28,14 +24,14 @@ jobs:
       - name: Checkout selected tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Validate tag input
         id: validate
         env:
-          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
@@ -44,12 +40,14 @@ jobs:
           fi
           git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"
           test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
+          git fetch --no-tags origin main:refs/remotes/origin/main
           git merge-base --is-ancestor "$RELEASE_TAG^{commit}" origin/main
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Refuse an existing GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ steps.validate.outputs.tag }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
@@ -96,8 +94,8 @@ jobs:
           set -euo pipefail
           cd "dist/releases/$RELEASE_TAG"
           test "$(find . -maxdepth 1 -type f | wc -l)" -eq 3
-          test -s "sely-$RELEASE_TAG-amd64-docker.tar.gz"
-          test -s "sely-$RELEASE_TAG-amd64-standalone.tar.gz"
+          test -s "sely-linux-amd64-docker.tar.gz"
+          test -s "sely-linux-amd64-standalone.tar.gz"
           sha256sum --check SHA256SUMS
 
       - name: Smoke test packaged Docker service
@@ -112,7 +110,7 @@ jobs:
             rm -r -- "$bundle_dir"
           }
           trap cleanup EXIT
-          tar -xzf "dist/releases/$RELEASE_TAG/sely-$RELEASE_TAG-amd64-docker.tar.gz" -C "$bundle_dir"
+          tar -xzf "dist/releases/$RELEASE_TAG/sely-linux-amd64-docker.tar.gz" -C "$bundle_dir"
           (cd "$bundle_dir" && PORT=31777 ./start.sh)
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:31777/api/config >/dev/null; then
@@ -139,7 +137,7 @@ jobs:
             rm -r -- "$bundle_dir"
           }
           trap cleanup EXIT
-          tar -xzf "dist/releases/$RELEASE_TAG/sely-$RELEASE_TAG-amd64-standalone.tar.gz" -C "$bundle_dir"
+          tar -xzf "dist/releases/$RELEASE_TAG/sely-linux-amd64-standalone.tar.gz" -C "$bundle_dir"
           "$bundle_dir/install.sh" --lang en --prefix "$bundle_dir/installed"
           cd "$bundle_dir/installed"
           PORT=31778 ./standalone &
@@ -162,7 +160,6 @@ jobs:
           compression-level: 0
 
   create-draft:
-    if: github.ref == 'refs/heads/main'
     name: Attach files to a draft GitHub Release
     needs: package
     runs-on: ubuntu-24.04
@@ -185,8 +182,8 @@ jobs:
           set -euo pipefail
           cd release-assets
           test "$(find . -maxdepth 1 -type f | wc -l)" -eq 3
-          test -s "sely-$RELEASE_TAG-amd64-docker.tar.gz"
-          test -s "sely-$RELEASE_TAG-amd64-standalone.tar.gz"
+          test -s "sely-linux-amd64-docker.tar.gz"
+          test -s "sely-linux-amd64-standalone.tar.gz"
           sha256sum --check SHA256SUMS
           gh release create "$RELEASE_TAG" ./* \
             --verify-tag \

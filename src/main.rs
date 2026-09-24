@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    tracing::info!("Initializing SELY MiniGame Hub v2.0.0 (Rust Axum Engine)...");
+    tracing::info!("Initializing SELY MiniGame Hub v{} (Rust Axum Engine)...", env!("CARGO_PKG_VERSION"));
 
     let database = create_turso_connections().await;
     let turso_conn = database.primary.map(|conn| Arc::new(Mutex::new(conn)));

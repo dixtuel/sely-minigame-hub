@@ -1,6 +1,6 @@
 {
   "name": "sely-minigame-hub",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "type": "module",
   "license": "AGPL-3.0",
   "packageManager": "pnpm@10.34.5",

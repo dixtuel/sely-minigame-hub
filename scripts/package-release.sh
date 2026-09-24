@@ -64,7 +64,8 @@ done
 if (("${#platforms[@]}" == 0)); then
   host_platform="$(docker info --format '{{.OSType}}/{{.Architecture}}' 2>/dev/null || true)"
   case "$host_platform" in
-    linux/amd64|linux/arm64) platforms+=("$host_platform") ;;
+    linux/amd64|linux/x86_64) platforms+=(linux/amd64) ;;
+    linux/arm64|linux/aarch64) platforms+=(linux/arm64) ;;
     *) msg error 'pass --platform linux/amd64 or linux/arm64'; exit 2 ;;
   esac
 fi
@@ -166,7 +167,7 @@ for platform in "${platforms[@]}"; do
   install -m 0755 "$export_dir/standalone" "$bundle/standalone"
   cp -a "$export_dir/dist/public/." "$bundle/dist/public/"
   install -m 0644 "$source_dir/.env.example" "$bundle/.env.example"
-  install -m 0644 "$source_dir/docs/standalone-release-README.md" "$bundle/README.md"
+  install -m 0644 "$source_dir/docs/DEPLOYMENT.md" "$bundle/README.md"
   install -m 0644 "$source_dir/LICENSE" "$bundle/LICENSE"
   install -m 0644 "$source_dir/SECURITY.md" "$bundle/SECURITY.md"
   install -m 0644 "$source_dir/docs/DEPLOYMENT.md" "$bundle/docs/DEPLOYMENT.md"
@@ -176,7 +177,7 @@ for platform in "${platforms[@]}"; do
   printf '%s\n' "$platform" > "$bundle/release-target"
   printf '%s\n' "$tag_commit" > "$bundle/SOURCE-COMMIT"
   tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -cf - -C "$bundle" . \
-    | gzip -n -9 > "$staging_dir/sely-$tag-$arch-standalone.tar.gz"
+    | gzip -n -9 > "$staging_dir/sely-linux-$arch-standalone.tar.gz"
 
   docker_bundle="$temp_root/docker-bundle-$arch"
   mkdir -p "$docker_bundle"
@@ -184,9 +185,9 @@ for platform in "${platforms[@]}"; do
   sed "s/__RELEASE_TAG__/$tag/g" "$source_dir/docker/compose.release.yaml" > "$docker_bundle/compose.yaml"
   install -m 0644 "$source_dir/docker/.env.release.example" "$docker_bundle/.env.example"
   install -m 0755 "$source_dir/docker/start-release.sh" "$docker_bundle/start.sh"
-  sed -e "s/__RELEASE_TAG__/$tag/g" -e "s/__ARCH__/$arch/g" "$source_dir/docker/README.release.md" > "$docker_bundle/README.md"
+  install -m 0644 "$source_dir/docs/DEPLOYMENT.md" "$docker_bundle/README.md"
   tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -cf - -C "$docker_bundle" . \
-    | gzip -n -9 > "$staging_dir/sely-$tag-$arch-docker.tar.gz"
+    | gzip -n -9 > "$staging_dir/sely-linux-$arch-docker.tar.gz"
 done
 
 (
@@ -198,7 +199,7 @@ mv "$staging_dir" "$release_dir"
 staging_dir=""
 msg done "$release_dir"
 if [[ "$lang" == tr ]]; then
-  printf 'Bu betik GitHub Release oluşturmaz, GHCR’a push etmez veya Vercel deploy etmez; dosyaları inceleyip elle ekleyin.\n'
+  printf 'Yerel arşivler hazır. Tag push edildiğinde GitHub Actions taslak Release oluşturur; bu komut yayımlamaz.\n'
 else
-  printf 'This script does not create a GitHub Release, push to GHCR, or deploy to Vercel; review and attach files manually.\n'
+  printf 'Local archives are ready. Pushing the tag starts the draft Release workflow; this command does not publish.\n'
 fi

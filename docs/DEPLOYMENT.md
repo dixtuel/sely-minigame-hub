@@ -5,13 +5,13 @@ SELY dört şekilde çalışır. Hazır release paketleri **Linux amd64** içind
 | Yol | Gerekenler | İlk komut | Veri |
 | --- | --- | --- | --- |
 | [Hazır Docker paketi](#hazır-docker-paketi) | Docker Engine + Compose | `./start.sh` | Docker volume içinde SQLite |
-| [Hazır standalone paketi](#hazır-standalone-paketi) | Linux/glibc | `./install.sh` | Kurulum dizininde SQLite |
+| [Hazır standalone paketi](#hazır-standalone-paketi) | Linux amd64, glibc 2.34+ | `./install.sh` | Kurulum dizininde SQLite |
 | [Kaynaktan](#kaynaktan-kurulum) | Git + Docker **veya** Node.js/pnpm + Rust | `docker compose up -d --build` **veya** `pnpm start` | Yerel SQLite |
 | [Vercel](#vercel) | Vercel hesabı; kalıcılık için Turso | Git import → Deploy | Turso/libSQL |
 
 ## Hazır paketleri indirme ve doğrulama
 
-[Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasından kendi yoluna ait arşivi ve `SHA256SUMS` dosyasını **aynı dizine** indir. Yeni release'lerde dosya adları `sely-vX.Y.Z-amd64-docker.tar.gz` ve `sely-vX.Y.Z-amd64-standalone.tar.gz` biçimindedir. Önceki `v2.0.2` release'inde daha uzun `sely-minigame-hub-v2.0.2-linux-amd64-*.tar.gz` adları kullanıldı; indirdiğin gerçek adı komutta kullan.
+[Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasından kendi yoluna ait arşivi ve `SHA256SUMS` dosyasını **aynı dizine** indir. Yeni release'lerde dosya adları `sely-linux-amd64-docker.tar.gz` ve `sely-linux-amd64-standalone.tar.gz` biçimindedir. Önceki `v2.0.2` release'inde daha uzun `sely-minigame-hub-v2.0.2-linux-amd64-*.tar.gz` adları kullanıldı; indirdiğin gerçek adı komutta kullan.
 
 ```bash
 sha256sum -c --ignore-missing SHA256SUMS
@@ -24,7 +24,7 @@ Bu komut yalnız indirilen arşivi doğrular. İki arşivi de indirdiysen `sha25
 ```bash
 mkdir sely-docker
 # Aşağıdaki arşiv adını indirdiğin dosyayla değiştir.
-tar -xzf sely-vX.Y.Z-amd64-docker.tar.gz -C sely-docker
+tar -xzf sely-linux-amd64-docker.tar.gz -C sely-docker
 cd sely-docker
 ./start.sh
 ```
@@ -38,14 +38,14 @@ Güncellemek için **aynı dizindeki** `sely-data` volume'unu yedekle, yeni arş
 ```bash
 mkdir sely-standalone
 # Aşağıdaki arşiv adını indirdiğin dosyayla değiştir.
-tar -xzf sely-vX.Y.Z-amd64-standalone.tar.gz -C sely-standalone
+tar -xzf sely-linux-amd64-standalone.tar.gz -C sely-standalone
 cd sely-standalone
 ./install.sh
 cd ~/.local/opt/sely-minigame-hub
 ./standalone
 ```
 
-Normal kullanıcı kurulumu `~/.local/opt/sely-minigame-hub` dizinine yapılır. `.env` ve `data/sely.db` korunur; güncellemeden önce veritabanını yedekle. Varsayılan port 3000'dir. Kurulum olmadan denemek istersen arşiv dizininde doğrudan `./standalone` çalıştırabilirsin; uygulama `dist/public` ve yazılabilir `data/` dizinini çalışma dizinine göre bulur.
+Hazır binary için glibc 2.34+ ve `libgcc_s` gerekir; Docker, Node.js veya Rust kurulumu gerekmez. Daha eski dağıtımda kaynaktan build al. Normal kullanıcı kurulumu `~/.local/opt/sely-minigame-hub` dizinine yapılır. `.env` ve `data/sely.db` korunur; güncellemeden önce veritabanını yedekle. Varsayılan port 3000'dir. Kurulum olmadan denemek istersen arşiv dizininde doğrudan `./standalone` çalıştırabilirsin; uygulama `dist/public` ve yazılabilir `data/` dizinini çalışma dizinine göre bulur.
 
 Sistem servisi istersen `sudo ./install.sh --systemd` kullan. Bu, `/opt/sely-minigame-hub` konumunu, `sely` kullanıcısını ve `sely-minigame.service` birimini kurar. Ayarlar `/etc/sely-minigame-hub/sely.env` dosyasındadır; değişiklikten sonra `sudo systemctl restart sely-minigame.service` çalıştır. Günlük içerik/temizlik timer'ları varsayılan olarak kapalıdır. Etkinleştirmek için `DAILY_JOB_TOKEN` ayarla, ardından `sudo systemctl enable --now sely-daily-content.timer sely-daily-cleanup.timer` çalıştır. Aynı instance için başka bir zamanlayıcı da çalıştırma.
 
@@ -83,8 +83,8 @@ Geliştirme için `pnpm dev` yalnız Vite arayüzünü açar; tam sunucu için y
 2. Projenin Environment Variables bölümüne `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` ve rastgele üretilmiş `CRON_SECRET` ekle. Kalıcı skorlar/günlük içerik için Turso gereklidir; serverless dosya sistemi kalıcı değildir.
 3. Deploy et. Vercel `pnpm run build` ile frontend'i, `api/index.rs` ile Rust Function'ı derler. Siteyi ve `/api/config` endpoint'ini kontrol et.
 
-`vercel.json` günlük iki cron tanımlar. Hobby planında her cron günde en çok bir kez çalışır ve tetikleme saati aynı saat dilimi içinde kayabilir; mevcut ifadeler bu sınıra uygundur. [Vercel Cron sınırları](https://vercel.com/docs/cron-jobs/usage-and-pricing). GitHub push'unun otomatik deploy yapıp yapmaması Vercel Git bağlantısına bağlıdır; projenin mevcut canlı deploy'u VDS'ten Vercel CLI ile yönetilir.
+`vercel.json` günlük iki cron tanımlar; cron yalnız production deployment'ta çalışır. Vercel `CRON_SECRET` değerini çağrıda Bearer header olarak gönderir. Hobby planında her cron günde en çok bir kez çalışır ve tetikleme saati aynı saat içinde kayabilir; mevcut ifadeler bu sınıra uygundur. [Vercel Cron sınırları](https://vercel.com/docs/cron-jobs/usage-and-pricing) · [Cron güvenliği](https://vercel.com/docs/cron-jobs/manage-cron-jobs). Git ile import edilen kendi projen her push'ta otomatik deploy eder; `sely.tr` üzerindeki mevcut canlı proje ise VDS'ten Vercel CLI ile yönetilir.
 
 ## Ayarlar ve kontrol
 
-[.env.example](../.env.example) tüm değişkenleri açıklar. `PRIMARY_DOMAIN` boş bırakılabilir. Reverse proxy kullanıyorsan `Host` ve `X-Forwarded-Proto` başlıklarını ilet. PostgreSQL `DATABASE_URL` bu Rust backend'inde desteklenmez. Vaka API anahtarları boşken yerel motorla çalışır.
+`.env.example` tüm değişkenleri açıklar. `PRIMARY_DOMAIN` boş bırakılabilir. Reverse proxy kullanıyorsan `Host` ve `X-Forwarded-Proto` başlıklarını ilet. PostgreSQL `DATABASE_URL` bu Rust backend'inde desteklenmez. Vaka API anahtarları boşken yerel motorla çalışır.
