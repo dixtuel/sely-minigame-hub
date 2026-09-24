@@ -105,7 +105,8 @@ if ((install_systemd)); then
   chown -R sely:sely "$prefix/data"
   install -m 0644 "$bundle_dir"/systemd/*.service "$bundle_dir"/systemd/*.timer /etc/systemd/system/
   systemctl daemon-reload
-  systemctl enable --now sely-minigame.service
+  systemctl enable sely-minigame.service
+  systemctl restart sely-minigame.service
   say install "$prefix"
   say service
 else

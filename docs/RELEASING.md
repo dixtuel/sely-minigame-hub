@@ -12,7 +12,7 @@ Kullanıcı kurulum adımları yalnız [kurulum rehberinde](DEPLOYMENT.md) tutul
    git push origin main vX.Y.Z
    ```
 
-3. GitHub **Actions → Prepare Draft Release → Run workflow**: branch `main`, input `vX.Y.Z`. Workflow tag'in `main` geçmişinde olduğunu ve iki manifest sürümünü doğrular; public audit, frontend/Rust testlerini, build'leri ve Docker açılış testini çalıştırır.
+3. GitHub **Actions → Prepare Draft Release → Run workflow**: branch `main`, input `vX.Y.Z`. Workflow tag'in `main` geçmişinde olduğunu ve iki manifest sürümünü doğrular; public audit, frontend/Rust testlerini, build'leri ve Docker ve standalone açılış testlerini çalıştırır.
 4. Oluşan **draft** Release'de iki arşivi ve `SHA256SUMS` dosyasını, açıklamayı ve dosya boyutlarını incele; ardından GitHub arayüzünden yayımla. Var olan Release'in üzerine yazılmaz.
 
 Linux amd64 için dosyalar:
@@ -35,7 +35,7 @@ cd dist/releases/vX.Y.Z
 sha256sum -c SHA256SUMS
 ```
 
-Arm64 gerektiğinde `--platform linux/arm64` eklenebilir; Buildx çapraz derleme desteğini doğrula. Betik aynı tag için çıktıyı yanlışlıkla ezmez. Yerel paketlemeyi yaptıysan testleri ve container açılışını ayrıca doğrula; Actions yolundaki smoke test otomatik çalışır.
+Arm64 gerektiğinde `--platform linux/arm64` eklenebilir; Buildx çapraz derleme desteğini doğrula. Betik aynı tag için çıktıyı yanlışlıkla ezmez. Yerel paketlemeyi yaptıysan testleri ve container açılışını ayrıca doğrula; Actions yolundaki iki smoke test otomatik çalışır.
 
 ## GitHub Actions ve cache politikası
 

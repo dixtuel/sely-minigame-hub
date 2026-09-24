@@ -123,6 +123,35 @@ jobs:
           docker compose -f "$bundle_dir/compose.yaml" --project-directory "$bundle_dir" logs app
           exit 1
 
+      - name: Smoke test packaged standalone service
+        env:
+          RELEASE_TAG: ${{ steps.validate.outputs.tag }}
+        run: |
+          set -euo pipefail
+          bundle_dir="$(mktemp -d)"
+          server_pid=""
+          cleanup() {
+            if [[ -n "$server_pid" ]]; then
+              kill "$server_pid" >/dev/null 2>&1 || true
+              wait "$server_pid" >/dev/null 2>&1 || true
+            fi
+            cd "$GITHUB_WORKSPACE"
+            rm -r -- "$bundle_dir"
+          }
+          trap cleanup EXIT
+          tar -xzf "dist/releases/$RELEASE_TAG/sely-$RELEASE_TAG-amd64-standalone.tar.gz" -C "$bundle_dir"
+          "$bundle_dir/install.sh" --lang en --prefix "$bundle_dir/installed"
+          cd "$bundle_dir/installed"
+          PORT=31778 ./standalone &
+          server_pid=$!
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:31778/api/config >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
       - name: Upload packaged release files
         uses: actions/upload-artifact@v7
         with:
