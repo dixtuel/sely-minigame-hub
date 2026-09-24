@@ -1,20 +1,19 @@
-# SELY.TR MiniGame Hub
+<div align="center">
 
-<p align="center">
-  <img src="client/public/assets/logo-mark.png" width="96" alt="SELY simgesi">
-</p>
+<img src="client/public/assets/logo-mark.png" width="88" alt="SELY simgesi">
 
-**Tarayıcıda kısa oturumlar için tasarlanmış 17 mini oyun; masaüstü ve mobil kontrollerle, Türkçe ve İngilizce.**
+# SELY.TR — MiniGame Hub
 
-[Oyunları oyna](https://sely.tr) · [Dağıtım rehberi](docs/DEPLOYMENT.md) · [Elle release hazırlama](docs/RELEASING.md) · [Atıflar](docs/ATTRIBUTION.md)
+**Günlük seçkiyle sunulan 17 kısa oyun. Tarayıcıda, masaüstü ve mobilde; Türkçe ve İngilizce.**
 
-[![CI](https://github.com/dixtuel/sely-minigame-hub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dixtuel/sely-minigame-hub/actions/workflows/ci.yml)
+[![Canlı demo](https://img.shields.io/badge/canl%C4%B1_demo-sely.tr-F38020?style=flat-square&logo=vercel&logoColor=white)](https://sely.tr)
+[![Sürüm](https://img.shields.io/github/v/release/dixtuel/sely-minigame-hub?style=flat-square)](https://github.com/dixtuel/sely-minigame-hub/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/dixtuel/sely-minigame-hub/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/dixtuel/sely-minigame-hub/actions/workflows/ci.yml)
 [![Lisans](https://img.shields.io/badge/lisans-AGPL--3.0-blue?style=flat-square)](LICENSE)
 
-<p align="center">
-  <img src="client/public/icons/screenshot-desktop.png" width="68%" alt="SELY masaüstü oyun kataloğu görseli">
-  <img src="client/public/icons/screenshot-mobile.png" width="25%" alt="SELY mobil oyun kataloğu görseli">
-</p>
+[**Canlı demoyu aç**](https://sely.tr) · [**Kurulum**](#kurulum) · [**Oyun kataloğu**](#oyun-koleksiyonu) · [**Atıflar**](docs/ATTRIBUTION.md)
+
+</div>
 
 ## SELY nedir?
 
@@ -54,11 +53,47 @@ Kontroller oyuna göre klavye, fare, dokunma, kaydırma veya sürükleme kullan�
 
 Oyun adları, türleri ve yerelleştirilmiş açıklamalar için tek kaynak [oyun kataloğudur](client/src/lib/catalog.ts).
 
-## Hızlı başlangıç
+## Kurulum
 
-Gereksinimler: Node.js 22+ ve pnpm 10. Tam Rust backend'i çalıştırmak için stable Rust gerekir.
+En kolay yol, [GitHub Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasındaki hazır Linux `amd64` paketlerinden birini kullanmaktır. Bu sürümün paketleri x86-64 Linux içindir; diğer mimariler için kaynak koddan kurulum veya kendi Docker build'in gerekir.
 
-Ön yüz geliştirme sunucusu:
+### Docker Compose
+
+Release sayfasından `*-linux-amd64-image.tar.gz`, `*-linux-amd64-compose.tar.gz` ve `SHA256SUMS` dosyalarını indir. Arşivleri aynı klasörde tutup seçtiğin iki paketin checksum'unu doğrula:
+
+```bash
+grep -E 'sely-minigame-hub-v2\.0\.0-linux-amd64-(image|compose)\.tar\.gz$' SHA256SUMS | sha256sum -c -
+mkdir -p sely-compose
+tar -xzf sely-minigame-hub-v2.0.0-linux-amd64-compose.tar.gz -C sely-compose
+gzip -dc sely-minigame-hub-v2.0.0-linux-amd64-image.tar.gz | docker load
+cd sely-compose
+cp .env.example .env
+docker compose up -d --pull never
+```
+
+`http://localhost:3000` adresini aç. İsteğe bağlı olarak `.env` içinden alan adı ve Turso/libSQL ayarlarını yapabilirsin; harici Redis verilmezse Compose kendi Redis servisini başlatır. Veriyi korumak için `docker compose down --volumes` komutunu kullanma. Ayrıntılar: [Docker Compose rehberi](docs/DEPLOYMENT.md#docker-compose).
+
+### Standalone Linux
+
+Release sayfasından `*-linux-amd64-standalone.tar.gz` ve `SHA256SUMS` dosyalarını indirip arşivin checksum'unu doğrula:
+
+```bash
+grep 'sely-minigame-hub-v2.0.0-linux-amd64-standalone.tar.gz$' SHA256SUMS | sha256sum -c -
+mkdir -p sely-standalone
+tar -xzf sely-minigame-hub-v2.0.0-linux-amd64-standalone.tar.gz -C sely-standalone
+cd sely-standalone
+./scripts/install-standalone.sh
+```
+
+Kurucu mevcut `.env` ve SQLite verisini ezmez; kurulumdan sonra hedef dizini bildirir. Normal kullanıcı kurulumunda `~/.local/opt/sely-minigame-hub/.env` dosyasını düzenleyip `cd ~/.local/opt/sely-minigame-hub && ./standalone` ile başlat. systemd service ve günlük görev timer'larını kurmak istersen arşiv dizinindeyken root olarak `sudo ./scripts/install-standalone.sh --systemd` çalıştır; timer'lar varsayılan olarak etkinleştirilmez. Ayrıntılar: [Standalone rehberi](docs/standalone-release-README.md).
+
+### Vercel serverless
+
+Vercel, Linux paketlerini değil kaynak depoyu kullanır. GitHub deposunu kendi Vercel hesabına import et; kalıcı skor/günlük içerik için project environment ayarlarında Turso/libSQL bilgilerini tanımla. GitHub'daki kaynak arşivleri de release sayfasında bulunur. Bu işlem kendi Vercel projen için dağıtım oluşturur, `sely.tr` sitesini değiştirmez. Ayrıntılar: [Vercel rehberi](docs/DEPLOYMENT.md#vercel).
+
+## Kaynaktan geliştirme
+
+Gereksinimler: Node.js 22+, `package.json` içinde sabitlenmiş pnpm sürümü ve tam Rust backend için stable Rust.
 
 ```bash
 git clone https://github.com/dixtuel/sely-minigame-hub.git
@@ -67,16 +102,14 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Vite, arayüzü `http://localhost:5173` adresinde sunar; bu mod tek başına Rust API'sini başlatmaz.
-
-Arayüzü ve API'yi aynı origin'de sunan standalone uygulama:
+Vite arayüzü `http://localhost:5173` adresinde sunar; bu yalnızca frontend geliştirme sunucusudur, Rust API'yi başlatmaz. Tam standalone uygulamayı kaynak koddan çalıştırmak için:
 
 ```bash
 pnpm run build
 pnpm start
 ```
 
-Sunucu varsayılan olarak `http://localhost:3000` adresinde açılır. Yerel veri `data/sely.db` SQLite dosyasında tutulur. Docker, Vercel veya Linux servis kurulumuna geçmek için [dağıtım rehberine](docs/DEPLOYMENT.md) bak.
+Standalone sunucu varsayılan olarak `http://localhost:3000` adresinde açılır ve yerel SQLite verisini `data/sely.db` içinde tutar. Diğer geliştirme komutları için [geliştirme kontrollerine](#geliştirme-kontrolleri) bak.
 
 ## Nasıl çalışır?
 
