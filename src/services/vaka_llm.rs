@@ -436,8 +436,8 @@ pub struct LlmModelSpec {
 pub const VAKA_MODEL_CANDIDATES: &[LlmModelSpec] = &[
     // Ölçülen NVIDIA NIM adayları: Nemotron Super en hızlı doğal Vaka yanıtını,
     // GLM-5.3 ise dört kullanımda da kararlı yanıtı verdi.
-    LlmModelSpec { provider: "nvidia", model: "z-ai/glm-5.3", temperature: 0.5, top_p: None, max_tokens: 3072, timeout_ms: 8000, extra: Some(r#"{"reasoning_effort":"low","chat_template_kwargs":{"clear_thinking":true}}"#) },
-    LlmModelSpec { provider: "nvidia", model: "nvidia/nemotron-3-super-120b-a12b", temperature: 1.0, top_p: Some(0.95), max_tokens: 3072, timeout_ms: 8000, extra: Some(r#"{"reasoning_effort":"low"}"#) },
+    LlmModelSpec { provider: "nvidia", model: "z-ai/glm-5.3", temperature: 0.5, top_p: None, max_tokens: 4096, timeout_ms: 15000, extra: Some(r#"{"reasoning_effort":"low","chat_template_kwargs":{"clear_thinking":true}}"#) },
+    LlmModelSpec { provider: "nvidia", model: "nvidia/nemotron-3-super-120b-a12b", temperature: 1.0, top_p: Some(0.95), max_tokens: 4096, timeout_ms: 12000, extra: Some(r#"{"reasoning_effort":"low"}"#) },
     // 1. Kademe: Ultra Hızlı
     LlmModelSpec { provider: "groq", model: "qwen/qwen3.8-27b", temperature: 0.6, top_p: None, max_tokens: 2048, timeout_ms: 7500, extra: None },
     LlmModelSpec { provider: "groq", model: "openai/gpt-oss-120b", temperature: 1.0, top_p: None, max_tokens: 3072, timeout_ms: 10000, extra: None },
@@ -583,7 +583,7 @@ pub async fn execute_vaka_llm_chain(
                     tokio::time::sleep(Duration::from_millis(300)).await;
                 }
                 Ok(response) => break Some(response),
-                Err(error) if attempt == 0 => {
+                Err(error) if attempt == 0 && error.is_connect() => {
                     tracing::warn!(
                         provider = spec.provider,
                         model = spec.model,
