@@ -3,6 +3,14 @@ name: Dependency Review
 on:
   pull_request:
     branches: [ "main" ]
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**/Cargo.toml'
+      - '.github/workflows/dependency-review.yml'
 
 permissions:
   contents: read

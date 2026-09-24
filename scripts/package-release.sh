@@ -162,7 +162,7 @@ for platform in "${platforms[@]}"; do
     "$source_dir"
 
   bundle="$temp_root/standalone-bundle-$arch"
-  mkdir -p "$bundle/dist/public" "$bundle/systemd" "$bundle/scripts" "$bundle/docs"
+  mkdir -p "$bundle/dist/public" "$bundle/systemd" "$bundle/docs"
   install -m 0755 "$export_dir/standalone" "$bundle/standalone"
   cp -a "$export_dir/dist/public/." "$bundle/dist/public/"
   install -m 0644 "$source_dir/.env.example" "$bundle/.env.example"
@@ -171,12 +171,12 @@ for platform in "${platforms[@]}"; do
   install -m 0644 "$source_dir/SECURITY.md" "$bundle/SECURITY.md"
   install -m 0644 "$source_dir/docs/DEPLOYMENT.md" "$bundle/docs/DEPLOYMENT.md"
   install -m 0644 "$source_dir/docs/ATTRIBUTION.md" "$bundle/docs/ATTRIBUTION.md"
-  install -m 0755 "$source_dir/scripts/install-standalone.sh" "$bundle/scripts/install-standalone.sh"
+  install -m 0755 "$source_dir/scripts/install-standalone.sh" "$bundle/install.sh"
   install -m 0644 "$source_dir"/systemd/*.service "$source_dir"/systemd/*.timer "$bundle/systemd/"
   printf '%s\n' "$platform" > "$bundle/release-target"
   printf '%s\n' "$tag_commit" > "$bundle/SOURCE-COMMIT"
   tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -cf - -C "$bundle" . \
-    | gzip -n -9 > "$staging_dir/sely-minigame-hub-$tag-linux-$arch-standalone.tar.gz"
+    | gzip -n -9 > "$staging_dir/sely-$tag-$arch-standalone.tar.gz"
 
   docker_bundle="$temp_root/docker-bundle-$arch"
   mkdir -p "$docker_bundle"
@@ -186,7 +186,7 @@ for platform in "${platforms[@]}"; do
   install -m 0755 "$source_dir/docker/start-release.sh" "$docker_bundle/start.sh"
   sed -e "s/__RELEASE_TAG__/$tag/g" -e "s/__ARCH__/$arch/g" "$source_dir/docker/README.release.md" > "$docker_bundle/README.md"
   tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -cf - -C "$docker_bundle" . \
-    | gzip -n -9 > "$staging_dir/sely-minigame-hub-$tag-linux-$arch-docker.tar.gz"
+    | gzip -n -9 > "$staging_dir/sely-$tag-$arch-docker.tar.gz"
 done
 
 (

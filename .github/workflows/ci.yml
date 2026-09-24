@@ -16,6 +16,9 @@ on:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/dependabot.yml'
       - '.github/pull_request_template.md'
+      - '.dockerignore'
+      - 'docker/**'
+      - 'docker-compose.yml'
   pull_request:
     branches: [ "main" ]
     paths-ignore:
@@ -25,6 +28,9 @@ on:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/dependabot.yml'
       - '.github/pull_request_template.md'
+      - '.dockerignore'
+      - 'docker/**'
+      - 'docker-compose.yml'
 
 env:
   CARGO_TERM_COLOR: always
@@ -76,6 +82,7 @@ jobs:
     - name: Cache cargo registry & build artifacts
       uses: Swatinem/rust-cache@v2
       with:
+        shared-key: backend
         workspaces: |
           .
           crates/sely-game-core

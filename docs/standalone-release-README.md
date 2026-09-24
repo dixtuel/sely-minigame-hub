@@ -1,32 +1,13 @@
-# SELY MiniGame Hub — standalone Linux
+# SELY standalone Linux
 
-Bu paket, release-target dosyasında belirtilen Linux mimarisi için derlenmiş Rust sunucusunu ve web istemcisini içerir. Docker imajı veya Vercel deploy paketi değildir. Kaynak/lisans bilgisi `LICENSE` ve `docs/ATTRIBUTION.md` içindedir.
-
-## İlk kurulum
-
-Linux/glibc makinede arşivi aç ve kurulum betiğini çalıştır:
+Bu paket Linux/glibc için hazır sunucu ve web dosyalarını içerir. Arşiv dizininde:
 
 ```bash
-tar -xzf sely-minigame-hub-vX.Y.Z-linux-amd64-standalone.tar.gz
-cd sely-minigame-hub-vX.Y.Z-linux-amd64-standalone
-./scripts/install-standalone.sh
-```
-
-Normal kullanıcıda varsayılan konum `~/.local/opt/sely-minigame-hub`, root ile `/opt/sely-minigame-hub` olur. Kurulum `.env` yoksa örnek oluşturur; mevcut `.env` ve SQLite verisini ezmez. Varsayılan yerel kurulum için ayar gerekmez. Başlatmak için:
-
-```bash
+./install.sh
 cd ~/.local/opt/sely-minigame-hub
 ./standalone
 ```
 
-Root-owned `/opt` kurulumu için `sudo` kullanıyorsan servisi elle root olarak çalıştırmak yerine systemd seçeneğini öneriyoruz:
+Varsayılan adres `http://localhost:3000`. Kurulum `.env` ve `data/sely.db` dosyasını güncellemede korur. Root ve systemd seçeneği için `sudo ./install.sh --systemd` kullan; ayarlar `/etc/sely-minigame-hub/sely.env` içindedir. Veri yedeğini güncellemeden önce al.
 
-```bash
-sudo ./scripts/install-standalone.sh --systemd
-sudoedit /etc/sely-minigame-hub/sely.env
-sudo systemctl restart sely-minigame.service
-```
-
-SQLite verisi `data/sely.db` altında tutulur; yedeklerini release güncellemesinden önce al. Uzak kalıcılık için `.env`'de Turso/libSQL değerleri kullanılabilir. Redis isteğe bağlı bir leaderboard hızlı katmanıdır; Compose paketiyle birlikte yerel Redis servisi sunulur.
-
-Systemd timer örnekleri kurulum sırasında yerleştirilir ancak etkinleştirilmez. `DAILY_JOB_TOKEN` yapılandırılmışsa ve aynı instance için Vercel Cron çalışmıyorsa `sely-daily-content.timer` ile `sely-daily-cleanup.timer` ayrıca etkinleştirilebilir.
+Dört kurulum yöntemi, güncelleme ve timer ayrıntıları için [kurulum rehberi](https://github.com/dixtuel/sely-minigame-hub/blob/main/docs/DEPLOYMENT.md).

@@ -60,15 +60,14 @@ Tam sunucu [localhost:3000](http://localhost:3000) adresinde açılır.
 
 ## Kurulum
 
-Kendi ortamında çalıştırmanın üç yolu var:
+| Yol | Hızlı başlangıç |
+| --- | --- |
+| [Hazır Docker paketi](docs/DEPLOYMENT.md#hazır-docker-paketi) | Release arşivini aç, `./start.sh` çalıştır. |
+| [Hazır standalone](docs/DEPLOYMENT.md#hazır-standalone-paketi) | Release arşivini aç, `./install.sh` çalıştır. |
+| [Kaynaktan Docker veya dockersız](docs/DEPLOYMENT.md#kaynaktan-kurulum) | Repoyu clone edip istediğin build yolunu seç. |
+| [Vercel](docs/DEPLOYMENT.md#vercel) | Repoyu Vercel'e import et; kalıcılık için Turso ekle. |
 
-| Yöntem                                                  | Ne sağlar?                                                                             |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [Vercel](docs/DEPLOYMENT.md#vercel)                     | GitHub kaynağından site ve Rust serverless API. Kalıcı veri için Turso/libSQL gerekir. |
-| [Docker Compose](docs/DEPLOYMENT.md#docker-compose)     | VPS için önerilen yol: tek hazır paket ve yerel SQLite.                                |
-| [Standalone Linux](docs/DEPLOYMENT.md#standalone-linux) | Hazır Rust binary'si; doğrudan veya isteğe bağlı systemd servisi.                      |
-
-Hazır Docker paketinde uygulama image'ı ve Compose dosyası birlikte gelir; paketi açıp `./start.sh` çalıştırmak yeterlidir. [GitHub Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasındaki hazır paketler Linux amd64 içindir; diğer mimarilerde kaynaktan build al. İndirme, checksum ve diğer yollar [dağıtım rehberinde](docs/DEPLOYMENT.md).
+İndirme, checksum, güncelleme ve ayarlar için tek kaynak [kurulum rehberi](docs/DEPLOYMENT.md). Hazır arşivler Linux amd64 içindir; diğer mimarilerde kaynaktan build al.
 
 ## Teknik yapı
 

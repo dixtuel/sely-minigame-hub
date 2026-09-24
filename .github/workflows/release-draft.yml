@@ -75,10 +75,11 @@ jobs:
       - name: Restore Cargo registry and build cache
         uses: Swatinem/rust-cache@v2
         with:
+          shared-key: backend
           workspaces: |
             .
             crates/sely-game-core
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: 'false'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -95,8 +96,8 @@ jobs:
           set -euo pipefail
           cd "dist/releases/$RELEASE_TAG"
           test "$(find . -maxdepth 1 -type f | wc -l)" -eq 3
-          test -s "sely-minigame-hub-$RELEASE_TAG-linux-amd64-docker.tar.gz"
-          test -s "sely-minigame-hub-$RELEASE_TAG-linux-amd64-standalone.tar.gz"
+          test -s "sely-$RELEASE_TAG-amd64-docker.tar.gz"
+          test -s "sely-$RELEASE_TAG-amd64-standalone.tar.gz"
           sha256sum --check SHA256SUMS
 
       - name: Smoke test packaged Docker service
@@ -111,7 +112,7 @@ jobs:
             rm -r -- "$bundle_dir"
           }
           trap cleanup EXIT
-          tar -xzf "dist/releases/$RELEASE_TAG/sely-minigame-hub-$RELEASE_TAG-linux-amd64-docker.tar.gz" -C "$bundle_dir"
+          tar -xzf "dist/releases/$RELEASE_TAG/sely-$RELEASE_TAG-amd64-docker.tar.gz" -C "$bundle_dir"
           (cd "$bundle_dir" && PORT=31777 ./start.sh)
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:31777/api/config >/dev/null; then
@@ -155,8 +156,8 @@ jobs:
           set -euo pipefail
           cd release-assets
           test "$(find . -maxdepth 1 -type f | wc -l)" -eq 3
-          test -s "sely-minigame-hub-$RELEASE_TAG-linux-amd64-docker.tar.gz"
-          test -s "sely-minigame-hub-$RELEASE_TAG-linux-amd64-standalone.tar.gz"
+          test -s "sely-$RELEASE_TAG-amd64-docker.tar.gz"
+          test -s "sely-$RELEASE_TAG-amd64-standalone.tar.gz"
           sha256sum --check SHA256SUMS
           gh release create "$RELEASE_TAG" ./* \
             --verify-tag \

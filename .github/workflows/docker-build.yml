@@ -7,13 +7,6 @@ on:
       - '.dockerignore'
       - 'docker/**'
       - 'docker-compose.yml'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'vite.config.ts'
-      - 'assets/fonts/**'
       - '.github/workflows/docker-build.yml'
   pull_request:
     branches: [ "main" ]
@@ -21,13 +14,6 @@ on:
       - '.dockerignore'
       - 'docker/**'
       - 'docker-compose.yml'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'vite.config.ts'
-      - 'assets/fonts/**'
       - '.github/workflows/docker-build.yml'
 
 permissions:

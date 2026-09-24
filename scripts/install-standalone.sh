@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-bundle_dir="$(cd -- "$script_dir/.." && pwd -P)"
+bundle_dir="$script_dir"
 lang=""
 prefix=""
 install_systemd=0

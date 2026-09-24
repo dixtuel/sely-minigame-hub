@@ -1,47 +1,52 @@
-# Release hazırlama
+# Sürüm yayımlama (maintainer)
 
-Release hazırlama betiği testleri ve indirilebilir dosyaları üretir. Tag'i gönderdikten sonra GitHub Actions bu dosyaları taslak Release'e ekleyebilir. GitHub ayrıca tag'in kaynak ZIP/tar.gz dosyalarını sunar. [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)
+Kullanıcı kurulum adımları yalnız [kurulum rehberinde](DEPLOYMENT.md) tutulur. Bu sayfa tag'den **taslak** GitHub Release üretme adımlarını anlatır. Vercel production deploy'u ayrı işlemdir; bu workflow canlı siteyi değiştirmez.
 
-## Üretilen dosyalar
+## Tek yayın akışı
 
-`vX.Y.Z` tag'i için `dist/releases/vX.Y.Z/` altında platform başına iki arşiv ve bir checksum listesi oluşur:
+1. `package.json` ve `Cargo.toml` sürümlerini aynı `X.Y.Z` değerine getir; değişiklikleri `main` dalına commit/push et. Çalışma ağacı temiz olsun.
+2. Aynı commit'e `vX.Y.Z` tag'i oluşturup gönder:
 
-| Dosya                                                                 | İçerik |
-| --------------------------------------------------------------------- | ------ |
-| `*-linux-amd64-docker.tar.gz` / `*-linux-arm64-docker.tar.gz`         | Uygulama image'ı, Compose, `.env.example` ve `start.sh`. |
-| `*-linux-amd64-standalone.tar.gz` / `*-linux-arm64-standalone.tar.gz` | Rust binary, web istemcisi, kurulum betiği ve isteğe bağlı systemd birimleri. |
-| `SHA256SUMS`                                                          | Arşivlerin SHA-256 özetleri. |
+   ```bash
+   git tag -a vX.Y.Z -m "SELY MiniGame Hub vX.Y.Z"
+   git push origin main vX.Y.Z
+   ```
 
-GitHub tag kaynağı için ayrıca ZIP/tar.gz sunar. Temiz kaynak arşivi Vercel kurulumu içindir; `.env`, `.vercel` ve Git'te tutulmayan yerel görseller dahil edilmez. Yalnız `scripts/release-assets.list` içindeki katalog/marka/paylaşım görselleri public source'a girer.
+3. GitHub **Actions → Prepare Draft Release → Run workflow**: branch `main`, input `vX.Y.Z`. Workflow tag'in `main` geçmişinde olduğunu ve iki manifest sürümünü doğrular; public audit, frontend/Rust testlerini, build'leri ve Docker açılış testini çalıştırır.
+4. Oluşan **draft** Release'de iki arşivi ve `SHA256SUMS` dosyasını, açıklamayı ve dosya boyutlarını incele; ardından GitHub arayüzünden yayımla. Var olan Release'in üzerine yazılmaz.
 
-## Maintainer: release hazırlama
+Linux amd64 için dosyalar:
 
-### GitHub Actions ile taslak release
+| Dosya | İçerik |
+| --- | --- |
+| `sely-vX.Y.Z-amd64-docker.tar.gz` | Hazır image, Compose, `.env.example`, `start.sh` |
+| `sely-vX.Y.Z-amd64-standalone.tar.gz` | Rust binary, web dosyaları, `install.sh`, systemd örnekleri |
+| `SHA256SUMS` | Her iki arşivin SHA-256 özeti |
 
-Önce sürüm değişikliklerini `main` dalına gönder, sürümle eşleşen bir tag oluşturup gönder. Tag'deki `package.json` ve `Cargo.toml` sürümleri aynı olmalı ve tag `main` geçmişinde bulunmalı:
+GitHub'ın otomatik source ZIP/tar.gz dosyaları kaynaktan/Vercel kurulumu içindir. Hazır binary içermez. Public görsel allowlist'i `scripts/release-assets.list` dosyasında tutulur. Tag/release değiştirmek yerine hata durumunda yeni patch sürümü çıkar.
 
-```bash
-git push origin main
-git tag -a vX.Y.Z -m "SELY MiniGame Hub vX.Y.Z"
-git push origin vX.Y.Z
-```
+## Yerel paketleme (yalnız özel ihtiyaçta)
 
-GitHub'da **Actions → Prepare Draft Release → Run workflow** yolunu aç; branch olarak `main`'i, tag alanına gönderdiğin `vX.Y.Z` değerini seç. Workflow public audit'i, frontend/Rust test ve build'lerini, checksum doğrulamasını ve paket içindeki Docker servisinin açılış testini çalıştırır; Linux amd64 arşivlerini taslak GitHub Release'e ekler. Paketleme ve yükleme ayrı işlerdir; `contents: write` yalnız taslak oluşturma işinde kullanılır. Taslağı ve dosyaları inceleyip GitHub arayüzünden elle yayımla.
-
-### Yerelde arşivleri üretme
-
-Linux'ta Node.js 22+, Corepack (manifestte sabitlenmiş pnpm sürümü), stable Rust, Docker Engine + Buildx, `tar`, `gzip` ve `sha256sum` gerekir. `docker buildx version` ve `docker buildx inspect --bootstrap` ile plugin ve hedef mimari desteğini önceden kontrol et. Buildx yoksa kullandığın Docker dağıtımına uygun CLI plugin'ini kur; Ubuntu için Docker'ın [resmî kurulum yönergesi](https://docs.docker.com/engine/install/ubuntu/) `docker-buildx-plugin` paketini belgeler. Mevcut Docker Engine'i otomatik kaldırıp değiştirme. Çalışma ağacı temiz olmalı ve tag mevcut `HEAD` commit'ini göstermelidir:
+Normal akış GitHub Actions'tır. Yerel üretim için Linux, Node.js 22+, manifestteki pnpm sürümü, Rust, Docker Engine + Buildx, `tar`, `gzip`, `sha256sum` gerekir. Tag temiz çalışma ağacının `HEAD` commit'ini göstermelidir.
 
 ```bash
-git status --short
-git tag -a vX.Y.Z -m "SELY MiniGame Hub vX.Y.Z"
-./scripts/package-release.sh vX.Y.Z --platform linux/amd64 --platform linux/arm64
+./scripts/package-release.sh --platform linux/amd64 vX.Y.Z
+cd dist/releases/vX.Y.Z
+sha256sum -c SHA256SUMS
 ```
 
-İlk üretimde tek mimari seçilebilir. `linux/arm64` çapraz derlemesi Buildx'in uygun emülasyon/worker desteğini gerektirebilir. Docker imajı Docker exporter ile, standalone dosyaları ise Buildx `local` exporter ile çıkarılır; script mimarileri ayrı build ederek her Release arşivini tek platformda tutar ([Buildx exporters](https://docs.docker.com/build/exporters/)). Betik tag arşivini temiz geçici dizine çıkarır; public release audit, sabitlenmiş pnpm ile install/check/test/build, Rust test suite’i ve Docker/standalone derlemelerini çalıştırır. Çıktıyı GitHub Releases sayfasında taslak olarak açıp dosyaları seçerek yükle; tag ve açıklamayı incelemeden yayımlama. `SHA256SUMS` dosyasını da ekle.
+Arm64 gerektiğinde `--platform linux/arm64` eklenebilir; Buildx çapraz derleme desteğini doğrula. Betik aynı tag için çıktıyı yanlışlıkla ezmez. Yerel paketlemeyi yaptıysan testleri ve container açılışını ayrıca doğrula; Actions yolundaki smoke test otomatik çalışır.
 
-Betiğin mesaj dili `LC_ALL`, `LC_MESSAGES`, `LANG` sırasıyla sistem locale'inden algılanır (`tr*` Türkçe, diğerleri İngilizce); `--lang tr|en` ile seçilebilir. Dosya adları ve komutlar locale'den bağımsızdır.
+## GitHub Actions ve cache politikası
 
-## Kurulum
+Repo public olduğu ve standart `ubuntu-24.04` runner kullandığı için Actions işlem dakikaları ücretsizdir. 2026-09-24 ölçümünde 42 cache kaydı toplam yaklaşık 2,37 GB idi; bu yüzden Docker `mode=max` ara katmanlarını korumak için bırakıldı. GitHub Free'nin **500 MB artifact** ve repo başına **10 GB cache** dahil alanını yine de gözetiyoruz. Bu limitler zamanla değişebilir; [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [cache sınırları](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching) ve [workflow path filtreleri](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax) geçerlidir.
 
-Docker, standalone ve Vercel adımları [dağıtım rehberinde](DEPLOYMENT.md). Docker paketini açıp `./start.sh` çalıştırmak yeterlidir; yerel SQLite volume'u ve `.env` güncellemelerde korunur.
+| Workflow | Ne zaman | Cache ve çıktı |
+| --- | --- | --- |
+| `ci.yml` | Kod/manifest değişen `main` push ve PR; yalnız doküman/Docker değişiminde atlanır | pnpm store lockfile ile; Cargo cache yalnız `main` push'ta kaydedilir, PR restore eder |
+| `docker-build.yml` | Dockerfile, Compose, ignore/build tanımı değişince | BuildKit `gha` cache `mode=max`; yalnız `main` push yazar, PR okur; image yayımlanmaz |
+| `codeql.yml` | Kod değişen push/PR ve haftalık zamanlama | CodeQL JS dependency cache; haftalık tarama docs değişmese de çalışır |
+| `dependency-review.yml` | Bağımlılık manifest/lockfile değişen PR | Build/cache yok; yalnız yeni runtime risklerini inceler |
+| `release-draft.yml` | Maintainer tarafından elle başlatılır | CI Cargo cache'i salt okunur kullanır; arşivler job'lar arasında 1 gün saklanır, sonra draft Release kalıcı varlıktır |
+
+Path filtresiyle atlanan workflow'u branch protection'da **zorunlu check** yapma; GitHub atlanan zorunlu check'i pending bırakabilir. Cache içerikleri hiçbir zaman sır veya `.env` içermez. GitHub cache, tekrar indirilebilir build girdileri içindir; release dosyaları iki job arasında kısa ömürlü artifact olarak taşınır. Docker cache dolarsa eski entries LRU ile silinir; gereksiz sık cache yazımı yerine `main` ile sınırlıyoruz. [Docker `gha` backend ayarları](https://docs.docker.com/build/cache/backends/gha/), [Rust cache `save-if`/`shared-key`](https://github.com/Swatinem/rust-cache).
