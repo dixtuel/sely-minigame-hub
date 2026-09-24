@@ -7,7 +7,7 @@ VPS için Docker Compose en kısa yoldur. [GitHub Releases](https://github.com/d
 ```bash
 sha256sum --check --ignore-missing SHA256SUMS
 mkdir sely-docker
-tar -xzf sely-minigame-hub-v2.0.1-linux-amd64-docker.tar.gz -C sely-docker
+tar -xzf sely-minigame-hub-v2.0.2-linux-amd64-docker.tar.gz -C sely-docker
 cd sely-docker
 ./start.sh
 ```
@@ -33,7 +33,7 @@ Docker istemiyorsan aynı Release sayfasından `*-standalone.tar.gz` ve `SHA256S
 ```bash
 sha256sum --check --ignore-missing SHA256SUMS
 mkdir sely-standalone
-tar -xzf sely-minigame-hub-v2.0.1-linux-amd64-standalone.tar.gz -C sely-standalone
+tar -xzf sely-minigame-hub-v2.0.2-linux-amd64-standalone.tar.gz -C sely-standalone
 cd sely-standalone
 ./scripts/install-standalone.sh
 ~/.local/opt/sely-minigame-hub/standalone

@@ -31,6 +31,12 @@ COPY assets/fonts ./assets/fonts
 
 RUN cargo build --release --bin standalone
 
+# Exportable release target: Buildx --target standalone-artifact yields the
+# native binary and built frontend without a runtime image.
+FROM scratch AS standalone-artifact
+COPY --from=backend /app/target/release/standalone /standalone
+COPY --from=frontend /app/dist/public /dist/public
+
 # --- Stage 3: Production runtime ---
 FROM debian:bookworm-slim AS runner
 
@@ -61,9 +67,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/api/config || exit 1
 
 CMD ["./standalone"]
-
-# Exportable release target: `docker buildx build --target standalone-artifact
-# --output type=local,dest=...` yields the native binary and built frontend.
-FROM scratch AS standalone-artifact
-COPY --from=backend /app/target/release/standalone /standalone
-COPY --from=frontend /app/dist/public /dist/public

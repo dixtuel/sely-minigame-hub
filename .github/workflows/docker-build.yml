@@ -55,6 +55,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
+          target: runner
           push: false
           cache-from: type=gha,scope=sely-docker
           # Keep cache writes on trusted main pushes. PRs can reuse the default

@@ -146,6 +146,7 @@ for platform in "${platforms[@]}"; do
   image_tar="$temp_root/image-$arch.tar"
   docker buildx build \
     --platform "$platform" \
+    --target runner \
     --build-arg "SELY_VERSION=$tag" \
     --tag "$image_ref" \
     --output "type=docker,dest=$image_tar" \

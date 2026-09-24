@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: runner
     container_name: sely-minigame-hub
     restart: unless-stopped
     ports:
