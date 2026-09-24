@@ -31,6 +31,60 @@ pub struct TrpcQuery {
     pub input: Option<String>,
 }
 
+fn build_vaka_llm_messages(
+    system_prompt: String,
+    history: &[HistoryMessage],
+    user_prompt: &str,
+) -> Vec<LlmMessage> {
+    // The current detective action is sent below as user_prompt, so omit the
+    // trailing user item when the client already included it in history.
+    let history_end = if history.last().map(|message| message.role.as_str()) == Some("user") {
+        history.len().saturating_sub(1)
+    } else {
+        history.len()
+    };
+
+    let mut normalized: Vec<LlmMessage> = Vec::new();
+    for item in &history[..history_end] {
+        let role = if item.role == "assistant" { "assistant" } else { "user" };
+        if let Some(previous) = normalized.last_mut().filter(|previous| previous.role == role) {
+            if !item.content.is_empty() {
+                if !previous.content.is_empty() {
+                    previous.content.push('\n');
+                }
+                previous.content.push_str(&item.content);
+            }
+        } else {
+            normalized.push(LlmMessage {
+                role: role.to_string(),
+                content: item.content.clone(),
+            });
+        }
+    }
+
+    if normalized.len() > 10 {
+        normalized.drain(..normalized.len() - 10);
+    }
+    if normalized.first().map(|message| message.role.as_str()) == Some("assistant") {
+        normalized.remove(0);
+    }
+    if normalized.last().map(|message| message.role.as_str()) == Some("user") {
+        normalized.pop();
+    }
+
+    let mut messages = Vec::with_capacity(normalized.len() + 2);
+    messages.push(LlmMessage {
+        role: "system".to_string(),
+        content: system_prompt,
+    });
+    messages.extend(normalized);
+    messages.push(LlmMessage {
+        role: "user".to_string(),
+        content: user_prompt.to_string(),
+    });
+    messages
+}
+
 fn wrap_superjson_success(data: Value) -> Value {
     json!({ "result": { "data": { "json": data } } })
 }
@@ -387,7 +441,7 @@ async fn resolve_post_procedure(
                          - Delil sınıflandırması: {}\n- İfade sınıflandırması: {}\n\
                          - Deterministic engine itiraf üretti: {}\n- Açılan delil: {}\n\
                          - Açılan şüpheli: {}\n\
-                         Bu gerçeklere uygun tepki ver. Yeni fail uydurma, delilin geçerliliğini değiştirme\
+                         Bu gerçeklere uygun tepki ver. Yeni fail uydurma, delilin geçerliliğini değiştirme \
                          ve kural durumu desteklemiyorsa itiraf etmiş gibi konuşma.",
                         action_type, suspect.is_culprit, current_stress, det.new_stress, suspect.break_threshold,
                         clue_truth, sentence_truth, det.confessed,
@@ -414,20 +468,7 @@ async fn resolve_post_procedure(
                 let user_prompt = if clean_q.is_empty() {
                     if locale == "en" { "Respond to the detective's latest action." } else { "Dedektifin son hamlesine yanıt ver." }
                 } else { clean_q.as_str() };
-                let mut messages = vec![LlmMessage { role: "system".to_string(), content: prompt }];
-                // The latest generated detective message is represented by user_prompt below;
-                // do not send it twice when it is already the last client history item.
-                let history_end = if history_msgs.last().map(|h| h.role.as_str()) == Some("user") {
-                    history_msgs.len().saturating_sub(1)
-                } else {
-                    history_msgs.len()
-                };
-                let history_start = history_end.saturating_sub(10);
-                messages.extend(history_msgs[history_start..history_end].iter().map(|h| LlmMessage {
-                    role: if h.role == "assistant" { "assistant".to_string() } else { "user".to_string() },
-                    content: h.content.clone(),
-                }));
-                messages.push(LlmMessage { role: "user".to_string(), content: user_prompt.to_string() });
+                let messages = build_vaka_llm_messages(prompt, &history_msgs, user_prompt);
 
                 if let Some(llm_result) = execute_vaka_llm_chain(llm_client, &messages, None).await {
                     reply = llm_result.text;

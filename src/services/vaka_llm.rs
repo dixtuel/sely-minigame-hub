@@ -4,7 +4,7 @@
 //! Matches server/services/vakaLlmService.ts.
 
 use std::env;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -434,6 +434,10 @@ pub struct LlmModelSpec {
 }
 
 pub const VAKA_MODEL_CANDIDATES: &[LlmModelSpec] = &[
+    // Ölçülen NVIDIA NIM adayları: Nemotron Super en hızlı doğal Vaka yanıtını,
+    // GLM-5.3 ise dört kullanımda da kararlı yanıtı verdi.
+    LlmModelSpec { provider: "nvidia", model: "z-ai/glm-5.3", temperature: 0.5, top_p: None, max_tokens: 3072, timeout_ms: 8000, extra: Some(r#"{"reasoning_effort":"low","chat_template_kwargs":{"clear_thinking":true}}"#) },
+    LlmModelSpec { provider: "nvidia", model: "nvidia/nemotron-3-super-120b-a12b", temperature: 1.0, top_p: Some(0.95), max_tokens: 3072, timeout_ms: 8000, extra: Some(r#"{"reasoning_effort":"low"}"#) },
     // 1. Kademe: Ultra Hızlı
     LlmModelSpec { provider: "groq", model: "qwen/qwen3.8-27b", temperature: 0.6, top_p: None, max_tokens: 2048, timeout_ms: 7500, extra: None },
     LlmModelSpec { provider: "groq", model: "openai/gpt-oss-120b", temperature: 1.0, top_p: None, max_tokens: 3072, timeout_ms: 10000, extra: None },
@@ -447,9 +451,10 @@ pub const VAKA_MODEL_CANDIDATES: &[LlmModelSpec] = &[
     LlmModelSpec { provider: "nvidia", model: "openai/gpt-oss-20b", temperature: 0.7, top_p: None, max_tokens: 1024, timeout_ms: 8500, extra: None },
     LlmModelSpec { provider: "mistral", model: "ministral-8b-latest", temperature: 0.6, top_p: None, max_tokens: 1024, timeout_ms: 8000, extra: None },
     // 3. Kademe: Ağır / Yedek
-    LlmModelSpec { provider: "nvidia", model: "z-ai/glm-5-3-flash", temperature: 0.6, top_p: None, max_tokens: 1536, timeout_ms: 9500, extra: None },
     LlmModelSpec { provider: "mistral", model: "mistral-large-latest", temperature: 0.7, top_p: None, max_tokens: 1536, timeout_ms: 10000, extra: None },
 ];
+
+const LLM_CHAIN_TIMEOUT_MS: u64 = 45_000;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct LlmChainResult {
@@ -491,7 +496,17 @@ pub async fn execute_vaka_llm_chain(
         }
     }
 
+    let chain_started = Instant::now();
     for spec in candidates {
+        let chain_remaining = Duration::from_millis(LLM_CHAIN_TIMEOUT_MS)
+            .saturating_sub(chain_started.elapsed());
+        if chain_remaining.is_zero() {
+            tracing::warn!(
+                chain_elapsed_ms = chain_started.elapsed().as_millis() as u64,
+                "Vaka LLM fallback zinciri 45 sn sınırına ulaştı"
+            );
+            break;
+        }
         let api_key = match spec.provider {
             "groq" => &groq_key,
             "nvidia" => &nvidia_key,
@@ -515,6 +530,7 @@ pub async fn execute_vaka_llm_chain(
             "messages": messages,
             "temperature": spec.temperature,
             "max_tokens": spec.max_tokens,
+            "stream": false,
         });
         if let Some(top_p) = spec.top_p {
             payload["top_p"] = serde_json::json!(top_p);
@@ -527,27 +543,104 @@ pub async fn execute_vaka_llm_chain(
             }
         }
 
-        let send_res = client
-            .post(endpoint)
-            .header("Content-Type", "application/json")
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&payload)
-            .timeout(Duration::from_millis(spec.timeout_ms))
-            .send()
-            .await;
+        let request_timeout = Duration::from_millis(spec.timeout_ms).min(chain_remaining);
+        let deadline = Instant::now() + request_timeout;
+        let mut attempt = 0;
+        let mut resp = loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break None;
+            }
+            let result = client
+                .post(endpoint)
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", api_key))
+                .json(&payload)
+                .timeout(remaining)
+                .send()
+                .await;
+            match result {
+                Ok(response)
+                    if attempt == 0 && [502, 503, 504].contains(&response.status().as_u16()) =>
+                {
+                    tracing::warn!(
+                        provider = spec.provider,
+                        model = spec.model,
+                        status = %response.status(),
+                        retry_delay_ms = 300,
+                        "Geçici LLM HTTP hatası; aynı model bir kez yeniden deneniyor"
+                    );
+                    attempt += 1;
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+                }
+                Ok(response) => break Some(response),
+                Err(error) if attempt == 0 => {
+                    tracing::warn!(
+                        provider = spec.provider,
+                        model = spec.model,
+                        error = %error,
+                        retry_delay_ms = 300,
+                        "LLM ağ hatası; aynı model bir kez yeniden deneniyor"
+                    );
+                    attempt += 1;
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+                }
+                Err(error) => {
+                    tracing::warn!(provider = spec.provider, model = spec.model, error = %error, "LLM adayı başarısız; fallback sürüyor");
+                    break None;
+                }
+            }
+        };
 
-        if let Ok(resp) = send_res {
-            if resp.status().is_success() {
-                if let Ok(json_val) = resp.json::<serde_json::Value>().await {
-                    if let Some(raw_content) = json_val["choices"][0]["message"]["content"].as_str() {
-                        let cleaned = strip_reasoning_blocks(raw_content);
-                        if !cleaned.trim().is_empty() {
-                            return Some(LlmChainResult {
-                                text: cleaned,
-                                provider: spec.provider.to_string(),
-                                model: spec.model.to_string(),
-                            });
-                        }
+        let Some(mut response) = resp.take() else {
+            continue;
+        };
+        while spec.provider == "nvidia" && response.status().as_u16() == 202 {
+            let Some(request_id) = response
+                .headers()
+                .get("NVCF-REQID")
+                .and_then(|value| value.to_str().ok())
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+            else {
+                tracing::warn!(model = spec.model, "NVIDIA NIM 202 yanıtında NVCF-REQID başlığı yok; fallback sürüyor");
+                break;
+            };
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                tracing::warn!(model = spec.model, "NVIDIA NIM status polling zaman aşımına uğradı");
+                break;
+            }
+            tokio::time::sleep(Duration::from_secs(1).min(remaining)).await;
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            match client
+                .get(format!("https://integrate.api.nvidia.com/v1/status/{request_id}"))
+                .header("Authorization", format!("Bearer {}", api_key))
+                .timeout(remaining)
+                .send()
+                .await
+            {
+                Ok(next) => response = next,
+                Err(error) => {
+                    tracing::warn!(model = spec.model, error = %error, "NVIDIA NIM status isteği başarısız; fallback sürüyor");
+                    break;
+                }
+            }
+        }
+
+        if response.status().is_success() {
+            if let Ok(json_val) = response.json::<serde_json::Value>().await {
+                if let Some(raw_content) = json_val["choices"][0]["message"]["content"].as_str() {
+                    let cleaned = strip_reasoning_blocks(raw_content);
+                    if !cleaned.trim().is_empty() {
+                        return Some(LlmChainResult {
+                            text: cleaned,
+                            provider: spec.provider.to_string(),
+                            model: spec.model.to_string(),
+                        });
                     }
                 }
             }
