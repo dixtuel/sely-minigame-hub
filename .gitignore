@@ -116,14 +116,34 @@ client/public/__manus__/version.json
 # Private production overlay and verification files
 prod-overlay/
 prod-overlay-*/
-client/src/lib/contact.prod.ts
 client/public/google*.html
 client/public/BingSiteAuth.xml
 client/public/yandex_*.html
 
-# Private production görselleri — yalnız private assets paketinden deploy sırasında kopyalanır
+# Public release için seçilmiş SELY artwork; manifest dışındaki yerel/prod görselleri private kalır.
 client/public/storage/
-client/public/storage
+!client/public/storage/
+client/public/storage/*
+!client/public/storage/yanki-odasi-poster_07ca7169.png
+!client/public/storage/isaretci-poster_681e174b.png
+!client/public/storage/tetris-poster_184bd73e.jpg
+!client/public/storage/kivilcim-poster-v2_5ac4584b.png
+!client/public/storage/dugum-poster_684e5a01.png
+!client/public/storage/kirpik-poster_23817b18.png
+!client/public/storage/golge-payi-poster_1fa19d71.png
+!client/public/storage/hane-number-logic-poster_9656a8a5.png
+!client/public/storage/asteroids-poster_6700a000.jpg
+!client/public/storage/sokoban-poster_c3ef353a.jpg
+!client/public/storage/lander-poster_618faf0f.jpg
+!client/public/storage/lightsout-poster_e388a028.jpg
+!client/public/storage/2048-poster_da0f7f56.jpg
+!client/public/storage/coil-poster.png
+!client/public/storage/apex-poster.png
+!client/public/storage/lift-poster.png
+!client/public/storage/breakline-poster.png
+!client/public/storage/more-games-poster_e274e5a3.jpg
+!client/public/storage/sely-mark_de9c08a5.png
+!client/public/storage/sely-social-card-title_b4649a50.png
 client/public/manus-storage/
 client/public/manus-storage
 
@@ -175,6 +195,7 @@ data/
 bun.lock
 bun.lockb
 .env*
+!docker/.env.release.example
 
 # Rust build artifacts
 target/

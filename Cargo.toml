@@ -25,8 +25,7 @@ dotenvy = "0.15"
 # sync features keeps the Vercel Rust function smaller without changing runtime
 # behavior or the Turso/SQLite API used by this project.
 libsql = { version = "0.9", default-features = false, features = ["core", "remote", "tls"] }
-fred = { version = "10.1", features = ["enable-rustls", "i-sorted-sets"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono"] }
+fred = { version = "10.1", features = ["enable-rustls-ring", "i-sorted-sets", "i-hashes", "i-keys"] }
 
 # HTTP İstemcisi & Dış İstekler
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }

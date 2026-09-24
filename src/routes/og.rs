@@ -113,7 +113,7 @@ pub fn generate_og_svg(params: &OgQuery) -> String {
         "  </g>\n\n",
         "  __SCORE_SECTION__\n\n",
         "  <!-- Bottom Brand -->\n",
-        "  <text x=\"100\" y=\"550\" font-family=\"sans-serif\" font-size=\"16\" fill=\"#1B1A1B\" opacity=\"0.65\" font-weight=\"600\">sely.tr · Küçük kural, büyük yankı. · Reklamsız, kayıt gerektirmeyen bağımsız oyunlar</text>\n",
+        "  <text x=\"100\" y=\"550\" font-family=\"sans-serif\" font-size=\"16\" fill=\"#1B1A1B\" opacity=\"0.65\" font-weight=\"600\">SELY MiniGame Hub · Küçük kural, büyük yankı. · Reklamsız, kayıt gerektirmeyen bağımsız oyunlar</text>\n",
         "</svg>"
     );
 

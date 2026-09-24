@@ -38,21 +38,13 @@ describe("Lift procedural platform generator", () => {
     expect(continued).toEqual(wholeRun);
   });
 
-  it("keeps generating above the camera as the endless ascent scrolls upward", () => {
-    const viewportHeight = 700;
-    const topPlatformY = -1_400;
-    expect(needsMoreLiftPlatforms(topPlatformY, 0, viewportHeight)).toBe(false);
-    expect(needsMoreLiftPlatforms(topPlatformY, 200, viewportHeight)).toBe(
-      true
-    );
-    expect(
-      needsMoreLiftPlatforms(topPlatformY - 110, 200, viewportHeight)
-    ).toBe(false);
-  });
-
   it("streams fresh rows through a long ascent instead of stopping at a fixed height", () => {
     const next = createLiftPlatformGenerator(38_205, 390, 2);
     const viewportHeight = 700;
+    expect(needsMoreLiftPlatforms(-1_400, 0, viewportHeight)).toBe(false);
+    expect(needsMoreLiftPlatforms(-1_400, 200, viewportHeight)).toBe(true);
+    expect(needsMoreLiftPlatforms(-1_510, 200, viewportHeight)).toBe(false);
+
     let topY = -1_300;
     let topX = 100;
     let topWidth = 80;

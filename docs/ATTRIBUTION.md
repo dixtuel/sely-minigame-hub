@@ -22,7 +22,7 @@ Tüm üçüncü taraf bileşenlerin telif hakları, ticari markaları ve patent 
 
 ## 1. Proje Lisansı ve Uyumluluk Esasları
 
-SELY MiniGame Hub kaynak kodları **[GNU Affero General Public License v3.0](LICENSE)** (AGPL-3.0) kapsamında sunulmaktadır.
+SELY MiniGame Hub kaynak kodları **[GNU Affero General Public License v3.0](../LICENSE)** (AGPL-3.0) kapsamında sunulmaktadır.
 
 Üçüncü taraf bileşenler aşağıdaki lisans aileleri altında dağıtılmaktadır:
 - **MIT Lisansı** (`MIT`)
@@ -35,6 +35,8 @@ SELY MiniGame Hub kaynak kodları **[GNU Affero General Public License v3.0](LIC
 - **Public Domain Dedications** (ENABLE, Wordle Guess Lexicon)
 
 ### Oyun kodu ve içerik uyarlamaları
+
+Katalog afişleri, SELY marka işareti ve ana sosyal paylaşım kartı SELY projesi için hazırlanmış görsellerdir; proje sahibi bunların public release paketinde yeniden dağıtılmasına izin vermiştir. Release kapsamı `scripts/release-assets.list` ile sınırlıdır; AGPL-3.0 kod lisansı SELY markası veya listelenmeyen yerel görseller için ayrı bir lisans vermez.
 
 | Oyun | Kaynak / hak sahibi | Lisans ve uyarlanan kapsam |
 | :--- | :--- | :--- |
@@ -134,7 +136,7 @@ SELY arayüzünde Bricolage Grotesque ve DM Mono Google Fonts üzerinden kullan�
 | Web arayüzü | React, Babylon.js, TanStack Query, tRPC, Wouter, Radix UI, Sonner, SuperJSON, next-themes, Vercel Analytics / Speed Insights | Çoğu MIT; Babylon.js Apache-2.0 |
 | Web yardımcıları | Lucide React, clsx, tailwind-merge, class-variance-authority | ISC, MIT, Apache-2.0 |
 | Rust sunucusu | Axum, Tokio, Tower, Tower HTTP/Cookies, libSQL, fred, governor, tracing | MIT |
-| Rust sunucusu (diğer) | Serde, SQLx, Reqwest, Chrono, rand, regex, sha2, base64, flate2 | MIT OR Apache-2.0; `subtle` BSD-3-Clause |
+| Rust sunucusu (diğer) | Serde, Reqwest, Chrono, rand, regex, sha2, base64, flate2 | MIT OR Apache-2.0; `subtle` BSD-3-Clause |
 | Vercel Rust Runtime | `vercel_runtime` | Apache-2.0 |
 | WASM köprüsü | wasm-bindgen, serde-wasm-bindgen, getrandom | MIT, MIT OR Apache-2.0 |
 | OG görsel render'ı | resvg | MPL-2.0 |

@@ -61,7 +61,15 @@ pub async fn daily_content_handler(State(state): State<AppState>, headers: Heade
         Some(c) => Some(c.lock().await),
         None => None,
     };
-    let ensured = ensure_daily_content(&today, maybe_conn_guard.as_deref()).await;
+    let local_conn_guard = match &state.local_fallback_conn {
+        Some(c) => Some(c.lock().await),
+        None => None,
+    };
+    let ensured = ensure_daily_content(
+        &today,
+        maybe_conn_guard.as_deref(),
+        local_conn_guard.as_deref(),
+    ).await;
     (
         StatusCode::OK,
         Json(serde_json::json!({
@@ -89,14 +97,25 @@ pub async fn daily_cleanup_handler(State(state): State<AppState>, headers: Heade
         Some(c) => Some(c.lock().await),
         None => None,
     };
-    let removed = cleanup_daily_content(&cutoff, maybe_conn_guard.as_deref()).await;
+    let local_conn_guard = match &state.local_fallback_conn {
+        Some(c) => Some(c.lock().await),
+        None => None,
+    };
+    let removed = cleanup_daily_content(
+        &cutoff,
+        maybe_conn_guard.as_deref(),
+        local_conn_guard.as_deref(),
+    ).await;
     // The 15 0 * * * cleanup cron owns the daily leaderboard's 24-hour window.
     // This removes old durable daily_scores rows from Turso as well as the Redis expiry.
     let leaderboard_cutoff = (chrono::Utc::now() - chrono::Duration::hours(24)).format("%Y-%m-%d").to_string();
-    let leaderboard_removed = match maybe_conn_guard.as_deref() {
-        Some(conn) => cleanup_old_daily_scores(conn, &leaderboard_cutoff).await.unwrap_or(0),
-        None => 0,
-    };
+    let mut leaderboard_removed = 0;
+    for conn in [maybe_conn_guard.as_deref(), local_conn_guard.as_deref()].into_iter().flatten() {
+        if let Ok(removed) = cleanup_old_daily_scores(conn, &leaderboard_cutoff).await {
+            leaderboard_removed = removed;
+            break;
+        }
+    }
     (
         StatusCode::OK,
         Json(serde_json::json!({

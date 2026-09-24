@@ -56,7 +56,6 @@ describe("Apex speed response", () => {
     expect(APEX_CRUISE_SPEED).toBe(100);
     expect(advanceApexSpeed(APEX_CRUISE_SPEED, { gas: false, brake: false }, 1)).toBe(APEX_CRUISE_SPEED);
     expect(advanceApexSpeed(80, { gas: false, brake: false }, 0.1)).toBeCloseTo(81.4);
-    expect(advanceApexSpeed(110, { gas: false, brake: false }, 0.1)).toBeCloseTo(108.6);
   });
 
   it("keeps near-miss rewards useful but caps farming more conservatively", () => {

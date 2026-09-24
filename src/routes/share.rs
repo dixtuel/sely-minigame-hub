@@ -10,6 +10,7 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
+use super::domain::configured_origin;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ShareQuery {
@@ -120,8 +121,9 @@ pub async fn share_bridge_handler(
         };
     }
 
-    let host = headers.get("host").and_then(|h| h.to_str().ok()).unwrap_or("sely.tr");
-    let proto = headers.get("x-forwarded-proto").and_then(|h| h.to_str().ok()).unwrap_or("https");
+    let host = headers.get("host").and_then(|h| h.to_str().ok());
+    let proto = headers.get("x-forwarded-proto").and_then(|h| h.to_str().ok());
+    let origin = configured_origin(host, proto);
 
     let mut og_params = Vec::new();
     og_params.push(format!("game={}", valid_game));
@@ -131,12 +133,14 @@ pub async fn share_bridge_handler(
     if !grade.is_empty() { og_params.push(format!("grade={}", grade)); }
     if is_en { og_params.push("locale=en".to_string()); }
 
-    let og_image_url = format!("{}://{}/api/og?{}", proto, host, og_params.join("&"));
+    let og_image_path = format!("/api/og?{}", og_params.join("&"));
+    let og_image_url = origin.as_ref().map(|origin| format!("{origin}{og_image_path}")).unwrap_or(og_image_path);
     // Meta tags (og:image/twitter:image) need the real PNG — crawlers don't render SVG. The
     // page's own on-screen preview is just a human looking at a picture, which a plain <img>
     // renders fine from SVG, so it skips server-side rasterization entirely.
     let og_image_svg_url = format!("{}&format=svg", og_image_url);
-    let share_page_url = format!("{}://{}/share/{}", proto, host, valid_game);
+    let share_page_path = format!("/share/{}", valid_game);
+    let share_page_url = origin.as_ref().map(|origin| format!("{origin}{share_page_path}")).unwrap_or(share_page_path);
 
     let html = format!(
         r#"<!doctype html>
@@ -191,7 +195,7 @@ pub async fn share_bridge_handler(
     </div>
   </main>
   <footer style="margin-top: 30px; font-size: 11px; opacity: 0.7;">
-    <p>sely.tr · Küçük kural, büyük yankı. · Reklamsız, kayıt gerektirmeyen web oyunları</p>
+    <p>SELY MiniGame Hub · Küçük kural, büyük yankı. · Reklamsız, kayıt gerektirmeyen web oyunları</p>
   </footer>
   <script>
     document.getElementById('btnCopyLink').addEventListener('click', async () => {{

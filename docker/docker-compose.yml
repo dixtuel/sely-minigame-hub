@@ -9,9 +9,9 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - PORT=3000
-      - TURSO_DATABASE_URL=file:/app/data/sely.db
-      - REDIS_URL=redis://redis:6379
-      - PRIMARY_DOMAIN=${PRIMARY_DOMAIN:-localhost}
+      - TURSO_DATABASE_URL=${TURSO_DATABASE_URL:-file:/app/data/sely.db}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - PRIMARY_DOMAIN=${PRIMARY_DOMAIN:-}
     env_file:
       - path: ../.env
         required: false

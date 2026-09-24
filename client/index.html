@@ -33,7 +33,8 @@
         });
       }
     </script>
-    <meta name="description" content="SELY.TR — Tarayıcıda oynanan kısa ve akıcı mini oyunlar. Her gün yeni bir set, ustalıkla derinleşen mekanikler ve saf oyun keyfi." />
+    <meta name="description" content="SELY MiniGame Hub — Tarayıcıda oynanan kısa ve akıcı mini oyunlar. Her gün yeni bir set, ustalıkla derinleşen mekanikler ve saf oyun keyfi." />
+    <meta name="robots" content="index, follow" />
     <!-- PWA & Mobile Web App Capabilities (Android, iOS & Desktop) -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -65,25 +66,35 @@
     <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152x152.png" />
     <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167x167.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
-    <link rel="canonical" href="https://sely.tr/" />
+    <link rel="canonical" href="" />
     <!-- High-Performance Preconnected Google Fonts (Zero Render-Blocking Waterfall) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=DM+Mono:wght@400;500&display=swap" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="SELY.TR" />
-    <meta property="og:title" content="SELY.TR — MiniGame Hub" />
+    <meta property="og:site_name" content="SELY MiniGame Hub" />
+    <meta property="og:title" content="SELY MiniGame Hub" />
     <meta property="og:description" content="Tarayıcıda oynanan kısa ve akıcı mini oyunlar. Her gün yeni bir set, ustalıkla derinleşen mekanikler ve saf oyun keyfi." />
-    <meta property="og:url" content="https://sely.tr/" />
-    <meta property="og:image" content="https://sely.tr/storage/sely-social-card-title_b4649a50.png" />
+    <meta property="og:url" content="/" />
+    <meta property="og:image" content="/storage/sely-social-card-title_b4649a50.png" />
     <meta property="og:image:width" content="1920" />
     <meta property="og:image:height" content="1080" />
-    <meta property="og:image:alt" content="SELY.TR MiniGame Hub — Günlük mini oyun kataloğu" />
+    <meta property="og:image:alt" content="SELY MiniGame Hub — Günlük mini oyun kataloğu" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="SELY.TR — MiniGame Hub" />
+    <meta name="twitter:title" content="SELY MiniGame Hub" />
     <meta name="twitter:description" content="Tarayıcıda oynanan kısa ve akıcı mini oyunlar. Her gün yeni bir set, ustalıkla derinleşen mekanikler ve saf oyun keyfi." />
-    <meta name="twitter:image" content="https://sely.tr/storage/sely-social-card-title_b4649a50.png" />
-    <title>SELY.TR — MiniGame Hub</title>
+    <meta name="twitter:image" content="/storage/sely-social-card-title_b4649a50.png" />
+    <title>SELY MiniGame Hub</title>
+    <script>
+      (() => {
+        const origin = window.location.origin;
+        const absolute = path => new URL(path, origin).href;
+        document.querySelector('link[rel="canonical"]')?.setAttribute("href", absolute("/"));
+        document.querySelector('meta[property="og:url"]')?.setAttribute("content", absolute("/"));
+        document.querySelector('meta[property="og:image"]')?.setAttribute("content", absolute("/storage/sely-social-card-title_b4649a50.png"));
+        document.querySelector('meta[name="twitter:image"]')?.setAttribute("content", absolute("/storage/sely-social-card-title_b4649a50.png"));
+      })();
+    </script>
   </head>
 
   <body>

@@ -35,8 +35,8 @@ export function calculateVakaScore(
 
   const shareCard =
     locale === "en"
-      ? `SELY Vaka Daily | Grade: ${grade} | Score: ${finalScore}\n${squares}\nhttps://sely.tr`
-      : `SELY Günün Vakası | Derece: ${grade} | Puan: ${finalScore}\n${squares}\nhttps://sely.tr`;
+      ? `SELY Vaka Daily | Grade: ${grade} | Score: ${finalScore}\n${squares}${typeof window !== "undefined" ? `\n${window.location.origin}` : ""}`
+      : `SELY Günün Vakası | Derece: ${grade} | Puan: ${finalScore}\n${squares}${typeof window !== "undefined" ? `\n${window.location.origin}` : ""}`;
 
   return {
     grade,

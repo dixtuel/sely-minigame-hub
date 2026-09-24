@@ -149,7 +149,7 @@ async fn resolve_get_procedure(path: &str, input: &Value, headers: &mut HeaderMa
                 HeaderValue::from_static("public, max-age=0, s-maxage=60, stale-while-revalidate=60"),
             );
             let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-            let ensured = ensure_daily_content(&today, None).await;
+            let ensured = ensure_daily_content(&today, None, None).await;
             serde_json::to_value(ensured).unwrap_or(json!({}))
         }
         "auth.me" => json!(null),

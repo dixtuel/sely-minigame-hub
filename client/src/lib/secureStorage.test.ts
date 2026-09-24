@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   compressString,
   decompressString,
@@ -18,15 +18,15 @@ const localStorageMock = {
   key: (i: number) => Array.from(memoryStore.keys())[i] ?? null,
 };
 
-if (typeof globalThis.window === "undefined") {
-  (globalThis as any).window = globalThis;
-}
-(globalThis as any).localStorage = localStorageMock;
-(globalThis.window as any).localStorage = localStorageMock;
-
 describe("secureStorage - Compression, Encryption & Anti-Tampering Engine", () => {
   beforeEach(() => {
     localStorageMock.clear();
+    vi.stubGlobal("window", { localStorage: localStorageMock });
+    vi.stubGlobal("localStorage", localStorageMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("compresses and decompresses text losslessly with significant size reduction", () => {

@@ -21,9 +21,33 @@ function DefaultHome() {
   return <Home locale="tr" />;
 }
 
+function RobotsMeta() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const noindex = new Set([
+      "/en",
+      "/privacy",
+      "/terms",
+      "/accessibility",
+      "/en/privacy",
+      "/en/terms",
+      "/en/accessibility",
+      "/404",
+    ]).has(location) || /^\/(?:en\/)?play\/[^/]+\/?$/.test(location);
+
+    const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    if (robots) robots.content = noindex ? "noindex, follow" : "index, follow";
+  }, [location]);
+
+  return null;
+}
+
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
+    <>
+    <RobotsMeta />
     <Switch>
       <Route path={"/"} component={DefaultHome} />
       <Route path={"/en"}>{() => <Home locale="en" />}</Route>
@@ -39,6 +63,7 @@ function Router() {
       {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
+    </>
   );
 }
 

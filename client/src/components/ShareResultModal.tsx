@@ -27,7 +27,7 @@ export default function ShareResultModal({ data, isOpen, onClose }: Props) {
   if (!isOpen) return null;
 
   const isEn = data.locale === "en";
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://sely.tr";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   // Build the universal share bridge URL
   const query = new URLSearchParams();
@@ -44,8 +44,8 @@ export default function ShareResultModal({ data, isOpen, onClose }: Props) {
 
   // Pre-filled social text
   let shareText = isEn
-    ? `I just played ${data.gameTitle} on SELY.TR! Can you beat my score?`
-    : `SELY.TR'de ${data.gameTitle} oynadım! Günün seviyesinde skorumu geçebilir misin?`;
+    ? `I just played ${data.gameTitle} on SELY MiniGame Hub! Can you beat my score?`
+    : `SELY MiniGame Hub'da ${data.gameTitle} oynadım! Günün seviyesinde skorumu geçebilir misin?`;
 
   if (data.gameId === "vaka") {
     const solved = data.outcome === "solved" || data.outcome === "success";
@@ -54,7 +54,7 @@ export default function ShareResultModal({ data, isOpen, onClose }: Props) {
       : `SELY Polis Bürosu: ${data.caseTitle || "Vaka"} — ${solved ? "ÇÖZÜLDÜ (Derece " + (data.grade || "S") + ")" : "DAVA DÜŞTÜ"}`;
   } else if (data.score !== undefined) {
     shareText = isEn
-      ? `${data.gameTitle}: ${data.score.toLocaleString("en-US")} pts on SELY.TR!`
+      ? `${data.gameTitle}: ${data.score.toLocaleString("en-US")} pts on SELY MiniGame Hub!`
       : `${data.gameTitle}: ${data.score.toLocaleString("tr-TR")} puan yaptım!`;
   }
 

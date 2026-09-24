@@ -1,170 +1,145 @@
-<div align="center">
-
 # SELY.TR MiniGame Hub
 
-**Kısa oturumlar, kendine özgü mekanikler ve her gün değişen bir oyun rotası.**
+<p align="center">
+  <img src="client/public/assets/logo-mark.png" width="96" alt="SELY simgesi">
+</p>
 
-[![Canlı demo](https://img.shields.io/badge/oyna-sely.tr-F38020?style=flat-square&logo=vercel&logoColor=white)](https://sely.tr)
-[![Lisans](https://img.shields.io/badge/lisans-AGPL--3.0-blue?style=flat-square)](LICENSE)
-[![Backend](https://img.shields.io/badge/backend-Rust%20%2B%20Axum-DEA584?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Vite-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
+**Tarayıcıda kısa oturumlar için tasarlanmış 17 mini oyun; masaüstü ve mobil kontrollerle, Türkçe ve İngilizce.**
+
+[Oyunları oyna](https://sely.tr) · [Dağıtım rehberi](docs/DEPLOYMENT.md) · [Elle release hazırlama](docs/RELEASING.md) · [Atıflar](docs/ATTRIBUTION.md)
+
 [![CI](https://github.com/dixtuel/sely-minigame-hub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dixtuel/sely-minigame-hub/actions/workflows/ci.yml)
+[![Lisans](https://img.shields.io/badge/lisans-AGPL--3.0-blue?style=flat-square)](LICENSE)
 
-[**Oyna**](https://sely.tr) · [**Oyun kataloğu**](#oyun-kataloğu) · [**Hızlı başlangıç**](#hızlı-başlangıç) · [**Mimari**](#mimari)
-
-</div>
-
----
+<p align="center">
+  <img src="client/public/icons/screenshot-desktop.png" width="68%" alt="SELY masaüstü oyun kataloğu görseli">
+  <img src="client/public/icons/screenshot-mobile.png" width="25%" alt="SELY mobil oyun kataloğu görseli">
+</p>
 
 ## SELY nedir?
 
-SELY.TR, masaüstü ve mobil tarayıcılarda çalışan 17 mini oyundan oluşan açık kaynaklı bir oyun platformudur. Her gün 11 oyunluk rotasyon havuzundan dört oyun öne çıkar; diğer oyunlar Arşiv'de her zaman oynanabilir. Günlük içerik deterministik seed'lerle üretilir; kişisel ustalık seviyesi ise zorluğu oyuncunun performansına göre ayarlar.
+SELY; arcade, bulmaca, strateji ve 3D keşif deneyimlerini tek bir web uygulamasında bir araya getirir. Günlük seed sistemi öne çıkan oyunları ve içerikleri belirler; katalogdaki diğer oyunlar arşivden erişilebilir. Oyunlar hesap açmadan oynanabilir.
 
-Oyunları hesap açmadan oynayabilirsin. Günlük içerik ve skor tablosu API üzerinden sunulur; kişisel ustalık seviyesi oyuncunun yerel yüksek skoruna göre hesaplanır. Üretimde frontend Vercel'in statik dağıtım/CDN katmanında, API ise Rust/Axum serverless function olarak çalışır. Aynı Rust uygulaması standalone binary veya Docker Compose ile kendi sunucunda da çalıştırılabilir.
+Kontroller oyuna göre klavye, fare, dokunma, kaydırma veya sürükleme kullanır. Ortak skor tablosu ve ustalık akışı oyun oturumları arasında çalışır; arayüz Türkçe ve İngilizce kullanılabilir.
 
-## Öne çıkanlar
+### Öne çıkan özellikler
 
-- 17 arcade, bulmaca, strateji ve 3D keşif oyunu.
-- Her gün yenilenen, seed tabanlı içerik ve paylaşılan günlük skor tablosu.
-- Oyuncu performansına göre kademeli ayarlanan ortak ustalık sistemi.
-- Klavye, fare, dokunma, kaydırma ve oyunlara özel mobil kontroller.
-- Türkçe ve İngilizce arayüz.
-- Canvas ve Web Audio kullanan hafif oyunlar; 3D keşif için Babylon.js.
-- Vercel Serverless ve kendi sunucunda Rust/Axum çalıştırma seçenekleri.
+- **Günlük oyun seçkisi:** Her gün dört oyun günlük katalogda öne çıkar; diğer oyunlar arşivden açılabilir.
+- **Yeni oyun oturumları:** Seed kullanan oyunlarda içerik oyun ve oturuma göre değişir; generator testleri üretilen düzenlerin geçerliliğini ve oynanabilirliğini denetler.
+- **Masaüstü ve dokunmatik kullanım:** Klavye/fare yanında oyuna uygun dokunma, kaydırma, sürükleme ve sanal kontroller bulunur. Oyun içindeki bilgi düğmesi kontrolleri gösterir.
+- **Skor ve ustalık:** Kişisel ilerleme oyun kartlarında görünür; günlük ve genel skor tabloları oturumlarla bütünleşir.
+- **İki dil:** Türkçe ve İngilizce katalog ve arayüz.
 
-## Oyun kataloğu
+## Oyun koleksiyonu
 
-|   # | Oyun                      | Tür              | Kısa açıklama                                                   |
-| --: | ------------------------- | ---------------- | --------------------------------------------------------------- |
-|  01 | Yankı Odası / Echo Room   | 3D keşif         | Yankı bütçeni koruyarak karanlık labirentte işaretleri bul.     |
-|  02 | Vaka / Case               | Dedektiflik      | Şüpheliyi ifadesiyle çelişen kanıtla köşeye sıkıştır.           |
-|  03 | Dörtyol / Tetris          | Arcade           | Blokları yerleştir, satırları temizle ve hızlanan oyuna dayan.  |
-|  04 | Kıvılcım / Spark          | Arcade           | Kıvılcımı trafikten ve yol tehlikelerinden geçir.               |
-|  05 | Düğüm / Knot              | Akış bulmacası   | Karoları çevirerek kaynaktan hedefe kesintisiz bir akış kur.    |
-|  06 | Kırpık / Cutout           | Geometri         | Hareketli şekilleri tek çizgiyle ve sınırlı enerjiyle kes.      |
-|  07 | Gölge Payı / Shadow Share | Zamanlama        | Gecikmeli gölgenle eşzamanlanıp çıkışa ulaş.                    |
-|  08 | Hane / Hane               | Çıkarım          | Sayı veya kelime kayıtlarındaki ipuçlarını kullan.              |
-|  09 | Göktaşı / Asteroids       | Uzay aksiyonu    | Gemiyi yönlendir, asteroitleri ve uzaylıları savuştur.          |
-|  10 | İstif / Sokoban           | Mantık           | Kutuları hedeflere it; her hamleyi önceden planla.              |
-|  11 | İniş / Lander             | Fizik            | İtiş ve eğimi ayarlayarak piste güvenle in.                     |
-|  12 | Şebeke / Lights Out       | Mantık bulmacası | Bir düğmeye basıp komşularını da değiştir; şebekeyi söndür.     |
-|  13 | Kare 2048 / 2048          | Sayı bulmacası   | Sayıları kaydırıp birleştirerek 2048'e ulaş.                    |
-|  14 | Coil                      | Grid arcade      | Büyürken kendi izine ve duvara çarpmadan rotanı çiz.            |
-|  15 | Apex                      | Yarış            | Dört şeritli trafikte hızını ayarla, yakın geçişlerle seri kur. |
-|  16 | Lift                      | Dikey platform   | Hareketli, kırılgan ve yaylı platformlarla yüksel.              |
-|  17 | Breakline                 | Tuğla kırma      | Topu oyunda tutup her gün değişen tuğla dizisini temizle.       |
+| Oyun                      | Oynanış                                              |
+| ------------------------- | ---------------------------------------------------- |
+| Yankı Odası (Echo Room)   | 3D labirentte yankılarla izleri bul.                 |
+| Vaka (Case)               | İfadeleri kanıtlarla karşılaştırıp vakayı çöz.       |
+| Dörtyol (Tetris)          | Blokları yerleştir ve satırları temizle.             |
+| Kıvılcım (Spark)          | Kıvılcımı havada tutup arkların arasından geç.       |
+| Düğüm (Knot)              | Karoları çevirip kaynaktan hedefe akış kur.          |
+| Kırpık (Cutout)           | Hareketli şekilleri tek çizgiyle kes.                |
+| Gölge Payı (Shadow Share) | Gecikmeli gölgeni doğru zaman ve konuma eşle.        |
+| Hane                      | Sayı veya kelime kaydındaki ipuçlarını çıkar.        |
+| Göktaşı (Asteroids)       | Uzay gemini yönlendirip asteroitleri savuştur.       |
+| İstif (Sokoban)           | Kutuları iterek hedeflere ulaştır.                   |
+| İniş (Lander)             | İtki ve eğimi ayarlayıp piste güvenle in.            |
+| Şebeke (Lights Out)       | Bir hücreyi değiştirip komşularıyla şebekeyi söndür. |
+| Kare 2048                 | Sayıları kaydırıp birleştirerek 2048'e ulaş.         |
+| Coil                      | Yılanı büyütürken duvardan ve kuyruğundan kaç.       |
+| Apex                      | Otoyol trafiğinde hızını ayarla ve yakın geçiş yap.  |
+| Lift                      | Hareketli platformlardan düşmeden yüksel.            |
+| Breakline                 | Topu oyunda tutup tuğla dizisini kır.                |
 
-Oyun adları, kontrolleri ve yerelleştirilmiş açıklamalar `client/src/lib/catalog.ts` dosyasındaki tek katalogdan yönetilir.
+Oyun adları, türleri ve yerelleştirilmiş açıklamalar için tek kaynak [oyun kataloğudur](client/src/lib/catalog.ts).
 
 ## Hızlı başlangıç
 
-### Gereksinimler
+Gereksinimler: Node.js 22+ ve pnpm 10. Tam Rust backend'i çalıştırmak için stable Rust gerekir.
 
-- Node.js 22 veya üzeri ve pnpm 10
-- Stable Rust toolchain (standalone backend veya Rust kodunu değiştirmek için)
-- Docker Compose (isteğe bağlı)
-
-İstemciyi geliştirme modunda açmak için:
+Ön yüz geliştirme sunucusu:
 
 ```bash
 git clone https://github.com/dixtuel/sely-minigame-hub.git
 cd sely-minigame-hub
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Vite istemciyi `http://localhost:5173` üzerinde sunar. Backend API'lerini de içeren yerel çalışma için üretim bundle'ını oluşturup standalone sunucuyu başlat:
+Vite, arayüzü `http://localhost:5173` adresinde sunar; bu mod tek başına Rust API'sini başlatmaz.
+
+Arayüzü ve API'yi aynı origin'de sunan standalone uygulama:
 
 ```bash
-pnpm build
+pnpm run build
 pnpm start
 ```
 
-Standalone sunucu varsayılan olarak `http://localhost:3000` adresinde çalışır. Portu `PORT` değişkeniyle değiştirebilirsin. Yerel ve dağıtım ayarları için [`.env.example`](.env.example) dosyasına bak; çoğu yerel oyun akışı ek bir gizli anahtar gerektirmez.
+Sunucu varsayılan olarak `http://localhost:3000` adresinde açılır. Yerel veri `data/sely.db` SQLite dosyasında tutulur. Docker, Vercel veya Linux servis kurulumuna geçmek için [dağıtım rehberine](docs/DEPLOYMENT.md) bak.
 
-## Dağıtım
+## Nasıl çalışır?
 
-### Vercel
+| Katman                  | Görev                                                                                               |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| Web istemcisi           | React 19, TypeScript ve Vite 7; Canvas, Web Audio ve Babylon.js tabanlı oyunlar.                    |
+| Paylaşılan oyun mantığı | Rust `crates/sely-game-core` crate'i; bazı algoritmalar WASM olarak tarayıcıda çalışır.             |
+| Backend                 | Rust, Axum ve Tokio; Vercel function veya standalone binary olarak çalışabilir.                     |
+| Depolama                | Kalıcı SQL için Turso/libSQL veya standalone'da SQLite; Redis isteğe bağlı leaderboard hız katmanı. |
 
-Repo, statik Vite istemcisi ve `api/index.rs` Rust/Axum function'ı için yapılandırılmıştır. `vercel.json`, günlük içerik üretimi ve eski kayıtların temizliği için zamanlanmış endpoint'leri de tanımlar. Kendi Vercel projen için:
+## Dağıtım seçenekleri
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdixtuel%2Fsely-minigame-hub)
+| Yöntem         | Uygun olduğu durum                                       | Başlangıç                                                      |
+| -------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
+| Vercel         | Statik istemci ve Rust serverless API                    | [Vercel rehberi](docs/DEPLOYMENT.md#vercel)                    |
+| Docker Compose | Tek komutla self-host; yerel SQLite ve Redis volume'ları | [Docker rehberi](docs/DEPLOYMENT.md#docker-compose)            |
+| Standalone     | Binary'yi doğrudan veya systemd service ile çalıştırma   | [Standalone rehberi](docs/DEPLOYMENT.md#standalone-ve-systemd) |
 
-Gerekli ortam değişkenlerini Vercel proje ayarlarından tanımla; isimler ve açıklamalar [`.env.example`](.env.example) içinde tutulur. Vercel dağıtımı bu README'deki yerel geliştirme komutlarından ayrıdır.
+## Yapılandırma ve kalıcılık
 
-### Standalone Rust
+Örnek ve açıklamalı değişkenler [`.env.example`](.env.example) dosyasındadır. Değerlerin çoğu isteğe bağlıdır.
 
-```bash
-pnpm install
-pnpm build
-pnpm start
-```
+- Yerel standalone ve Docker varsayılanları SQLite kullanır; Vercel'de kalıcı skorlar için uzak Turso/libSQL bağlantısı gerekir.
+- Redis isteğe bağlıdır; kalıcı skor deposu değildir. PostgreSQL şu an Rust backend'inde desteklenmez.
+- Vaka için dış LLM anahtarları isteğe bağlıdır; anahtarsız veya servis hatasında yerel oyun motoru kullanılabilir.
+- Site üzerindeki isim ve e-posta `client/src/lib/contact.ts` içindeki düz metin sabitlerden düzenlenir. Bu değerler public build'e girer ve `pnpm run audit:public` ile denetlenir.
 
-`pnpm start`, release modunda Axum sunucusunu başlatır; sunucu derlenmiş frontend'i ve API route'larını aynı origin üzerinden servis eder. Bir VDS/VPS üzerinde systemd ve Caddy/Nginx reverse proxy arkasında çalıştırılabilir.
-
-### Docker Compose
-
-```bash
-docker compose -f docker/docker-compose.yml up --build -d
-```
-
-Compose kurulumu Rust uygulamasını ve Redis'i başlatır. Yerel kalıcı veriler Docker volume'larında saklanır. Compose ve environment ayarlarının ayrıntısı [`docker/`](docker/) ve [`.env.example`](.env.example) içindedir.
-
-## Komutlar
-
-| Komut                                      | Ne yapar?                                                   |
-| ------------------------------------------ | ----------------------------------------------------------- |
-| `pnpm dev`                                 | Vite istemci geliştirme sunucusunu açar.                    |
-| `pnpm run check`                           | TypeScript tip kontrolü.                                    |
-| `pnpm test`                                | Vitest testleri.                                            |
-| `pnpm run audit:public`                    | Public release dosyalarında sızıntı denetimi.               |
-| `pnpm run build`                           | Vite üretim istemcisini `dist/public` içine derler.         |
-| `pnpm start`                               | Rust/Axum standalone sunucusunu release modunda çalıştırır. |
-| `pnpm run dev:rust`                        | Rust/Axum standalone sunucusunu debug modunda çalıştırır.   |
-| `cargo check --bin standalone --bin index` | Standalone ve Vercel Rust girişlerini kontrol eder.         |
-| `cargo test --lib`                         | Rust backend kütüphane testleri.                            |
-| `pnpm run build:wasm`                      | Oyun çekirdeğini WASM'a derler.                             |
-
-Pull request öncesi önerilen kontroller:
+## Geliştirme kontrolleri
 
 ```bash
 pnpm run check
 pnpm test
-pnpm run audit:public
 pnpm run build
+pnpm run audit:public
 cargo check --bin standalone --bin index
 cargo test --lib
 ```
 
-## Mimari
+`crates/sely-game-core` değiştirildiğinde takip edilen tarayıcı çıktısını `pnpm run build:wasm` ile yeniden üret ve değişikliği de birlikte test et.
 
-```mermaid
-flowchart LR
-    Browser[Tarayıcı] --> UI[React + TypeScript + Vite]
-    UI --> Games[Canvas oyunları · Babylon.js · Web Audio]
-    UI --> API[Axum API]
-    API --> Core[Rust oyun ve servis katmanı]
-    Core --> Store[(Turso / libSQL)]
-    Core --> Cache[(Redis · isteğe bağlı)]
-    Core --> WASM[WASM oyun çekirdeği]
-```
+## Repo haritası
 
-`main` dalı güncel Rust/Axum uygulamasıdır. Önceki Node.js/Express/tRPC sürümü yalnız tarihsel referans olarak [`nodejs-legacy`](https://github.com/dixtuel/sely-minigame-hub/tree/nodejs-legacy) dalında tutulur.
+- `client/` — arayüz, oyun bileşenleri ve istemci level generator'ları.
+- `src/` — Rust/Axum route'ları, servisler, storage ve oyun mantığı.
+- `crates/sely-game-core/` — paylaşılan Rust/WASM çekirdeği.
+- `api/` — Vercel Rust function girişi.
+- `docker/` ve `systemd/` — self-host örnekleri.
+- `docs/DEPLOYMENT.md` ve `docs/ATTRIBUTION.md` — kurulum ve dış kaynak atıfları.
 
-| Yol                      | İçerik                                                                    |
-| ------------------------ | ------------------------------------------------------------------------- |
-| `client/`                | React arayüzü, oyun bileşenleri, Canvas render ve istemci generator'ları. |
-| `src/`                   | Axum route'ları, servisler, storage ve Rust oyun mantığı.                 |
-| `crates/sely-game-core/` | WebAssembly olarak da derlenen ortak Rust oyun çekirdeği.                 |
-| `api/`                   | Vercel Rust function girişi.                                              |
-| `shared/`                | İstemci ve sunucuda kullanılan ortak tip/veriler.                         |
-| `docker/`                | Self-host Dockerfile ve Compose tanımı.                                   |
-| `docs/ATTRIBUTION.md`    | Üründe kullanılan dış kaynak ve lisans atıfları.                          |
+`main` güncel Rust backend'idir. Önceki Node.js backend'i `nodejs-legacy` dalında arşivlenmiştir.
 
-## Katkı
+## Belgeler
 
-Bug, erişilebilirlik sorunu veya oyun fikri için [issue açabilir](https://github.com/dixtuel/sely-minigame-hub/issues); değişikliklerini pull request olarak gönderebilirsin. Yeni oyun eklerken katalog metinleri, Türkçe/İngilizce kontroller, responsive girişler, seed/generator davranışı ve ilgili testleri birlikte güncelle.
+| Belge                                              | İçerik                                                                                   |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [Dağıtım ve self-host rehberi](docs/DEPLOYMENT.md) | Vercel, Docker Compose, standalone binary, systemd, kalıcılık ve sorun giderme.          |
+| [Elle release hazırlama](docs/RELEASING.md)        | Vercel kaynak arşivi, Docker image/Compose ve standalone Linux paketlerini üretme/kurma. |
+| [Atıflar](docs/ATTRIBUTION.md)                     | Kaynak kodu ve asset lisansları/atıfları.                                                |
+| [Güvenlik politikası](SECURITY.md)                 | Güvenlik açığı bildirim yolu.                                                            |
+| [Ortam değişkenleri](.env.example)                 | İsteğe bağlı backend ve frontend yapılandırmaları.                                       |
 
-## Lisans ve atıflar
+## Katkı ve lisans
 
-Kaynak kodu [GNU Affero General Public License v3.0](LICENSE) altında lisanslanmıştır. Üründe kullanılan üçüncü taraf kaynaklar ve lisans bilgileri [`docs/ATTRIBUTION.md`](docs/ATTRIBUTION.md) içinde tutulur. `SELY.TR` markası ve özgün marka varlıkları kaynak kodu lisansından ayrı değerlendirilir.
+Hata veya geliştirme önerileri için [GitHub Issues](https://github.com/dixtuel/sely-minigame-hub/issues) açabilirsin. Yeni oyun eklerken katalog/çevirileri, kontrolleri, responsive girişleri, seed/generator davranışını ve ilgili testleri birlikte güncelle.
+
+Kaynak kodu [AGPL-3.0](LICENSE) lisanslıdır. Oyunda kullanılan üçüncü taraf kod ve asset atıfları [ATTRIBUTION.md](docs/ATTRIBUTION.md) dosyasındadır. SELY adı ve özgün marka varlıkları kaynak kodu lisansından ayrı değerlendirilir.

@@ -1,7 +1,6 @@
 //! SEO, Robots, Sitemap, and Search Engine Verification Routes
 //! Matches server/seoRoutes.ts.
 
-use std::env;
 use axum::{
     extract::Path,
     http::{header, HeaderMap, HeaderValue, StatusCode},
@@ -9,15 +8,11 @@ use axum::{
     routing::get,
     Router,
 };
+use std::env;
+use super::domain::configured_origin;
 
 const CACHE_1DAY: &str = "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800";
 const CACHE_1WEEK: &str = "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000";
-
-fn get_domain() -> String {
-    env::var("PRIMARY_DOMAIN")
-        .or_else(|_| env::var("VITE_PRIMARY_DOMAIN"))
-        .unwrap_or_default()
-}
 
 pub async fn ads_txt_handler() -> Response {
     let ads_txt = env::var("ADS_TXT")
@@ -34,15 +29,13 @@ pub async fn ads_txt_handler() -> Response {
     }
 }
 
-pub async fn robots_txt_handler() -> Response {
-    let domain = get_domain();
-    let sitemap_url = if !domain.is_empty() {
-        format!("https://{}/sitemap.xml", domain)
-    } else {
-        "/sitemap.xml".to_string()
-    };
-
-    let body = format!("User-agent: *\nAllow: /\n\nSitemap: {}\n", sitemap_url);
+pub async fn robots_txt_handler(headers: HeaderMap) -> Response {
+    let host = headers.get("host").and_then(|value| value.to_str().ok());
+    let proto = headers.get("x-forwarded-proto").and_then(|value| value.to_str().ok());
+    let sitemap_line = configured_origin(host, proto)
+        .map(|origin| format!("\nSitemap: {origin}/sitemap.xml\n"))
+        .unwrap_or_else(|| "\n".to_string());
+    let body = format!("User-agent: *\nAllow: /\nDisallow: /api/{}", sitemap_line);
 
     let mut headers = HeaderMap::new();
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(CACHE_1DAY));
@@ -50,23 +43,14 @@ pub async fn robots_txt_handler() -> Response {
     (StatusCode::OK, headers, body).into_response()
 }
 
-pub async fn sitemap_xml_handler() -> Response {
-    let domain = get_domain();
-    let base = if !domain.is_empty() {
-        format!("https://{}", domain)
-    } else {
-        String::new()
-    };
-
+pub async fn sitemap_xml_handler(headers: HeaderMap) -> Response {
+    let host = headers.get("host").and_then(|value| value.to_str().ok());
+    let proto = headers.get("x-forwarded-proto").and_then(|value| value.to_str().ok());
+    let entries = configured_origin(host, proto)
+        .map(|origin| format!("  <url><loc>{origin}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n"))
+        .unwrap_or_default();
     let sitemap = format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>{}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
-  <url><loc>{}/privacy</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
-  <url><loc>{}/terms</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
-  <url><loc>{}/accessibility</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
-</urlset>"#,
-        base, base, base, base
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n{entries}</urlset>"
     );
 
     let mut headers = HeaderMap::new();

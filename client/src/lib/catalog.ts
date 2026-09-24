@@ -285,7 +285,7 @@ export const GAME_CATALOG: GameMeta[] = [
     ink: "#F6F0E3",
     poster: "/storage/breakline-poster.png",
     motto: "Bir hattı kır; zinciri sürdür.",
-    mechanic: "Topu çizgide tutup günlük tuğla dizisini temizle; her kırılma yeni bir açı açar.",
+    mechanic: "Topu çizgide tutup günlük tuğla dizisini temizle; düşen güçlerle raketi genişlet, çoklu top al veya hızı geçici değiştir.",
     controls: "Sol/Sağ veya imleç / Dokun",
     playTime: "2–6 dk",
     category: "arcade",
@@ -310,7 +310,7 @@ const ENGLISH_GAMES: Record<GameId, Pick<GameMeta, "title" | "eyebrow" | "motto"
   coil: { title: "Coil", eyebrow: "Route / Reflex", motto: "See the turn before it arrives.", mechanic: "Collect fruit and grow your snake; chase a new high score without hitting the edge or your own tail.", controls: "Arrow keys / WASD / Swipe in any direction", playTime: "2–5 min" },
   apex: { title: "Apex", eyebrow: "Race / Line", motto: "Hold the line and raise the rhythm.", mechanic: "Thread through four lanes of traffic, balance speed and build a clean-pass streak.", controls: "←/→ or A/D · W/↑ throttle · S/↓ brake · Swipe + pedals on touch", playTime: "2–4 min" },
   lift: { title: "Lift", eyebrow: "Vertical / Rhythm", motto: "Find the next floor.", mechanic: "Bounce from platform to platform while the route scrolls upward and tightens.", controls: "Left/Right or A/D / Tap", playTime: "2–5 min" },
-  breakline: { title: "Breakline", eyebrow: "Arc / Break", motto: "Break one line and keep the chain.", mechanic: "Keep the ball in play and clear the daily brick pattern one angle at a time.", controls: "Left/Right or cursor / Tap", playTime: "2–6 min" },
+  breakline: { title: "Breakline", eyebrow: "Arc / Break", motto: "Break one line and keep the chain.", mechanic: "Keep the ball in play, catch falling power tokens for a wider paddle, multi-ball or temporary speed changes, and clear the daily brick pattern.", controls: "Left/Right or cursor / Tap", playTime: "2–6 min" },
 };
 
 export function getGameCatalog(locale: "tr" | "en") {

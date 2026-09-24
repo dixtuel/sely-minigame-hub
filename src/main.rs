@@ -17,7 +17,8 @@ use sely_minigame_hub::routes::scheduled::scheduled_routes;
 use sely_minigame_hub::routes::seo::seo_routes;
 use sely_minigame_hub::routes::share::share_routes;
 use sely_minigame_hub::routes::trpc::trpc_routes;
-use sely_minigame_hub::storage::turso::{create_turso_connection, is_turso_configured};
+use sely_minigame_hub::storage::leaderboard::create_redis_pool;
+use sely_minigame_hub::storage::turso::create_turso_connections;
 
 async fn find_available_port(start_port: u16) -> Option<(tokio::net::TcpListener, u16)> {
     for port in start_port..(start_port + 20) {
@@ -42,23 +43,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Initializing SELY MiniGame Hub v2.0.0 (Rust Axum Engine)...");
 
-    // Initialize Turso/LibSQL database connection (if configured or local fallback)
-    let turso_conn = if is_turso_configured() {
-        match create_turso_connection().await {
-            Ok(conn) => {
-                tracing::info!("Turso / LibSQL connection initialized successfully.");
-                Some(Arc::new(Mutex::new(conn)))
-            }
-            Err(e) => {
-                tracing::warn!("Turso connection failed: {}, falling back to in-memory store", e);
-                None
-            }
-        }
+    let database = create_turso_connections().await;
+    let turso_conn = database.primary.map(|conn| Arc::new(Mutex::new(conn)));
+    let local_fallback_conn = database.local_fallback.map(|conn| Arc::new(Mutex::new(conn)));
+    if turso_conn.is_some() {
+        tracing::info!("libSQL storage initialized.");
     } else {
-        None
-    };
-
-    let state = AppState { turso_conn, llm_client: reqwest::Client::new() };
+        tracing::warn!("Persistent database unavailable; the server will use its process-local fallback.");
+    }
+    let redis_pool = create_redis_pool().await;
+    let state = AppState { turso_conn, local_fallback_conn, redis_pool, llm_client: reqwest::Client::new() };
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

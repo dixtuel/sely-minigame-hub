@@ -750,14 +750,15 @@ html:has(.studio-shell-apex-active), body:has(.studio-shell-apex-active) { overf
 .apex-game-stage { box-sizing: border-box; flex: 1 1 auto; width: 100% !important; max-width: none !important; height: 100% !important; max-height: none !important; min-height: 0 !important; margin: 0 !important; overflow: hidden !important; border: 0 !important; box-shadow: none !important; background: #202824 !important; }
 .apex-game { position: relative; box-sizing: border-box; width: 100%; height: 100%; min-height: 0; flex: 1 1 auto; margin-inline: auto; overflow: hidden; background: #202824; touch-action: none; user-select: none; -webkit-user-select: none; }
 .apex-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-.apex-pad { position: absolute; z-index: 4; right: clamp(14px, 3vw, 28px); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: end; justify-content: flex-end; pointer-events: none; }
-.apex-pedals { display: flex; align-items: center; gap: clamp(10px, 2vw, 18px); pointer-events: none; }
-.apex-pad button { box-sizing: border-box; width: clamp(58px, 7.3vw, 78px); min-width: 58px; height: clamp(58px, 7.3vw, 78px); min-height: 58px; padding: 0; border: 1px solid rgba(239,184,75,.68); border-radius: 7px; background: rgba(17,23,19,.86); color: #efb84b; font: 700 27px/1 "DM Mono", monospace; pointer-events: auto; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: transform 130ms ease-out, background 130ms ease-out, border-color 130ms ease-out; -webkit-tap-highlight-color: transparent; }
-.apex-pad button small { color: rgba(232,223,200,.72); font: 600 8px/1 "DM Mono", monospace; letter-spacing: .06em; }
-.apex-pedals button:last-child { border-color: rgba(115,150,126,.85); color: #a8c2aa; }
-.apex-pad button:active { transform: scale(.96); background: #3a4438; }
-.apex-pad button:focus-visible { outline: 3px solid #e8dfc8; outline-offset: 3px; }
-@media (hover: hover) and (pointer: fine) and (min-width: 720px) { .apex-pad { opacity: .26; transition: opacity 180ms ease-out; } .apex-game:hover .apex-pad, .apex-pad:focus-within { opacity: 1; } }
+.apex-pad { position: static; }
+.apex-pedal { --apex-pedal-scale: 1; position: absolute; z-index: 20; bottom: 18px; box-sizing: border-box; width: clamp(68px, 17vw, 78px); min-width: 68px; height: clamp(68px, 17vw, 78px); min-height: 68px; padding: 0; border: 2px solid rgba(239,184,75,.78); border-radius: 12px; background: rgba(17,23,19,.94); color: #efb84b; box-shadow: 0 4px 0 rgba(0,0,0,.35); font: 700 25px/1 "DM Mono", monospace; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; cursor: pointer; transform: translateY(var(--apex-pedal-y, 0)) scale(var(--apex-pedal-scale)); transform-origin: center; transition: transform 120ms ease-out, background 120ms ease-out, border-color 120ms ease-out; -webkit-tap-highlight-color: transparent; }
+.apex-pedal-brake { left: clamp(16px, 3vw, 28px); border-color: rgba(228,93,70,.9); color: #ff927d; }
+.apex-pedal-gas { right: clamp(16px, 3vw, 28px); }
+.apex-pedal small { color: rgba(232,223,200,.86); font: 700 9px/1 "DM Mono", monospace; letter-spacing: .08em; }
+.apex-pedal:active, .apex-pedal[aria-pressed="true"] { --apex-pedal-scale: .96; background: #3a4438; }
+.apex-pedal-brake:active, .apex-pedal-brake[aria-pressed="true"] { background: rgba(130,48,38,.96); border-color: #ff927d; }
+.apex-pedal-gas:active, .apex-pedal-gas[aria-pressed="true"] { background: rgba(121,83,17,.96); border-color: #ffd47a; }
+.apex-pedal:focus-visible { outline: 3px solid #e8dfc8; outline-offset: 3px; }
 
 @media (max-width: 800px) {
   .coil-game, .lift-game, .breakline-game, .apex-game {
@@ -775,20 +776,21 @@ html:has(.studio-shell-apex-active), body:has(.studio-shell-apex-active) { overf
   .studio-shell-apex-active .back-button { grid-column: 2; }
   .studio-shell-apex-active .studio-actions { grid-column: 1; }
   .studio-shell-apex-active .studio-title { display: none; }
-  .apex-pad { right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
-  .apex-pedals { gap: 10px; }
-  .apex-pad button { width: clamp(62px, 17vw, 74px); min-width: 62px; height: clamp(62px, 17vw, 74px); min-height: 62px; font-size: 25px; }
+  .apex-pedal { bottom: 18px; width: clamp(68px, 17vw, 76px); min-width: 68px; height: clamp(68px, 17vw, 76px); min-height: 68px; font-size: 25px; }
+  .apex-pedal-brake { left: max(16px, env(safe-area-inset-left, 0px)); }
+  .apex-pedal-gas { right: max(16px, env(safe-area-inset-right, 0px)); }
 }
 @media (max-width: 380px) {
   .studio-shell-apex-active .best-score { display: none; }
   .studio-shell-apex-active .studio-actions { gap: 5px; }
 }
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 900px) and (any-pointer: coarse) {
-  .apex-pad { top: 50%; right: max(12px, env(safe-area-inset-right, 0px)); bottom: auto; transform: translateY(-50%); }
-  .apex-pad button { width: 58px; min-width: 58px; height: 58px; min-height: 58px; }
+  .apex-pedal { --apex-pedal-y: -50%; bottom: auto; top: 50%; width: 58px; min-width: 58px; height: 58px; min-height: 58px; }
+  .apex-pedal-brake { left: max(12px, env(safe-area-inset-left, 0px)); }
+  .apex-pedal-gas { right: max(12px, env(safe-area-inset-right, 0px)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .studio-shell-apex-active .back-button, .apex-pad, .apex-pad button { transition-duration: 0ms !important; }
+  .studio-shell-apex-active .back-button, .apex-pedal { transition-duration: 0ms !important; }
 }
 
 /* Shared SELY site chrome; each game retains its own interior playfield palette. */
@@ -870,13 +872,11 @@ html:has(.studio-shell-breakline-active), body:has(.studio-shell-breakline-activ
   height: auto;
   min-height: 0;
 }
-.apex-pad { bottom: 11px; }
 .lift-pad { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
 .breakline-pad { bottom: calc(13px + env(safe-area-inset-bottom, 0px)); }
 @media (max-width: 800px) {
   .coil-game, .apex-game, .lift-game, .breakline-game { padding: 0; }
   .arcade-game-frame { width: 100%; border: 0; box-shadow: none; }
-  .apex-pad { bottom: 11px; }
   .lift-pad { bottom: calc(15px + env(safe-area-inset-bottom, 0px)); }
   .breakline-pad { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 }

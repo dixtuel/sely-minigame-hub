@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateMaze } from "./maze";
+import { findMazePath, generateMaze } from "./maze";
 import { computeCriticalCells, generate3DEchoLayout, selectHiddenWalls } from "./proceduralLevel";
 
 function mulberry32(seed: number) {
@@ -23,9 +23,9 @@ describe("proceduralLevel (maze-based 3D Echo Room)", () => {
     const layout2 = generate3DEchoLayout(2002, 1);
     const layout3 = generate3DEchoLayout(3003, 1);
 
-    expect(layout1.startPoint.x !== layout2.startPoint.x || layout1.startPoint.z !== layout2.startPoint.z).toBe(true);
-    expect(layout1.markers[0].point.x !== layout2.markers[0].point.x).toBe(true);
-    expect(layout1.exitPoint.x !== layout3.exitPoint.x || layout1.exitPoint.z !== layout3.exitPoint.z).toBe(true);
+    expect(generate3DEchoLayout(1001, 1)).toEqual(layout1);
+    expect(layout1).not.toEqual(layout2);
+    expect(layout1).not.toEqual(layout3);
 
     for (let seed = 1; seed <= 30; seed++) {
       const layout = generate3DEchoLayout(seed * 3137, 2);
@@ -56,6 +56,43 @@ describe("proceduralLevel (maze-based 3D Echo Room)", () => {
     let totalHidden = 0;
     for (let seed = 1; seed <= 30; seed++) {
       const maze = generateMaze(mulberry32(seed * 811), 1);
+      const visited: boolean[][] = Array.from({ length: maze.rows }, () => new Array(maze.cols).fill(false));
+      const stack = [[maze.startCell.col, maze.startCell.row]];
+      visited[maze.startCell.row][maze.startCell.col] = true;
+      let visitedCount = 1;
+      while (stack.length) {
+        const [col, row] = stack.pop()!;
+        const cell = maze.cells[row][col];
+        const neighbors: [number, number][] = [];
+        if (!cell.north) neighbors.push([col, row - 1]);
+        if (!cell.south) neighbors.push([col, row + 1]);
+        if (!cell.east) neighbors.push([col + 1, row]);
+        if (!cell.west) neighbors.push([col - 1, row]);
+        for (const [nextCol, nextRow] of neighbors) {
+          expect(nextCol).toBeGreaterThanOrEqual(0);
+          expect(nextCol).toBeLessThan(maze.cols);
+          expect(nextRow).toBeGreaterThanOrEqual(0);
+          expect(nextRow).toBeLessThan(maze.rows);
+          if (!visited[nextRow][nextCol]) {
+            visited[nextRow][nextCol] = true;
+            visitedCount += 1;
+            stack.push([nextCol, nextRow]);
+          }
+        }
+      }
+      expect(visitedCount).toBe(maze.cols * maze.rows);
+      expect(maze.rooms).toHaveLength(4);
+      expect(maze.markerCells).toHaveLength(3);
+      expect(new Set(maze.markerCells.map(m => `${m.col},${m.row}`)).size).toBe(maze.markerCells.length);
+      for (const marker of maze.markerCells) {
+        expect(marker).not.toEqual(maze.startCell);
+        expect(marker).not.toEqual(maze.gateCell);
+      }
+      for (const destination of [...maze.markerCells, maze.gateCell]) {
+        const path = findMazePath(maze, maze.startCell, destination);
+        expect(path?.[0]).toEqual(maze.startCell);
+        expect(path?.[path.length - 1]).toEqual(destination);
+      }
       const critical = computeCriticalCells(maze);
       const hidden = selectHiddenWalls(maze, mulberry32(seed * 811 + 1), 0.9);
       for (const wall of hidden) {

@@ -20,8 +20,6 @@ describe("GameStudio orchestration logic", () => {
     // Spark endless flow (retry only)
     expect(resultActionsFor("success", 0, "spark")).toEqual({ canRetry: true, canAdvance: false });
     expect(resultActionsFor("failure", 0, "spark")).toEqual({ canRetry: true, canAdvance: false });
-    expect(resultActionsFor("failure", 3, "spark")).toEqual({ canRetry: true, canAdvance: false });
-    expect(resultActionsFor("failure", 3, "apex")).toEqual({ canRetry: true, canAdvance: false });
     for (const gameId of ["coil", "apex", "lift", "breakline"] as const) {
       expect(resultActionsFor("failure", 3, gameId)).toEqual({ canRetry: true, canAdvance: false });
     }

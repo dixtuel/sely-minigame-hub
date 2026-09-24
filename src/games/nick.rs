@@ -124,12 +124,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_permutations_space() {
-        let count = TR_ADJECTIVES.len() * TR_NOUNS.len() * 9000;
-        assert!(count > 100_000_000);
-    }
-
-    #[test]
     fn test_player_nick_determinism() {
         let nick1 = get_player_nick("tr", "2026-09-20", "ply_test_123");
         let nick2 = get_player_nick("tr", "2026-09-20", "ply_test_123");

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SELY data cleanup at 00:15 UTC
+
+[Timer]
+OnCalendar=*-*-* 00:15:00 UTC
+Persistent=true
+AccuracySec=1s
+Unit=sely-daily-cleanup.service
+
+[Install]
+WantedBy=timers.target

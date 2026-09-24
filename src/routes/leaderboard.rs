@@ -11,6 +11,7 @@ use axum::{
 };
 use serde::Deserialize;
 use std::sync::Arc;
+use fred::clients::Pool;
 
 use crate::storage::leaderboard::{
     get_today_iso_date, get_top_scores, submit_score, VALID_GAMES,
@@ -34,6 +35,8 @@ pub struct SubmitScoreBody {
 #[derive(Clone)]
 pub struct AppState {
     pub turso_conn: Option<Arc<tokio::sync::Mutex<libsql::Connection>>>,
+    pub local_fallback_conn: Option<Arc<tokio::sync::Mutex<libsql::Connection>>>,
+    pub redis_pool: Option<Pool>,
     pub llm_client: reqwest::Client,
 }
 
@@ -62,9 +65,14 @@ pub async fn get_leaderboard_handler(
         Some(c) => Some(c.lock().await),
         None => None,
     };
+    let local_conn_guard = match &state.local_fallback_conn {
+        Some(c) => Some(c.lock().await),
+        None => None,
+    };
     let maybe_ref = maybe_conn_guard.as_deref();
+    let local_ref = local_conn_guard.as_deref();
 
-    let data = get_top_scores(&game, &date, maybe_ref).await;
+    let data = get_top_scores(&game, &date, maybe_ref, local_ref, state.redis_pool.as_ref()).await;
     (StatusCode::OK, headers, Json(data)).into_response()
 }
 
@@ -85,7 +93,12 @@ pub async fn submit_leaderboard_handler(
         Some(c) => Some(c.lock().await),
         None => None,
     };
+    let local_conn_guard = match &state.local_fallback_conn {
+        Some(c) => Some(c.lock().await),
+        None => None,
+    };
     let maybe_ref = maybe_conn_guard.as_deref();
+    let local_ref = local_conn_guard.as_deref();
 
     let result = submit_score(
         &game,
@@ -94,6 +107,8 @@ pub async fn submit_leaderboard_handler(
         &body.signature,
         None,
         maybe_ref,
+        local_ref,
+        state.redis_pool.as_ref(),
     )
     .await;
 

@@ -1,4 +1,5 @@
 pub mod config;
+pub mod domain;
 pub mod leaderboard;
 pub mod og;
 pub mod scheduled;

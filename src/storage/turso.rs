@@ -80,7 +80,7 @@ pub fn invalidate_board_cache(game_id: &str, date_str: &str) {
     }
 }
 
-pub fn get_turso_config() -> Option<(String, Option<String>)> {
+fn get_remote_turso_config() -> Option<(String, Option<String>)> {
     if let Ok(url) = env::var("TURSO_DATABASE_URL") {
         if !url.is_empty() {
             return Some((url, env::var("TURSO_AUTH_TOKEN").ok()));
@@ -97,27 +97,21 @@ pub fn get_turso_config() -> Option<(String, Option<String>)> {
         }
     }
 
-    // Standalone fallback: when not running on Vercel and no external db is configured
-    let is_vercel = env::var("VERCEL").map(|v| v == "1").unwrap_or(false) || env::var("VERCEL_ENV").is_ok();
-    let has_postgres = env::var("POSTGRES_URL").is_ok() || env::var("DATABASE_URL").is_ok() || env::var("CONTENT_DB_URL").is_ok();
-
-    if !is_vercel && !has_postgres {
-        return Some(("file:./data/sely.db".to_string(), None));
-    }
-
     None
 }
 
-pub fn is_turso_configured() -> bool {
-    get_turso_config().is_some()
+fn is_vercel_runtime() -> bool {
+    env::var("VERCEL").map(|v| v == "1").unwrap_or(false)
+        || env::var("VERCEL_ENV").is_ok()
 }
 
-pub async fn create_turso_connection() -> Result<libsql::Connection, Box<dyn std::error::Error + Send + Sync>> {
-    let (url, auth_token) = get_turso_config().ok_or("Turso is not configured")?;
-
+async fn connect_libsql(
+    url: &str,
+    auth_token: Option<String>,
+) -> Result<libsql::Connection, Box<dyn std::error::Error + Send + Sync>> {
     let db = if url.starts_with("libsql://") || url.starts_with("http://") || url.starts_with("https://") {
         let token = auth_token.unwrap_or_default();
-        libsql::Builder::new_remote(url, token).build().await?
+        libsql::Builder::new_remote(url.to_string(), token).build().await?
     } else {
         let file_path = url.trim_start_matches("file:").trim_start_matches("//");
         if file_path != ":memory:" && !file_path.starts_with(':') {
@@ -133,6 +127,58 @@ pub async fn create_turso_connection() -> Result<libsql::Connection, Box<dyn std
     let conn = db.connect()?;
     ensure_turso_schema(&conn).await?;
     Ok(conn)
+}
+
+/// Initializes the configured libSQL database and, on standalone servers, keeps a local
+/// SQLite connection ready as a runtime fallback. PostgreSQL variables are intentionally
+/// ignored: the Rust application currently supports libSQL/SQLite only.
+pub struct TursoConnections {
+    pub primary: Option<libsql::Connection>,
+    pub local_fallback: Option<libsql::Connection>,
+}
+
+pub async fn create_turso_connections() -> TursoConnections {
+    let configured = get_remote_turso_config();
+    let is_vercel = is_vercel_runtime();
+
+    if is_vercel {
+        let primary = match configured {
+            Some((url, token)) => match connect_libsql(&url, token).await {
+                Ok(conn) => Some(conn),
+                Err(_) => {
+                    tracing::warn!("Configured remote libSQL is unavailable; using invocation-local memory fallback.");
+                    None
+                }
+            },
+            None => None,
+        };
+        return TursoConnections { primary, local_fallback: None };
+    }
+
+    // An explicitly configured file: URL is already the selected local durable store.
+    if let Some((url, token)) = configured {
+        if url.starts_with("file:") || url == ":memory:" {
+            let primary = connect_libsql(&url, token).await.ok();
+            return TursoConnections { primary, local_fallback: None };
+        }
+
+        match connect_libsql(&url, token).await {
+            Ok(primary) => {
+                let fallback = connect_libsql("file:./data/sely.db", None).await.ok();
+                TursoConnections { primary: Some(primary), local_fallback: fallback }
+            }
+            Err(_) => {
+                let local = connect_libsql("file:./data/sely.db", None).await.ok();
+                if local.is_some() {
+                    tracing::warn!("Configured remote libSQL is unavailable; using local SQLite fallback.");
+                }
+                TursoConnections { primary: local, local_fallback: None }
+            }
+        }
+    } else {
+        let primary = connect_libsql("file:./data/sely.db", None).await.ok();
+        TursoConnections { primary, local_fallback: None }
+    }
 }
 
 pub async fn ensure_turso_schema(conn: &libsql::Connection) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

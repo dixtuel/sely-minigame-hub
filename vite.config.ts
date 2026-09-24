@@ -119,6 +119,7 @@ export default defineConfig(({ mode }) => {
         "server/**/*.spec.ts",
         "client/src/**/*.test.ts",
         "client/src/**/*.spec.ts",
+        "scripts/**/*.test.mjs",
       ],
     },
   } as UserConfig & { test?: unknown };

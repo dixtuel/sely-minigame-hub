@@ -1,0 +1,27 @@
+[Unit]
+Description=SELY MiniGame Hub standalone server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sely
+Group=sely
+WorkingDirectory=/opt/sely-minigame-hub
+EnvironmentFile=-/etc/sely-minigame-hub/sely.env
+ExecStart=/usr/bin/env ./standalone
+Restart=on-failure
+RestartSec=5s
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sely-minigame-hub/data
+LockPersonality=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

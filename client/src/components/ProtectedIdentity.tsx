@@ -1,5 +1,5 @@
 import { useState, useEffect, type MouseEvent, type KeyboardEvent } from "react";
-import { getDecodedContactEmail, getDecodedOperatorName } from "@/lib/contact";
+import { getProtectedContactLabel, getPublicContactEmail, getPublicOperatorName } from "@/lib/contact";
 import { Check, Mail } from "lucide-react";
 
 export function ProtectedContact({
@@ -15,7 +15,7 @@ export function ProtectedContact({
 
   useEffect(() => {
     setIsClient(true);
-    setEmail(getDecodedContactEmail());
+    setEmail(getPublicContactEmail());
   }, []);
 
   const handleClick = (e: MouseEvent) => {
@@ -61,7 +61,7 @@ export function ProtectedContact({
       onKeyDown={handleKeyDown}
       className={`protected-contact-link ${className}`}
       title={tooltip}
-      aria-label={email}
+      aria-label={getProtectedContactLabel(locale)}
     >
       <span className="protected-user">{user}</span>
       <span className="bot-decoy" style={{ display: "none" }} aria-hidden="true">
@@ -89,7 +89,7 @@ export function ProtectedName({ className = "" }: { className?: string }) {
 
   useEffect(() => {
     setIsClient(true);
-    setName(getDecodedOperatorName());
+    setName(getPublicOperatorName());
   }, []);
 
   if (!isClient || !name) {

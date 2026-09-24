@@ -8,7 +8,6 @@ describe("mini-game level generators", () => {
     expect(generateKnotLevel(seed, 2).rotations).toHaveLength(16);
     expect(generateCutLevel(seed, 2).shapes.filter(shape => shape.target)).toHaveLength(4);
     expect(generateShadowLevel(seed, 2).pads).toHaveLength(2);
-    expect(generateVakaCases(seed, 2).every(isVakaCaseSolvable)).toBe(true);
     expect(generateHaneLevel(seed, 2)).toEqual(generateHaneLevel(seed, 2));
     expect(["echo", "knot", "cut", "shadow", "vaka", "hane", "spark"].every(game => validateDailySeed(seed, game as any))).toBe(true);
 
@@ -67,12 +66,7 @@ describe("mini-game level generators", () => {
   }, 15000);
 
   it("keeps Echo Room sound budgets and Knot routes solvable with reachable bonuses across seeds", () => {
-    // 1. Solvability across multiple seeds
-    for (const seed of [14151, 76321, 99183]) {
-      expect(isEchoLevelSolvable(generateEchoLevel(seed, 2))).toBe(true);
-    }
-
-    // 2. Practice attempt differentiation (Echo & Knot)
+    // 1. Practice attempt differentiation (Echo & Knot)
     for (const gameId of ["echo", "knot"] as const) {
       const seeds = Array.from({ length: 6 }, (_, attempt) => personalSeed(618_071, gameId, 2, attempt + 1));
       const levels = seeds.map(seed => (gameId === "echo" ? generateEchoLevel(seed, 2) : generateKnotLevel(seed, 2)));
@@ -80,19 +74,18 @@ describe("mini-game level generators", () => {
       expect(unique.size).toBeGreaterThan(1);
     }
 
-    // 3. Echo Room stress test across masteries
+    // 2. Echo Room stress test across masteries
     for (let seed = 1; seed <= 60; seed += 7) {
       for (const mastery of [0, 2, 4]) {
         expect(isEchoLevelSolvable(generateEchoLevel(seed, mastery))).toBe(true);
       }
     }
 
-    // 4. Echo Room noise budget margin and multi-checkpoint route
+    // 3. Echo Room noise budget margin and multi-checkpoint route
     const echoLevel = generateEchoLevel(76321, 2);
     expect(echoLevel.cols).toBeGreaterThanOrEqual(11);
     expect(echoLevel.rows).toBeGreaterThanOrEqual(7);
     expect(echoLevel.checkpoints).toHaveLength(3);
-    expect(isEchoLevelSolvable(echoLevel)).toBe(true);
 
     for (const seed of [14151, 76321, 99183, 207771]) {
       for (const mastery of [0, 1, 2, 3, 4]) {
@@ -106,12 +99,13 @@ describe("mini-game level generators", () => {
       }
     }
 
-    // 5. Knot route diversity, solvability, and optional bonus reachability
+    // 4. Knot route diversity, solvability, and optional bonus reachability
     const knotPaths = new Set<string>();
     for (let seed = 1; seed <= 60; seed += 5) knotPaths.add(JSON.stringify(generateKnotLevel(seed, 2).targetPath));
     expect(knotPaths.size).toBeGreaterThan(1);
 
-    for (let seed = 1; seed <= 100; seed += 3) {
+    const knotSeeds = new Set([...Array.from({ length: 34 }, (_, index) => 1 + index * 3), 14151, 76321, 99183, 207771]);
+    for (const seed of knotSeeds) {
       for (const mastery of [1, 2, 3, 4]) {
         const level = generateKnotLevel(seed, mastery);
         expect(isKnotLevelSolvable(level)).toBe(true);
@@ -119,13 +113,6 @@ describe("mini-game level generators", () => {
       }
     }
 
-    for (const seed of [14151, 76321, 99183, 207771]) {
-      for (const mastery of [1, 2, 3, 4]) {
-        const level = generateKnotLevel(seed, mastery);
-        expect(isKnotLevelSolvable(level)).toBe(true);
-        if (mastery >= 2) expect(level.bonusIndex).toBeGreaterThanOrEqual(0);
-      }
-    }
   }, 15000);
 
   it("generates valid Hane number and word levels with multi-language (TR/EN) dictionary verification and Wordle-compliant scoring", async () => {
@@ -191,15 +178,17 @@ describe("mini-game level generators", () => {
   });
 
   it("generates solvable procedural mystery cases (Vaka) with robust contradiction graphs and solvability guarantees", () => {
-    // 1. Contradictions and fully cleared innocent set
+    // 1. Solver result, contradiction margin, and fully cleared innocent set
+    let hasMultipleWinningContradictions = false;
     for (const seed of [14151, 76321, 99183]) {
-      for (const mastery of [0, 2, 4]) {
+      for (const mastery of [0, 2, 3, 4]) {
         const cases = generateVakaCases(seed, mastery);
         expect(cases).toHaveLength(3 + mastery);
         for (const vakaCase of cases) {
           expect(isVakaCaseSolvable(vakaCase)).toBe(true);
           const contradicting = vakaCase.clues.filter(clue => clue.contradicts === vakaCase.culpritId);
           expect(contradicting.length).toBeGreaterThanOrEqual(1);
+          if (mastery === 4 && contradicting.length > 1) hasMultipleWinningContradictions = true;
           const rivals = vakaCase.suspects.filter(suspect => suspect.id !== vakaCase.culpritId);
           expect(rivals.every(suspect => vakaCase.clues.filter(clue => clue.contradicts === suspect.id).length < contradicting.length)).toBe(true);
           const innocents = vakaCase.suspects.filter(suspect => suspect.id !== vakaCase.culpritId);
@@ -207,6 +196,7 @@ describe("mini-game level generators", () => {
         }
       }
     }
+    expect(hasMultipleWinningContradictions).toBe(true);
 
     // 2. Red herrings neutrality
     const herringCases = generateVakaCases(55555, 4);
@@ -228,19 +218,7 @@ describe("mini-game level generators", () => {
     const clearingClue = testCase.clues.find(clue => clue.clears === innocent.id)!;
     expect(evaluateVakaAttempt(testCase, innocent.id, clearingClue.id)).toBe("wrong-suspect");
 
-    // 4. Evidence graph solver
-    for (const seed of [14151, 76321, 99183]) {
-      for (const mastery of [0, 3, 4]) {
-        const cases = generateVakaCases(seed, mastery);
-        for (const vakaCase of cases) {
-          expect(solveVakaCase(vakaCase)).toBe(vakaCase.culpritId);
-        }
-      }
-    }
-    const highMasteryCases = [14151, 76321, 99183].flatMap(seed => generateVakaCases(seed, 4));
-    expect(highMasteryCases.some(vakaCase => vakaCase.clues.filter(clue => clue.contradicts === vakaCase.culpritId).length > 1)).toBe(true);
-
-    // 5. Smoking gun is not always pre-revealed
+    // 4. Smoking gun is not always pre-revealed
     let alwaysPreRevealed = true;
     for (let seed = 1; seed <= 200; seed += 1) {
       for (const mastery of [0, 1, 2, 3, 4]) {
@@ -254,7 +232,7 @@ describe("mini-game level generators", () => {
     }
     expect(alwaysPreRevealed).toBe(false);
 
-    // 6. Ambiguous graph fallback to null
+    // 5. Ambiguous graph fallback to null
     const ambiguousSuspects = [{ id: "s0", name: "A", statement: "" }, { id: "s1", name: "B", statement: "" }];
     const ambiguousClues = [
       { id: "c0", label: "", detail: "", contradicts: "s0", isRedHerring: false },
@@ -262,7 +240,7 @@ describe("mini-game level generators", () => {
     ];
     expect(solveVakaCase({ suspects: ambiguousSuspects, clues: ambiguousClues })).toBeNull();
 
-    // 7. No retry fallback across 100 seeds
+    // 6. No retry fallback across 100 seeds
     for (let seed = 1; seed <= 100; seed += 1) {
       const cases = generateVakaCases(seed, 3);
       for (const vakaCase of cases) expect(isVakaCaseSolvable(vakaCase)).toBe(true);

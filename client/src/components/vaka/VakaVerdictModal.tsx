@@ -109,8 +109,8 @@ export default function VakaVerdictModal({
 
       const squares = res.success ? "🟩🟩🟩" : res.score > 0 ? "🟨🟨🟥" : "🟥🟥🟥";
       const shareCard = isEn
-        ? `SELY Vaka Mystery | Case: ${vakaCase.titleEn}\nVerdict: ${res.success ? "SOLVED (Grade " + res.grade + ")" : "DISMISSED"}\n${squares}\nScore: ${res.score} pts\nhttps://sely.tr`
-        : `SELY Vaka Gizemi | Vaka: ${vakaCase.title}\nHüküm: ${res.success ? "ÇÖZÜLDÜ (Derece " + res.grade + ")" : "DÜŞTÜ"}\n${squares}\nPuan: ${res.score}\nhttps://sely.tr`;
+        ? `SELY Vaka Mystery | Case: ${vakaCase.titleEn}\nVerdict: ${res.success ? "SOLVED (Grade " + res.grade + ")" : "DISMISSED"}\n${squares}\nScore: ${res.score} pts${typeof window !== "undefined" ? `\n${window.location.origin}` : ""}`
+        : `SELY Vaka Gizemi | Vaka: ${vakaCase.title}\nHüküm: ${res.success ? "ÇÖZÜLDÜ (Derece " + res.grade + ")" : "DÜŞTÜ"}\n${squares}\nPuan: ${res.score}${typeof window !== "undefined" ? `\n${window.location.origin}` : ""}`;
 
       setResult({
         ...res,

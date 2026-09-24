@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFinishOnce } from "@/components/games/shared";
 import { getAdaptiveDpr } from "@/lib/devicePerformance";
 import { advanceApexSpeed, apexNearMissReward, APEX_CRUISE_SPEED, apexRoadFlowMultiplier, createApexRandom, createApexTrafficGenerator, type ApexLane, type ApexTrafficKind, type ApexTrafficSpawn } from "@/lib/levelGenerators/apex";
@@ -20,7 +20,21 @@ type TrafficCar = ApexTrafficSpawn & {
 };
 
 type Controls = { left: boolean; right: boolean; gas: boolean; brake: boolean };
+type PedalControls = Pick<Controls, "gas" | "brake">;
 type Locale = ApexGameProps["locale"];
+
+function pedalsAtTouches(touches: ArrayLike<Pick<Touch, "clientX" | "clientY">>): PedalControls {
+  const pedals: PedalControls = { gas: false, brake: false };
+  for (let index = 0; index < touches.length; index += 1) {
+    const touch = touches[index];
+    const control = document
+      .elementFromPoint(touch.clientX, touch.clientY)
+      ?.closest("[data-apex-pedal]")
+      ?.getAttribute("data-apex-pedal");
+    if (control === "gas" || control === "brake") pedals[control] = true;
+  }
+  return pedals;
+}
 
 const COLORS = {
   field: "#172842",
@@ -102,6 +116,8 @@ export default function ApexGame({ locale, seed, mastery, soundOn = true, onFini
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [finish] = useFinishOnce(onFinish);
   const controlsRef = useRef<Controls>({ left: false, right: false, gas: false, brake: false });
+  const touchPedalsRef = useRef<PedalControls>({ gas: false, brake: false });
+  const [pressedPedals, setPressedPedals] = useState<PedalControls>({ gas: false, brake: false });
   const pendingTouchSteeringRef = useRef(0);
   const onHudChangeRef = useRef(onHudChange);
   onHudChangeRef.current = onHudChange;
@@ -256,7 +272,10 @@ export default function ApexGame({ locale, seed, mastery, soundOn = true, onFini
       steerCooldown = Math.max(0, steerCooldown - dt);
 
       const controls = controlsRef.current;
-      speed = advanceApexSpeed(speed, controls, dt);
+      speed = advanceApexSpeed(speed, {
+        gas: controls.gas || touchPedalsRef.current.gas,
+        brake: controls.brake || touchPedalsRef.current.brake,
+      }, dt);
       const progress = Math.min(1, distance / 4200);
       const trafficGap = Math.max(1.12, 1.4 - progress * 0.48 - Math.min(0.16, mastery * 0.03));
 
@@ -389,6 +408,8 @@ export default function ApexGame({ locale, seed, mastery, soundOn = true, onFini
     };
     const releaseAllInputs = () => {
       releaseInputs();
+      touchPedalsRef.current = { gas: false, brake: false };
+      setPressedPedals({ gas: false, brake: false });
       if (touchPointerId !== null && canvas.hasPointerCapture(touchPointerId)) {
         canvas.releasePointerCapture(touchPointerId);
       }
@@ -424,27 +445,105 @@ export default function ApexGame({ locale, seed, mastery, soundOn = true, onFini
 
   const bindControl = (control: keyof Controls) => ({
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (event.pointerType === "touch") {
+        controlsRef.current[control] = true;
+        if (control === "gas" || control === "brake") {
+          setPressedPedals((current) => current[control] ? current : { ...current, [control]: true });
+        }
+        return;
+      }
       event.preventDefault();
-      event.currentTarget.setPointerCapture(event.pointerId);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // The control still works when pointer capture is unavailable.
+      }
       controlsRef.current[control] = true;
+      if (control === "gas" || control === "brake") {
+        setPressedPedals((current) => current[control] ? current : { ...current, [control]: true });
+      }
     },
     onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      if (event.pointerType === "touch") {
+        controlsRef.current[control] = false;
+        if (control === "gas" || control === "brake") {
+          setPressedPedals((current) => current[control] === touchPedalsRef.current[control]
+            ? current
+            : { ...current, [control]: touchPedalsRef.current[control] });
+        }
+        return;
+      }
+      try {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Safari can end a touch pointer before explicit capture is released.
+      }
       controlsRef.current[control] = false;
+      if (control === "gas" || control === "brake") {
+        setPressedPedals((current) => current[control] === touchPedalsRef.current[control]
+          ? current
+          : { ...current, [control]: touchPedalsRef.current[control] });
+      }
     },
-    onPointerCancel: () => { controlsRef.current[control] = false; },
-    onLostPointerCapture: () => { controlsRef.current[control] = false; },
+    onPointerCancel: () => {
+      controlsRef.current[control] = false;
+      if (control === "gas" || control === "brake") {
+        setPressedPedals((current) => ({ ...current, [control]: touchPedalsRef.current[control] }));
+      }
+    },
+    onLostPointerCapture: () => {
+      controlsRef.current[control] = false;
+      if (control === "gas" || control === "brake") {
+        setPressedPedals((current) => ({ ...current, [control]: touchPedalsRef.current[control] }));
+      }
+    },
+    onTouchStart: (event: React.TouchEvent<HTMLButtonElement>) => {
+      const pedals = pedalsAtTouches(event.touches);
+      touchPedalsRef.current = pedals;
+      setPressedPedals(pedals);
+    },
+    onTouchMove: (event: React.TouchEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      const pedals = pedalsAtTouches(event.touches);
+      touchPedalsRef.current = pedals;
+      setPressedPedals((current) => current.gas === pedals.gas && current.brake === pedals.brake ? current : pedals);
+    },
+    onTouchEnd: (event: React.TouchEvent<HTMLButtonElement>) => {
+      const pedals = pedalsAtTouches(event.touches);
+      touchPedalsRef.current = pedals;
+      setPressedPedals((current) => current.gas === pedals.gas && current.brake === pedals.brake ? current : pedals);
+    },
+    onTouchCancel: () => {
+      touchPedalsRef.current = { gas: false, brake: false };
+      setPressedPedals({ gas: false, brake: false });
+    },
   });
 
   return (
     <div className="apex-game">
       <div className="arcade-game-frame arcade-frame-apex">
         <canvas ref={canvasRef} className="apex-canvas" aria-label={text(locale, "Dört şeritli otoyolda araba sürüş oyunu", "Four-lane highway driving game")} />
-        <div className="apex-pad" aria-label={text(locale, "Sürüş kontrolleri", "Driving controls")}>
-          <div className="apex-pedals">
-            <button type="button" aria-label={text(locale, "Fren", "Brake")} {...bindControl("brake")}><span>−</span><small>{text(locale, "FREN", "BRAKE")}</small></button>
-            <button type="button" aria-label={text(locale, "Gaz ver", "Accelerate")} {...bindControl("gas")}><span>＋</span><small>{text(locale, "GAZ", "THROTTLE")}</small></button>
-          </div>
+        <div className="apex-pad" role="group" aria-label={text(locale, "Sürüş kontrolleri", "Driving controls")}>
+          <button
+            type="button"
+            className="touch-adaptive-controls apex-pedal apex-pedal-brake"
+            data-apex-pedal="brake"
+            aria-label={text(locale, "Freni basılı tut", "Hold brake")}
+            aria-pressed={pressedPedals.brake}
+            {...bindControl("brake")}
+          >
+            <span aria-hidden="true">−</span><small>{text(locale, "FREN", "BRAKE")}</small>
+          </button>
+          <button
+            type="button"
+            className="touch-adaptive-controls apex-pedal apex-pedal-gas"
+            data-apex-pedal="gas"
+            aria-label={text(locale, "Gazı basılı tut", "Hold throttle")}
+            aria-pressed={pressedPedals.gas}
+            {...bindControl("gas")}
+          >
+            <span aria-hidden="true">＋</span><small>{text(locale, "GAZ", "THROTTLE")}</small>
+          </button>
         </div>
       </div>
     </div>

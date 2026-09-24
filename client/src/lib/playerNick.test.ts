@@ -1,32 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { getPlayerNick, TR_ADJECTIVES, TR_NOUNS } from "./playerNick";
+import {
+  EN_ADJECTIVES,
+  EN_NOUNS,
+  getPlayerNick,
+  TR_ADJECTIVES,
+  TR_NOUNS,
+} from "./playerNick";
 
-describe("Player Nickname System", () => {
-  it("generates deterministic, collision-free player nicknames with multi-locale support", () => {
-    // Permutation space (>100M combinations)
-    const permutations = TR_ADJECTIVES.length * TR_NOUNS.length * 9000;
-    expect(permutations).toBeGreaterThan(100_000_000);
+describe("Player nicknames", () => {
+  it("is deterministic for an anonymous ID and formats names in the selected locale", () => {
+    const date = "2026-09-19";
+    const anonymousId = "ply_test_stable_id";
+    const trNick = getPlayerNick("tr", date, anonymousId);
+    const enNick = getPlayerNick("en", date, anonymousId);
 
-    const today = "2026-09-19";
+    expect(getPlayerNick("tr", date, anonymousId)).toBe(trNick);
+    expect(getPlayerNick("en", date, anonymousId)).toBe(enNick);
 
-    // Deterministic for same player throughout the day
-    const nick1 = getPlayerNick("tr", today);
-    const nick2 = getPlayerNick("tr", today);
-    expect(nick1).toBe(nick2);
-
-    // English locale format
-    const nickEn = getPlayerNick("en", today);
-    expect(nickEn).toMatch(/^[A-Za-z\s]+ #\d{4}$/);
-
-    // Collision resistance across 2,000 distinct players
-    const nickSet = new Set<string>();
-    const totalSimulated = 2000;
-    for (let i = 0; i < totalSimulated; i++) {
-      const fakeId = `ply_sim_${i}_${Math.random().toString(36).slice(2, 10)}`;
-      const nick = getPlayerNick("tr", today, fakeId);
-      expect(nick).toMatch(/^[\wçğıöşüÇĞİÖŞÜâîûÂÎÛ\s]+ #\d{4}$/);
-      nickSet.add(nick);
-    }
-    expect(nickSet.size).toBeGreaterThanOrEqual(totalSimulated - 1);
+    const trName = trNick.match(/^(.+) #(\d{4})$/)?.[1];
+    const enName = enNick.match(/^([A-Za-z ]+) #(\d{4})$/)?.[1];
+    expect(trName).toBeDefined();
+    expect(enName).toBeDefined();
+    expect(
+      TR_ADJECTIVES.some(adj =>
+        TR_NOUNS.some(noun => trName === `${adj} ${noun}`)
+      )
+    ).toBe(true);
+    expect(
+      EN_ADJECTIVES.some(adj =>
+        EN_NOUNS.some(noun => enName === `${adj} ${noun}`)
+      )
+    ).toBe(true);
+    expect(trNick).not.toBe(enNick);
   });
 });

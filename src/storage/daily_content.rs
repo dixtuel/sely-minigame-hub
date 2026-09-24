@@ -206,23 +206,20 @@ async fn select_daily_content(
     Ok(out)
 }
 
-/// Ensures today's (or `date`'s) daily manifest is persisted in Turso, matching
-/// nodejs-legacy's TursoStore.ensure — falls back to the deterministic in-memory generator
-/// when no Turso connection is available.
-pub async fn ensure_daily_content(date: &str, conn: Option<&libsql::Connection>) -> DailyManifest {
-    let Some(conn) = conn else {
-        return MemoryDailyStore::new().ensure(date);
-    };
-
-    match select_daily_content(conn, date).await {
-        Ok(rows) if rows.len() == DAILY_GAMES.len() => return manifest_from_rows(date, rows),
-        _ => {}
+async fn ensure_daily_content_in_connection(
+    date: &str,
+    conn: &libsql::Connection,
+) -> Result<DailyManifest, ()> {
+    if let Ok(rows) = select_daily_content(conn, date).await {
+        if rows.len() == DAILY_GAMES.len() {
+            return Ok(manifest_from_rows(date, rows));
+        }
     }
 
     let manifest = create_daily_manifest(date);
     let created_at = Utc::now().to_rfc3339();
     for game in &manifest.games {
-        let _ = conn
+        conn
             .execute(
                 "INSERT OR IGNORE INTO sely_daily_content
                     (content_date, game_id, seed, difficulty, ruleset_version, payload_codec, payload, checksum, created_at)
@@ -238,32 +235,51 @@ pub async fn ensure_daily_content(date: &str, conn: Option<&libsql::Connection>)
                     created_at.as_str()
                 ],
             )
-            .await;
+            .await
+            .map_err(|_| ())?;
     }
 
     match select_daily_content(conn, date).await {
-        Ok(rows) if !rows.is_empty() => manifest_from_rows(date, rows),
-        _ => manifest,
+        Ok(rows) if rows.len() == DAILY_GAMES.len() => Ok(manifest_from_rows(date, rows)),
+        _ => Err(()),
     }
+}
+
+/// Ensures today's (or `date`'s) manifest is persisted in libSQL. If the configured remote
+/// database fails at request time, standalone servers retry against their local SQLite copy.
+pub async fn ensure_daily_content(
+    date: &str,
+    conn: Option<&libsql::Connection>,
+    local_fallback_conn: Option<&libsql::Connection>,
+) -> DailyManifest {
+    for candidate in [conn, local_fallback_conn].into_iter().flatten() {
+        if let Ok(manifest) = ensure_daily_content_in_connection(date, candidate).await {
+            return manifest;
+        }
+    }
+    create_daily_manifest(date)
 }
 
 /// Deletes persisted daily manifests older than `before_date` (YYYY-MM-DD), matching
 /// nodejs-legacy's TursoStore.cleanup. Returns 0 (nothing to clean) when Turso isn't
 /// configured, since the in-memory fallback never accumulates anything across invocations.
-pub async fn cleanup_daily_content(before_date: &str, conn: Option<&libsql::Connection>) -> usize {
-    let Some(conn) = conn else {
-        return 0;
-    };
-    match conn
-        .execute(
-            "DELETE FROM sely_daily_content WHERE content_date < ?1;",
-            libsql::params![before_date],
-        )
-        .await
-    {
-        Ok(affected) => affected as usize,
-        Err(_) => 0,
+pub async fn cleanup_daily_content(
+    before_date: &str,
+    conn: Option<&libsql::Connection>,
+    local_fallback_conn: Option<&libsql::Connection>,
+) -> usize {
+    for candidate in [conn, local_fallback_conn].into_iter().flatten() {
+        if let Ok(affected) = candidate
+            .execute(
+                "DELETE FROM sely_daily_content WHERE content_date < ?1;",
+                libsql::params![before_date],
+            )
+            .await
+        {
+            return affected as usize;
+        }
     }
+    0
 }
 
 #[cfg(test)]
@@ -307,13 +323,13 @@ mod tests {
         crate::storage::turso::ensure_turso_schema(&conn).await.unwrap();
 
         // First call creates and persists the manifest.
-        let first = ensure_daily_content("2026-09-20", Some(&conn)).await;
+        let first = ensure_daily_content("2026-09-20", Some(&conn), None).await;
         assert_eq!(first.games.len(), DAILY_GAMES.len());
 
         // A brand new connection-backed call for the same date must read the SAME rows back
         // (not silently recompute in memory and lose them) — this is exactly what the old
         // per-invocation MemoryDailyStore couldn't guarantee across separate Vercel invocations.
-        let second = ensure_daily_content("2026-09-20", Some(&conn)).await;
+        let second = ensure_daily_content("2026-09-20", Some(&conn), None).await;
         let first_seeds: Vec<i32> = first.games.iter().map(|g| g.seed).collect();
         let second_seeds: Vec<i32> = second.games.iter().map(|g| g.seed).collect();
         assert_eq!(first_seeds, second_seeds);
@@ -322,8 +338,8 @@ mod tests {
         }
 
         // Old content gets pruned, recent content survives.
-        ensure_daily_content("2026-01-01", Some(&conn)).await;
-        let removed = cleanup_daily_content("2026-05-01", Some(&conn)).await;
+        ensure_daily_content("2026-01-01", Some(&conn), None).await;
+        let removed = cleanup_daily_content("2026-05-01", Some(&conn), None).await;
         assert!(removed >= DAILY_GAMES.len());
         let still_there = select_daily_content(&conn, "2026-09-20").await.unwrap();
         assert_eq!(still_there.len(), DAILY_GAMES.len());
@@ -333,8 +349,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_ensure_and_cleanup_fall_back_gracefully_without_turso() {
-        let manifest = ensure_daily_content("2026-09-20", None).await;
+        let manifest = ensure_daily_content("2026-09-20", None, None).await;
         assert_eq!(manifest.games.len(), DAILY_GAMES.len());
-        assert_eq!(cleanup_daily_content("2026-05-01", None).await, 0);
+        assert_eq!(cleanup_daily_content("2026-05-01", None, None).await, 0);
     }
 }

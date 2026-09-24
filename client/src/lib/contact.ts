@@ -1,23 +1,18 @@
-/**
- * Public legal contact address and operator identity helpers.
- * Obfuscated at runtime to prevent automated email harvesting and scraper bots.
- */
+// Intentionally public identity used by the site UI. Edit only these two plain-text
+// values; audit:public permits one occurrence here and flags copies/obfuscation elsewhere.
+const PUBLIC_CONTACT_EMAIL = "asrinklcc@sely.tr";
+const PUBLIC_OPERATOR_NAME = "Asrın Kılıç";
 
-// Obfuscated char codes for contact email
-const CONTACT_EMAIL_CHARS = [97, 115, 114, 105, 110, 107, 108, 99, 99, 64, 115, 101, 108, 121, 46, 116, 114];
-
-// Obfuscated char codes for operator name
-const OPERATOR_NAME_CHARS = [65, 115, 114, 305, 110, 32, 75, 305, 108, 305, 231];
-
-export function getDecodedContactEmail(): string {
-  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_PUBLIC_CONTACT_EMAIL) {
-    return import.meta.env.VITE_PUBLIC_CONTACT_EMAIL;
-  }
-  return String.fromCharCode(...CONTACT_EMAIL_CHARS);
+export function getPublicContactEmail(): string {
+  return PUBLIC_CONTACT_EMAIL;
 }
 
-export function getDecodedOperatorName(): string {
-  return String.fromCharCode(...OPERATOR_NAME_CHARS);
+export function getPublicOperatorName(): string {
+  return PUBLIC_OPERATOR_NAME;
 }
 
-export const publicContactEmail = getDecodedContactEmail();
+export function getProtectedContactLabel(locale: string): string {
+  return locale === "en" ? "Open email contact" : "E-posta ile iletişim";
+}
+
+export const publicContactEmail = getPublicContactEmail();

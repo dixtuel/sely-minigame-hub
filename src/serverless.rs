@@ -8,7 +8,8 @@ use sely_minigame_hub::routes::scheduled::scheduled_routes;
 use sely_minigame_hub::routes::seo::seo_routes;
 use sely_minigame_hub::routes::share::share_routes;
 use sely_minigame_hub::routes::trpc::trpc_routes;
-use sely_minigame_hub::storage::turso::{create_turso_connection, is_turso_configured};
+use sely_minigame_hub::storage::leaderboard::create_redis_pool;
+use sely_minigame_hub::storage::turso::create_turso_connections;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::compression::CompressionLayer;
@@ -18,13 +19,12 @@ use vercel_runtime::{run, Error};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let turso_conn = if is_turso_configured() {
-        create_turso_connection().await.ok().map(|c| Arc::new(Mutex::new(c)))
-    } else {
-        None
-    };
+    let database = create_turso_connections().await;
+    let turso_conn = database.primary.map(|conn| Arc::new(Mutex::new(conn)));
+    let local_fallback_conn = database.local_fallback.map(|conn| Arc::new(Mutex::new(conn)));
+    let redis_pool = create_redis_pool().await;
 
-    let state = AppState { turso_conn, llm_client: reqwest::Client::new() };
+    let state = AppState { turso_conn, local_fallback_conn, redis_pool, llm_client: reqwest::Client::new() };
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

@@ -29,6 +29,7 @@ describe("Spark Flight Canvas Physics & Mechanics", () => {
     expect(h1).toBe(h1_repeat);
     expect(h1).toBeGreaterThanOrEqual(SPARK_DEFAULTS.minTopHeight);
     expect(h2).toBeGreaterThanOrEqual(SPARK_DEFAULTS.minTopHeight);
+    expect(h2).not.toBe(h1);
 
     // 3. Difficulty scaling
     const easy = sparkDifficulty(0, 0);

@@ -1,0 +1,15 @@
+[Unit]
+Description=Generate today's SELY MiniGame Hub content
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sely
+Group=sely
+EnvironmentFile=-/etc/sely-minigame-hub/sely.env
+ExecStart=/bin/sh -ec 'test -n "$$DAILY_JOB_TOKEN"; printf "x-sely-cron-token: %s\n" "$$DAILY_JOB_TOKEN" | /usr/bin/curl --fail --silent --show-error --request POST --header @- "http://127.0.0.1:$${PORT:-3000}/api/scheduled/daily-content"'
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
