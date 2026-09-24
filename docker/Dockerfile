@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends pkg-config && r
 
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY assets/fonts ./assets/fonts
 
 RUN cargo build --release --bin standalone
 
