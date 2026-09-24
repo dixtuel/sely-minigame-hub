@@ -3,22 +3,32 @@ name: Docker Build Validation
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - '**/*.md'
-      - '.gitignore'
-      - 'LICENSE'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/dependabot.yml'
-      - '.github/pull_request_template.md'
+    paths:
+      - '.dockerignore'
+      - 'docker/**'
+      - 'docker-compose.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'vite.config.ts'
+      - 'assets/fonts/**'
+      - '.github/workflows/docker-build.yml'
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - '**/*.md'
-      - '.gitignore'
-      - 'LICENSE'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/dependabot.yml'
-      - '.github/pull_request_template.md'
+    paths:
+      - '.dockerignore'
+      - 'docker/**'
+      - 'docker-compose.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'vite.config.ts'
+      - 'assets/fonts/**'
+      - '.github/workflows/docker-build.yml'
 
 permissions:
   contents: read
