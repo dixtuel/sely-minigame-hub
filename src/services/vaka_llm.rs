@@ -560,8 +560,17 @@ pub async fn execute_vaka_llm_chain(
                 .send()
                 .await;
             match result {
+                Ok(response) if [429, 503].contains(&response.status().as_u16()) => {
+                    tracing::warn!(
+                        provider = spec.provider,
+                        model = spec.model,
+                        status = %response.status(),
+                        "LLM kapasite/rate-limit hatası; aynı model beklenmeden fallback sürüyor"
+                    );
+                    break None;
+                }
                 Ok(response)
-                    if attempt == 0 && [502, 503, 504].contains(&response.status().as_u16()) =>
+                    if attempt == 0 && [502, 504].contains(&response.status().as_u16()) =>
                 {
                     tracing::warn!(
                         provider = spec.provider,
