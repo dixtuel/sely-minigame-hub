@@ -1,162 +1,154 @@
-# Dağıtım ve self-host kurulumu
+# Dağıtım ve self-host
 
-Bu rehber Vercel, Docker Compose ve standalone Rust kurulumlarını kapsar. İndirilebilir Docker ve standalone release paketlerini elle üretme adımları [release rehberindedir](RELEASING.md). Özet, hızlı başlangıç ve oyun kataloğu için [ana README](../README.md) dosyasına dön.
+Bu belge güncel `main` dalındaki Rust uygulaması içindir. Vercel serverless, Docker Compose ve standalone Linux seçeneklerini kapsar. Hazır release arşivlerinin elle üretilmesi [release rehberinde](RELEASING.md), arşivden kurulum ise [standalone paket notlarında](standalone-release-README.md) anlatılır.
 
 ## Hangi dağıtım?
 
-| Seçenek        | Uygulama                                    | Kalıcı veri                                               | Zamanlanmış görev                                  |
-| -------------- | ------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------- |
-| Vercel         | Statik Vite istemcisi + Rust serverless API | Kalıcılık için uzak Turso/libSQL ayarla                   | `vercel.json` içindeki Vercel Cron                 |
-| Docker Compose | Rust standalone + Redis container'ı         | SQLite ve Redis named volume'ları                         | systemd timer örneklerini ayrıca çalıştırabilirsin |
-| Standalone     | Rust binary + derlenmiş frontend            | Varsayılan yerel SQLite; uzak Turso ve Redis isteğe bağlı | systemd service/timer örnekleri isteğe bağlı       |
+| Seçenek           | Uygulama                                             | Kalıcılık                                                   | Zamanlanmış görev                      |
+| ----------------- | ---------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| Vercel serverless | Statik Vite çıktısı + Rust Function (`api/index.rs`) | Kalıcı veri için uzak Turso/libSQL yapılandır               | `vercel.json` içindeki iki günlük Cron |
+| Docker Compose    | Rust standalone + yerel Redis container              | Yerel SQLite ve Redis named volume; isteğe bağlı uzak Turso | İsteğe bağlı systemd timer             |
+| Standalone Linux  | Rust binary + derlenmiş frontend                     | Yerel SQLite; isteğe bağlı Turso ve Redis                   | İsteğe bağlı systemd timer             |
 
-Aynı uygulama kopyası için Vercel Cron ile systemd timer'larını birlikte etkinleştirme. Tek bir zamanlayıcı yolunu seç.
+Aynı SELY instance'ı için Vercel Cron ile systemd timer'larını birlikte etkinleştirme. İki yol da aynı günlük endpoint'leri çalıştırır.
 
-## Canlıya çıkış kontrolü
+## Ön koşullar
 
-- Production ortamı için kalıcı `TURSO_DATABASE_URL` (ve gerekiyorsa `TURSO_AUTH_TOKEN`) tanımlı.
-- Cron kullanılıyorsa rastgele ve gizli `CRON_SECRET` (Vercel) veya `DAILY_JOB_TOKEN` (self-host) ayarlı.
-- Yerel SQLite kullanılıyorsa veri dizini kalıcı diskte ve uygulama kullanıcısı tarafından yazılabilir.
-- `PRIMARY_DOMAIN` gerekmiyorsa boş bırakılmış; reverse proxy varsa host ve protokol başlıklarını iletiyor.
-- Günlük görevler için yalnız tek scheduler etkin; yedekleme yöntemi belirlenmiş.
+- Kaynak build: Node.js 22+, Corepack/pnpm 10.34.5 ve stable Rust.
+- Docker: Docker Engine ve Compose eklentisi.
+- Release binary: arşivdeki `install-standalone.sh` betiği; dışarıdan Node.js/Rust kurmak gerekmez.
+- Linux release arşivleri yalnız kendi dosya adında belirtilen mimaride çalışır.
+- Değişkenlerin tam açıklaması [`.env.example`](../.env.example) içindedir. `VITE_*` değerleri istemci build'ine girebilir; bunlara gizli anahtar koyma.
 
-## Başlamadan önce
+## Veritabanı ve fallback davranışı
 
-- Ön yüz geliştirme için Node.js 22+ ve pnpm 10 gerekir.
-- Standalone Rust backend için stable Rust toolchain gerekir.
-- Docker Compose için Docker Engine ve Compose eklentisi gerekir.
-- Değişkenlerin tam listesi [`.env.example`](../.env.example) dosyasındadır.
-- `.env` dosyasına token veya API anahtarı koyarsan onu Git'e ekleme. `VITE_` ile başlayan değerler istemci build'inde görünür olabilir; bunlara gizli anahtar koyma.
+Rust backend SQL için libSQL/SQLite kullanır. PostgreSQL ve genel `DATABASE_URL` bağlantısı desteklenmez.
 
-## Veritabanı, önbellek ve dış servisler
+| Yapılandırma                                            | Davranış                                                                                                             |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `TURSO_DATABASE_URL` ve gerektiğinde `TURSO_AUTH_TOKEN` | Uzak kalıcı Turso/libSQL primary store.                                                                              |
+| Turso ayarı olmayan standalone/Docker                   | `./data/sely.db` içindeki yerel SQLite. Docker'da bu yol named volume'a bağlıdır.                                    |
+| Redis için `REDIS_URL`                                  | İsteğe bağlı, 24 saatlik leaderboard hızlı katmanı. Kalıcı skor kaynağı değildir.                                    |
+| Redis ayarı olmayan self-host                           | Leaderboard önce SQL/SQLite kullanır; kullanılabilir kalıcı store da yoksa process belleği fallback'i devreye girer. |
+| Turso ayarı olmayan Vercel                              | Function'ın yerel diski kullanılmaz; server-side skor/günlük içerik kalıcı olmaz ve invocation belleğine düşebilir.  |
 
-Rust backend'i libSQL/Turso ve SQLite destekler. `DATABASE_URL` ve `POSTGRES_URL` üzerinden PostgreSQL bağlantısı desteklenmez.
+Standalone'da uzak Turso başta erişilemiyorsa uygulama yerel SQLite'a düşebilir. Veritabanı yedeğini, kendi SQLite/Turso sağlayıcının prosedürüne göre ayrıca planla. Vercel için local SQLite fallback'i yoktur.
 
-| Ayar                                                    | Etki                                                                                                                                   |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `TURSO_DATABASE_URL` + gerekirse `TURSO_AUTH_TOKEN`     | Uzak libSQL/Turso veritabanı. Vercel'de kalıcı skorlar için yapılandırılmalıdır.                                                       |
-| `REDIS_URL`                                             | İsteğe bağlı leaderboard hız katmanı; `redis://` self-hosted, `rediss://` TLS endpoint'i için. Redis verileri 24 saatlik TTL kullanır. |
-| `GROQ_API_KEY`, `NVIDIA_NIM_API_KEY`, `MISTRAL_API_KEY` | Vaka LLM sağlayıcıları. Bunlar yoksa veya sağlayıcı yanıt vermezse deterministik yerel oyun motoru devam eder.                         |
-| `PRIMARY_DOMAIN`                                        | İsteğe bağlı canonical host; protokol eklemeden yalnız host adı girilir.                                                               |
+## Ortak ayarlar
 
-Standalone'da Turso ayarı yoksa `./data/sely.db` kullanılır. Uzak Turso bağlantısı kurulamazsa standalone yerel SQLite'a düşebilir. Vercel'in kalıcı yerel dosya sistemi yoktur; Turso olmadan skorlar yalnız function belleğiyle sınırlı kalabilir. Redis yoksa SQL/SQLite, ardından sınırlı process belleği fallback'i devreye girer. Kalıcı skor kaynağı Redis değildir.
+- `PRIMARY_DOMAIN` isteğe bağlıdır. Boşken uygulama request host/protokol başlıklarını kullanır; başlıklar da yoksa mutlak URL üretmez ve `sely.tr`'ye düşmez.
+- `GROQ_API_KEY`, `NVIDIA_NIM_API_KEY`, `MISTRAL_API_KEY` Vaka oyununun isteğe bağlı sağlayıcılarıdır. Anahtar tanımlanmazsa veya sağlayıcı başarısız olursa yerel oyun motoru kullanılır.
+- `CRON_SECRET` Vercel Cron'un `Authorization: Bearer <secret>` başlığıyla; `DAILY_JOB_TOKEN` self-host timer'larının `x-sely-cron-token` başlığıyla kullanılır. Bunları public repoya koyma.
+- Yerel varsayılanları denemek için API anahtarı zorunlu değildir. Canlı leaderboard/günlük kayıtlarını kalıcı tutmak için doğru ortamda Turso/libSQL ayarla.
 
-Yerel sunucuda varsayılanlar için sır gerekmez. `.env.example` içindeki örnek URL'ler ve açıklamalar başlangıç noktasıdır; kendi ortamına göre değerleri değiştir.
+## Vercel serverless
 
-## Vercel
+Vercel statik Vite çıktısını CDN'den, Rust/Axum API'sini `api/index.rs` üzerinden Function olarak sunar. Proje `vercel.json` ile `dist/public` çıktısını, `fra1` bölgesini, Function süresini, yönlendirmeleri ve günlük Cron tanımlarını belirler. Vercel'in [Rust runtime dokümanı](https://vercel.com/docs/functions/runtimes/rust) runtime'ı beta olarak tanımlar; yeni projede Vercel panelindeki güncel runtime/plan desteğini doğrula.
 
-Repo Vercel'in Rust function'ı ile statik ön yüz için yapılandırılmıştır. `vercel.json` build komutunu (`pnpm run build`), çıktı dizinini (`dist/public`), API yönlendirmesini, function süresini ve zamanlanmış görevleri tanımlar.
+1. [GitHub deposunu](https://github.com/dixtuel/sely-minigame-hub) kendi Vercel hesabına import et.
+2. Project Settings → Environment Variables altında kalıcı veri için `TURSO_DATABASE_URL` ve `TURSO_AUTH_TOKEN`; günlük görevleri doğrulamak için rastgele `CRON_SECRET` tanımla.
+3. İhtiyacın varsa Vaka sağlayıcı anahtarları ve diğer server-side ayarları ekle. `VITE_*` ile başlayan değişkenlere secret koyma.
+4. Vercel'in normal build/deploy akışını çalıştır; API, statik sayfalar ve cron endpoint'lerini deployment loglarında kontrol et.
 
-1. GitHub deposunu Vercel projesine bağla veya [Vercel ile yeni proje oluştur](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdixtuel%2Fsely-minigame-hub).
-2. Project Settings → Environment Variables altında ihtiyacın olan server-side değerleri tanımla. Kalıcı skorlar için `TURSO_DATABASE_URL` ve `TURSO_AUTH_TOKEN`, Cron isteklerini doğrulamak için `CRON_SECRET` ekle.
-3. Project'i deploy et ve siteyi, API'yi ve logları kontrol et.
+Günlük endpoint'ler `vercel.json` içinde tanımlıdır:
 
-`VITE_` ile başlayan değişkenler frontend build aşamasında istemciye gömülür; bu değişkenler gizli değildir. Vercel'de Production için değişken eklediğinde yeni bir deployment gerekir. Preview ve Production ortamlarının değerlerini ayrı kontrol et.
+| Endpoint                       | Cron ifadesi | Görevi                                   |
+| ------------------------------ | ------------ | ---------------------------------------- |
+| `/api/scheduled/daily-content` | `5 0 * * *`  | Günlük oyun içeriğini üretir/günceller.  |
+| `/api/scheduled/daily-cleanup` | `15 0 * * *` | Eski günlük içerik ve skorları temizler. |
 
-Günlük Cron yolları `vercel.json` dosyasında tanımlıdır:
+Bu iki job da günde bir kez çalışacak şekilde tanımlıdır. Vercel Hobby planı günlük Cron kullanımına izin verir; ancak Hobby'de tetikleme dakikası kesin değildir ve job seçilen saat içinde kayabilir. Kesin çalıştırma dakikası gerekiyorsa bu plana güvenme. Güncel sınırlar için [Vercel Cron fiyatlandırma/sınırları](https://vercel.com/docs/cron-jobs/usage-and-pricing) ve [yönetim notlarına](https://vercel.com/docs/cron-jobs/manage-cron-jobs) bak. `CRON_SECRET` tanımlı değilse cron çağrısının kimlik doğrulaması beklenen secret ile eşleşmeyebilir; endpoint'leri el ile herkese açık bırakma.
 
-| Endpoint                       | Zaman (UTC)   | İş                                               |
-| ------------------------------ | ------------- | ------------------------------------------------ |
-| `/api/scheduled/daily-content` | Her gün 00:05 | Günlük oyun içeriğini üretir/günceller.          |
-| `/api/scheduled/daily-cleanup` | Her gün 00:15 | Eski günlük içerik ve skor kayıtlarını temizler. |
-
-`CRON_SECRET` ayarlıysa endpoint, Vercel Cron'un gönderdiği `Authorization: Bearer <değer>` başlığıyla doğrulanır. Vercel'de yerel SQLite dosyasını kalıcı veri deposu olarak kullanmaya güvenme. Redis eklemek de Turso gereksiniminin yerini almaz.
-
-Build tamamlandıktan sonra tarayıcıdan uygulamayı ve `https://alan-adin.example/api/config` adresini kontrol et. Zamanlanmış job'ların çalışması Vercel Cron yapılandırmasına ve gerekli token'ın tanımlı olmasına bağlıdır.
+Vercel'de `TURSO_DATABASE_URL` olmadan SQLite dosyası kalıcı veri deposu değildir. Redis tek başına kalıcı DB yerine geçmez. Ortam değişkenlerini ekledikten/değiştirdikten sonra yeni deployment oluştur ve `/api/config`, oyun kaydı ve leaderboard akışını kontrol et. Bu adımlar yalnızca senin Vercel projen için geçerlidir; `sely.tr` projesini değiştirmez.
 
 ## Docker Compose
 
-Compose dosyası Rust uygulamasını ve Redis 7 servisini başlatır. Varsayılan yapılandırmada SQLite ve Redis kendi named volume'larında saklanır.
+### Kaynak koddan
 
-Repo kökünde:
+Repo kök dizininde:
 
 ```bash
+git clone https://github.com/dixtuel/sely-minigame-hub.git
+cd sely-minigame-hub
 cp .env.example .env
-docker compose -f docker/docker-compose.yml up --build -d
-docker compose -f docker/docker-compose.yml ps
+docker compose --env-file .env -f docker/docker-compose.yml up --build -d
+docker compose --env-file .env -f docker/docker-compose.yml ps
 ```
 
-Port varsayılanı host üzerinde 3000'dir; `.env` dosyasındaki `PORT` ile host portunu değiştirebilirsin. SQLite verisi uygulama container'ında `/app/data/sely.db`, Redis verisi Redis volume'unda tutulur. İstersen `TURSO_DATABASE_URL` ve `REDIS_URL` ile uzak servisleri kullan.
+Compose Rust uygulamasını ve Redis 7 servisini kurar. SQLite `/app/data/sely.db` altında named volume'da; Redis kendi named volume'unda saklanır. Varsayılan host portu 3000; `.env` içindeki `PORT` ile değiştirilebilir. İsteğe bağlı olarak `TURSO_DATABASE_URL` ve `TURSO_AUTH_TOKEN` ver. Boş `REDIS_URL` için Compose kendi Redis servisini bağlar.
 
-İlk açılış ve güncellemeden sonra `http://sunucu-adresi:3000/api/config` endpoint'inin yanıt verdiğini ve ana sayfanın yüklendiğini doğrula. Reverse proxy kullanıyorsan uygulamanın portunu doğrudan internete açmak yerine yalnız proxy üzerinden yayınla.
-
-Yaygın bakım komutları:
+Kurulumdan sonra `http://localhost:3000/api/config` ve ana sayfayı açarak kontrol et. Yayın sunucusunda uygulama portunu doğrudan internete açmak yerine reverse proxy kullan. Log ve güncelleme komutları:
 
 ```bash
-docker compose -f docker/docker-compose.yml logs -f sely-hub
-docker compose -f docker/docker-compose.yml up --build -d
-docker compose -f docker/docker-compose.yml stop
+docker compose --env-file .env -f docker/docker-compose.yml logs -f sely-hub
+docker compose --env-file .env -f docker/docker-compose.yml up --build -d
+docker compose --env-file .env -f docker/docker-compose.yml stop
 ```
 
-`docker compose down` container ve ağı kaldırır ama named volume'ları korur. `down -v` ise SQLite ve Redis volume'larını da siler; yalnız verileri bilerek sıfırlamak istediğinde kullan. İmaj, port, volume ve health check tanımları [Compose dosyasında](../docker/docker-compose.yml) ve [Dockerfile'da](../docker/Dockerfile) tutulur.
+`docker compose down` container'ları kaldırır, named volume'ları korur. `down --volumes` SQLite ve Redis verisini siler; sadece bilerek sıfırlamak istediğinde kullan.
+
+### GitHub Release image'ı
+
+[GitHub Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasından mimariye uygun `image` ve `compose` arşivlerini, ayrıca `SHA256SUMS` dosyasını indir. Checksum'u doğrula, Compose arşivini aç, image'ı `docker load` ile yükle, `.env.example` dosyasını `.env` olarak kopyala ve `docker compose up -d --pull never` çalıştır. Tam komutlar ana [README Kurulum](../README.md#kurulum) bölümünde bulunur.
 
 ## Standalone ve systemd
 
-Standalone aynı origin üzerinden derlenmiş frontend'i ve API route'larını sunar. Gerekli araçlar: Node.js 22+, pnpm 10 ve stable Rust.
+### Release binary ile
 
-Repo kökünde:
+Release arşivindeki `scripts/install-standalone.sh` kurulumu sistem locale'ine göre mesajlandırır; Linux paketi kendi hedef mimarisini kontrol eder. Normal kullanıcı kurulumu `~/.local/opt/sely-minigame-hub` altındadır. systemd seçeneği `/opt/sely-minigame-hub` dizinine kurar, `sely` servis kullanıcısını oluşturur ve servisi başlatır:
+
+```bash
+./scripts/install-standalone.sh
+# veya, arşiv dizininden:
+sudo ./scripts/install-standalone.sh --systemd
+```
+
+İlk kurulumda normal kullanıcı için kurulum dizinindeki `.env`, systemd için `/etc/sely-minigame-hub/sely.env` düzenlenir. systemd servis durumu ve logları:
+
+```bash
+sudo systemctl status sely-minigame.service --no-pager
+sudo journalctl -u sely-minigame.service -n 100 --no-pager
+```
+
+Script mevcut `.env` ve SQLite verisini ezmez. Güncellemeden önce SQLite yedeği al; canlı DB'yi uygulama yazarken tutarsız dosya kopyasıyla yedekleme.
+
+### Kaynak koddan
+
+Node.js 22+, pnpm 10.34.5 ve stable Rust kurulu repo kökünde:
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm run build
 cargo build --release --bin standalone
+./target/release/standalone
 ```
 
-Geliştirme sunucusunda repo kökünden `./target/release/standalone` başlatılabilir. Varsayılan port 3000'dir; `PORT` ile değiştirilir. SQLite kullanıyorsan çalışma dizininde `data/` dizininin uygulama kullanıcısı tarafından yazılabilir olması gerekir.
+Derlenmiş ön yüz `dist/public` içinden sunulur. Varsayılan port 3000'dir (`PORT` ile değiştirilebilir). Yerel SQLite için çalışma dizininde `data/` oluşturup uygulama kullanıcısına yazma izni ver.
 
-### systemd ile sürekli çalıştırma
+### Günlük systemd timer'ları
 
-Aşağıdaki örnek `/opt/sely-minigame-hub` kurulum yolunu kullanır. Servis dosyası aynı çalışma dizini ile `data/` yazma alanını bekler. Başka yol kullanıyorsan `systemd/sely-minigame.service` içindeki `WorkingDirectory` ve `ReadWritePaths` değerlerini de düzenle. `sely` sistem kullanıcısı zaten varsa ilk komutu atla.
+Release installer systemd unit ve timer dosyalarını yükler; timer'lar kendiliğinden etkinleşmez. Yalnız aynı instance için Vercel Cron kullanılmıyorsa ve `DAILY_JOB_TOKEN` ayarlıysa etkinleştir:
 
 ```bash
-sudo useradd --system --user-group --home-dir /opt/sely-minigame-hub --shell /usr/sbin/nologin sely
-sudo install -d -o sely -g sely -m 0750 /opt/sely-minigame-hub/data /opt/sely-minigame-hub/dist/public
-sudo install -o sely -g sely -m 0750 target/release/standalone /opt/sely-minigame-hub/standalone
-sudo cp -a dist/public/. /opt/sely-minigame-hub/dist/public/
-sudo chown -R sely:sely /opt/sely-minigame-hub
-sudo install -d -o root -g sely -m 0750 /etc/sely-minigame-hub
-sudo touch /etc/sely-minigame-hub/sely.env
-sudo chown root:sely /etc/sely-minigame-hub/sely.env
-sudo chmod 0640 /etc/sely-minigame-hub/sely.env
 sudoedit /etc/sely-minigame-hub/sely.env
-```
-
-Environment dosyasına yalnız kullandığın değerleri `KEY=value` biçiminde ekle. Örnek: `PORT=3000`. Günlük timer kullanacaksan `DAILY_JOB_TOKEN` tanımla; `openssl rand -hex 32` ile güçlü rastgele token üretebilirsin. Örnek dosyanın izinleri root:sely ve 0640 olacak şekilde sınırlandırılmıştır.
-
-Servis ve timer birimlerini yükleyip uygulamayı başlat:
-
-```bash
-sudo install -m 0644 systemd/sely-minigame.service systemd/sely-daily-content.service systemd/sely-daily-content.timer systemd/sely-daily-cleanup.service systemd/sely-daily-cleanup.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now sely-minigame.service
-systemctl status sely-minigame.service
-journalctl -u sely-minigame.service -n 100 --no-pager
-```
-
-Güncelleme sırasında servisi durdur, yerel SQLite dosyanı yedekle, yeni `standalone` binary'sini ve `dist/public/` içeriğini aynı dizinlere kopyala, sahiplikleri koruyup servisi tekrar başlat. Canlı SQLite dosyasını uygulama yazarken basit bir dosya kopyasıyla yedekleme; önce servisi durdur veya SQLite'ın tutarlı yedekleme aracını kullan.
-
-### Günlük görev timer'ları
-
-Timer'lar isteğe bağlıdır; yalnız self-host ortamında `DAILY_JOB_TOKEN` ayarlıysa ve aynı instance için Vercel Cron çalışmıyorsa etkinleştir:
-
-```bash
 sudo systemctl enable --now sely-daily-content.timer sely-daily-cleanup.timer
-systemctl status sely-daily-content.timer sely-daily-cleanup.timer
+systemctl list-timers 'sely-*'
 ```
 
-Örnek birimler günlük içeriği 00:05 UTC'de, temizliği 00:15 UTC'de çalıştırır. Bunlar `/api/scheduled/daily-content` ve `/api/scheduled/daily-cleanup` endpoint'lerine `x-sely-cron-token` başlığını gönderir. Token'ı günlük loglara yazma.
+Timer unit'leri her gün 00:05 UTC'de günlük içeriği, 00:15 UTC'de eski kayıtları işler. Bu systemd takvimidir; Vercel Hobby Cron'daki zamanlama hassasiyetiyle aynı değildir.
 
 ## Alan adı ve reverse proxy
 
-Caddy veya Nginx gibi reverse proxy kullanıyorsan upstream'e `Host` ve `X-Forwarded-Proto` başlıklarını ilet. `PRIMARY_DOMAIN` boşsa uygulama gelen request host/protokolünü kullanır; host bilgisi de yoksa mutlak URL üretmez ve `sely.tr` alan adına zorlamaz. Sabit canonical adres gerekiyorsa `PRIMARY_DOMAIN` değerine protokolsüz host adı ver.
+Caddy/Nginx gibi proxy'de upstream'in `Host` ve `X-Forwarded-Proto` başlıklarını koru/ilet. `PRIMARY_DOMAIN` boşsa uygulama gelen request bilgisini kullanır; host yoksa absolute URL üretmez ve `sely.tr`'ye zorlamaz. Sabit canonical host istiyorsan protokolsüz host adı gir. HTTPS sertifikasını proxy katmanında yönet.
 
 ## Sorun giderme
 
-| Belirti                                    | Kontrol                                                                                                                 |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Vercel'de skorlar kalıcı değil             | `TURSO_DATABASE_URL` ve gerekirse `TURSO_AUTH_TOKEN` değerlerinin doğru Vercel ortamında tanımlandığını kontrol et.     |
-| Günlük endpoint `403` dönüyor              | Vercel için `CRON_SECRET`; self-host timer için `DAILY_JOB_TOKEN` ve gönderilen başlık eşleşmeli.                       |
-| Standalone SQLite açılmıyor                | Servis kullanıcısının çalışma dizini ve `data/` klasöründe yazma izni olduğunu kontrol et.                              |
-| Paylaşım/absolute URL yanlış host üretiyor | Reverse proxy'nin `Host` ve `X-Forwarded-Proto` başlıklarını ilettiğini, gerekirse `PRIMARY_DOMAIN` ayarını kontrol et. |
+| Belirti                                       | Kontrol                                                                                                          |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Vercel'de skor veya günlük kayıt kalıcı değil | Project'in doğru environment'ında `TURSO_DATABASE_URL` ve gerekirse `TURSO_AUTH_TOKEN` tanımlı mı?               |
+| Scheduled endpoint `403` dönüyor              | Vercel için `CRON_SECRET`; self-host için `DAILY_JOB_TOKEN` ile istek başlığı eşleşiyor mu?                      |
+| Standalone SQLite açılmıyor                   | `data/` yolu, çalışma dizini ve dosya sahipliği/yazma iznini kontrol et.                                         |
+| Docker yeniden başlatınca DB yok              | Named volume aynı Compose projesinde mi; daha önce `down --volumes` çalıştırıldı mı?                             |
+| Paylaşım URL'si yanlış host üretiyor          | Proxy'nin `Host` ve `X-Forwarded-Proto` başlıklarını ilettiğini, gerekirse `PRIMARY_DOMAIN` değerini kontrol et. |
 
-Dağıtım değişikliği öncesinde yerel SQLite dosyasını veya uzak veritabanını yedekle. Uzak Turso/libSQL için yedekleme ve geri yükleme işlemlerini kullandığın sağlayıcının güncel prosedürüne göre yap. Gerçek API anahtarlarını, cron token'larını ve `.env` dosyasını public repoya ekleme.
+Gerçek API key, cron token veya `.env` dosyasını Git'e ya da public release'e ekleme. Güvenlik bildirimi için [SECURITY.md](../SECURITY.md) yolunu kullan.
