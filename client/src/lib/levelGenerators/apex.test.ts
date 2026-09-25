@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceApexSpeed, APEX_CRUISE_SPEED, apexNearMissReward, apexRoadFlowMultiplier, createApexTrafficGenerator, type ApexLane } from "./apex";
+import { advanceApexSpeed, advanceApexTraffic, APEX_CRUISE_SPEED, apexNearMissReward, apexRoadFlowMultiplier, apexTrafficHeight, canSpawnApexTraffic, createApexTrafficGenerator, type ApexLane, type ApexTrafficBody } from "./apex";
 
 function generateRun(seed: number, mastery: number) {
   const nextWave = createApexTrafficGenerator(seed, mastery);
@@ -42,6 +42,39 @@ describe("Apex traffic generator", () => {
 
     expect(early.every(wave => wave.cars.length <= 1)).toBe(true);
     expect(late.some(wave => wave.cars.length > 1)).toBe(true);
+  });
+});
+
+describe("Apex active traffic", () => {
+  const makeCar = (lane: ApexLane, y: number, speedKph: number, kind: ApexTrafficBody["kind"] = "sedan"): ApexTrafficBody => ({
+    lane, y, speedKph, kind, color: "#ffffff",
+  });
+
+  it("rejects an occupied entry space while leaving adjacent lanes available", () => {
+    const active = [makeCar(2, -45, 110, "van")];
+    expect(canSpawnApexTraffic(active, makeCar(2, -76, 90), 60)).toBe(false);
+    expect(canSpawnApexTraffic(active, makeCar(3, -76, 90), 60)).toBe(true);
+    expect(canSpawnApexTraffic(active, makeCar(2, -200, 90), 60)).toBe(true);
+  });
+
+  it("keeps faster followers behind slower cars in both traffic directions", () => {
+    const cars = [
+      makeCar(0, 60, 90, "van"),
+      makeCar(0, -40, 150),
+      makeCar(2, -40, 85),
+      makeCar(2, 60, 145, "van"),
+    ];
+
+    for (let frame = 0; frame < 80; frame += 1) {
+      advanceApexTraffic(cars, 120, 0.035, 1, 60);
+      const oncomingGap = cars[0].y - (cars[1].y + apexTrafficHeight(cars[1].kind, 60));
+      const sameDirectionGap = cars[3].y - (cars[2].y + apexTrafficHeight(cars[2].kind, 60));
+      expect(oncomingGap).toBeGreaterThanOrEqual(12 - 0.001);
+      expect(sameDirectionGap).toBeGreaterThanOrEqual(12 - 0.001);
+    }
+
+    expect(cars[1].speedKph).toBe(cars[0].speedKph);
+    expect(cars[3].speedKph).toBe(cars[2].speedKph);
   });
 });
 

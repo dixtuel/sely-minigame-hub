@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFinishOnce } from "@/components/games/shared";
 import { getAdaptiveDpr } from "@/lib/devicePerformance";
-import { advanceApexSpeed, apexNearMissReward, APEX_CRUISE_SPEED, apexRoadFlowMultiplier, createApexRandom, createApexTrafficGenerator, type ApexLane, type ApexTrafficKind, type ApexTrafficSpawn } from "@/lib/levelGenerators/apex";
+import { advanceApexSpeed, advanceApexTraffic, apexNearMissReward, apexRoadFlowMultiplier, apexTrafficHeight, APEX_CRUISE_SPEED, canSpawnApexTraffic, createApexRandom, createApexTrafficGenerator, type ApexLane, type ApexTrafficKind, type ApexTrafficSpawn } from "@/lib/levelGenerators/apex";
 import { playTone } from "@/lib/sfx";
 
 interface ApexGameProps {
@@ -294,25 +294,26 @@ export default function ApexGame({ locale, seed, mastery, soundOn = true, onFini
       distance += (speed / 3.6) * dt;
       comboTime = Math.max(0, comboTime - dt);
       if (comboTime === 0) combo = 0;
+      const ph = playerH();
 
       if (distance >= nextWaveAt) {
         for (const spawn of nextWave(distance)) {
-          cars.push({ ...spawn, y: -76 - random() * 10, nearMissArmed: false, nearMissPaid: false });
+          const car: TrafficCar = { ...spawn, y: -76 - random() * 10, nearMissArmed: false, nearMissPaid: false };
+          if (canSpawnApexTraffic(cars, car, ph)) cars.push(car);
         }
         nextWaveAt += (trafficGap + random() * 0.3) * speed / 3.6;
       }
 
       const laneXAtPlayer = laneX(laneVisual);
       const pw = playerW();
-      const ph = playerH();
       const py = playerY();
+      advanceApexTraffic(cars, speed, dt, pixelsPerKph() * 1.45, ph);
       for (const car of cars) {
         const oncoming = car.lane < 2;
         const relativeSpeed = oncoming ? speed + car.speedKph : speed - car.speedKph;
-        car.y += relativeSpeed * pixelsPerKph() * dt * 1.45;
         const cx = laneX(car.lane);
         const cw = playerW() * (car.kind === "van" ? 1.08 : car.kind === "compact" ? 0.82 : 0.94);
-        const ch = ph * (car.kind === "van" ? 1.15 : 0.93);
+        const ch = apexTrafficHeight(car.kind, ph);
         const dx = Math.abs(laneXAtPlayer - cx);
         const dy = Math.abs((py + ph / 2) - (car.y + ch / 2));
 
@@ -334,12 +335,12 @@ export default function ApexGame({ locale, seed, mastery, soundOn = true, onFini
       }
       score = Math.floor(distance * (speed / 110)) + bonusScore;
       publishHud(now);
-      cars = cars.filter((car) => car.y < height + 110 && !(car.nearMissPaid && car.y < -120));
+      cars = cars.filter((car) => car.y < height + 110 && car.y + apexTrafficHeight(car.kind, ph) > -120);
 
       drawRoad(dt);
       const carHeight = ph * 0.91;
       for (const car of cars) {
-        const ch = ph * (car.kind === "van" ? 1.15 : 0.93);
+        const ch = apexTrafficHeight(car.kind, ph);
         if (car.y + ch < 0 || car.y > height) continue;
         const cx = laneX(car.lane);
         const cw = pw * (car.kind === "van" ? 1.08 : car.kind === "compact" ? 0.82 : 0.94);

@@ -8,6 +8,10 @@ export interface ApexTrafficSpawn {
   kind: ApexTrafficKind;
 }
 
+export interface ApexTrafficBody extends ApexTrafficSpawn {
+  y: number;
+}
+
 export interface ApexPedals {
   gas: boolean;
   brake: boolean;
@@ -44,6 +48,53 @@ export function apexRoadFlowMultiplier(speedKph: number) {
 
 const TRAFFIC_PAINTS = ["#df654d", "#76958a", "#d5c7a5", "#8998ae", "#b48c69"];
 const TRAFFIC_KINDS: ApexTrafficKind[] = ["compact", "sedan", "van", "sport"];
+const TRAFFIC_CLEARANCE_PX = 12;
+
+export function apexTrafficHeight(kind: ApexTrafficKind, playerHeight: number) {
+  return playerHeight * (kind === "van" ? 1.15 : 0.93);
+}
+
+/** Reject a car only when an active car already occupies its entry space. */
+export function canSpawnApexTraffic(cars: ApexTrafficBody[], spawn: ApexTrafficBody, playerHeight: number) {
+  const spawnBottom = spawn.y + apexTrafficHeight(spawn.kind, playerHeight);
+  return cars.every((car) => {
+    if (car.lane !== spawn.lane) return true;
+    const carBottom = car.y + apexTrafficHeight(car.kind, playerHeight);
+    return car.y - spawnBottom >= TRAFFIC_CLEARANCE_PX || spawn.y - carBottom >= TRAFFIC_CLEARANCE_PX;
+  });
+}
+
+/** Keep cars in the same lane from driving through one another as their speeds differ. */
+export function advanceApexTraffic(cars: ApexTrafficBody[], playerSpeedKph: number, dt: number, screenScale: number, playerHeight: number) {
+  const step = Math.max(0, dt) * screenScale;
+  for (const car of cars) {
+    const relativeSpeed = car.lane < 2 ? playerSpeedKph + car.speedKph : playerSpeedKph - car.speedKph;
+    car.y += relativeSpeed * step;
+  }
+
+  for (const lane of [0, 1, 2, 3] as ApexLane[]) {
+    const oncoming = lane < 2;
+    const laneCars = cars.filter((car) => car.lane === lane).sort((a, b) => oncoming ? b.y - a.y : a.y - b.y);
+    for (let index = 1; index < laneCars.length; index += 1) {
+      const leader = laneCars[index - 1];
+      const follower = laneCars[index];
+      const leaderHeight = apexTrafficHeight(leader.kind, playerHeight);
+      const followerHeight = apexTrafficHeight(follower.kind, playerHeight);
+      const gap = oncoming
+        ? leader.y - (follower.y + followerHeight)
+        : follower.y - (leader.y + leaderHeight);
+
+      if (gap <= TRAFFIC_CLEARANCE_PX + 8 && follower.speedKph > leader.speedKph) {
+        follower.speedKph = leader.speedKph;
+      }
+      if (gap < TRAFFIC_CLEARANCE_PX) {
+        follower.y = oncoming
+          ? leader.y - followerHeight - TRAFFIC_CLEARANCE_PX
+          : leader.y + leaderHeight + TRAFFIC_CLEARANCE_PX;
+      }
+    }
+  }
+}
 
 export function createApexRandom(seed: number) {
   let value = (seed >>> 0) || 1;
