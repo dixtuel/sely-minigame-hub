@@ -45,7 +45,7 @@ Repo public olduğu ve standart `ubuntu-24.04` runner kullandığı için Action
 | --- | --- | --- |
 | `ci.yml` | Kod/manifest değişen `main` push ve PR; yalnız doküman/Docker değişiminde atlanır | pnpm store lockfile ile; Cargo cache yalnız `main` push'ta kaydedilir, PR restore eder |
 | `docker-build.yml` | Dockerfile, Compose, ignore/build tanımı değişince | BuildKit `gha` cache `mode=max`; yalnız `main` push yazar, PR okur; image yayımlanmaz |
-| `codeql.yml` | Kod değişen push/PR ve haftalık zamanlama | CodeQL JS dependency cache; haftalık tarama docs değişmese de çalışır |
+| `codeql.yml` | JS/TS/Rust kodunu etkileyen push/PR ve haftalık zamanlama; yalnız shell betiği değişiminde atlanır | CodeQL JS dependency cache; haftalık tarama docs değişmese de çalışır |
 | `dependency-review.yml` | Bağımlılık manifest/lockfile değişen PR | Build/cache yok; yalnız yeni runtime risklerini inceler |
 | `release-draft.yml` | `v*` tag push | CI Cargo cache'ini salt okunur geri yükler; paketleme betiği testlerde repo `target/` dizinini kullanır. Arşivler job'lar arasında 1 gün saklanır, sonra draft Release kalıcı varlıktır |
 
