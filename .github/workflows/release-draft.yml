@@ -185,8 +185,26 @@ jobs:
           test -s "sely-linux-amd64-docker.tar.gz"
           test -s "sely-linux-amd64-standalone.tar.gz"
           sha256sum --check SHA256SUMS
-          gh release create "$RELEASE_TAG" ./* \
+          cat > "$RUNNER_TEMP/sely-release-notes.md" <<EOF
+          # SELY MiniGame Hub $RELEASE_TAG
+
+          Linux amd64 için hazır Docker ve standalone paketleri aşağıda. Kaynaktan veya Vercel üzerinden kurulum da desteklenir.
+
+          | Dosya | Kurulum |
+          | --- | --- |
+          | sely-linux-amd64-docker.tar.gz | Arşivi aç, ./start.sh çalıştır. Docker Engine ve Compose gerekir. |
+          | sely-linux-amd64-standalone.tar.gz | Arşivi aç, ./install.sh çalıştır. Linux amd64 ve glibc 2.34+ gerekir. |
+          | SHA256SUMS | İndirdiğin arşivin SHA-256 özetini doğrula. |
+
+          Tüm adımlar, güncelleme ve kaynak/Vercel kurulumları: https://github.com/dixtuel/sely-minigame-hub/blob/$RELEASE_TAG/docs/DEPLOYMENT.md
+
+          Bu sürümün commit'leri: https://github.com/dixtuel/sely-minigame-hub/commits/$RELEASE_TAG
+          EOF
+          gh release create "$RELEASE_TAG" \
+            sely-linux-amd64-docker.tar.gz \
+            sely-linux-amd64-standalone.tar.gz \
+            SHA256SUMS \
             --verify-tag \
             --draft \
-            --generate-notes \
+            --notes-file "$RUNNER_TEMP/sely-release-notes.md" \
             --title "SELY MiniGame Hub $RELEASE_TAG"

@@ -13,7 +13,7 @@ Kullanıcı kurulum adımları yalnız [kurulum rehberinde](DEPLOYMENT.md) tutul
    ```
 
 3. Tag push'u **Prepare Draft Release** workflow'unu otomatik başlatır. Workflow tag'in `main` geçmişinde olduğunu ve iki manifest sürümünü doğrular; public audit, frontend/Rust testlerini, build'leri, checksum ve iki paket için açılış testlerini çalıştırır.
-4. Oluşan **draft** Release'de iki arşivi, `SHA256SUMS` dosyasını, açıklamayı ve dosya boyutlarını incele; GitHub arayüzünden yayımla. Var olan Release'in üzerine yazılmaz. Workflow hata verirse logu düzeltip **Re-run jobs** kullan; sorun tag kaynağındaysa yeni patch sürümü çıkar.
+4. Oluşan **draft** Release'de iki arşivi, `SHA256SUMS` dosyasını, otomatik kurulum açıklamasını ve dosya boyutlarını incele; GitHub arayüzünden yayımla. Var olan Release'in üzerine yazılmaz. Workflow hata verirse logu düzeltip **Re-run jobs** kullan; sorun tag kaynağındaysa yeni patch sürümü çıkar.
 
 Linux amd64 için dosyalar:
 
