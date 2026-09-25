@@ -4,13 +4,16 @@
 
 # SELY.TR — MiniGame Hub
 
-**Her gün değişen bir seçki, istediğin zaman oynayabileceğin 17 mini oyun.**
+**Her gün değişen oyunlar, istediğin zaman oynayabileceğin 17 mini oyun.**
 Bulmaca, çıkarım, refleks ve 3D keşif; hepsi tarayıcıda, hesap açmadan.
 
 [![Canlı site](https://img.shields.io/badge/Oyna-sely.tr-F38020?style=flat-square&logo=vercel&logoColor=white)](https://sely.tr)
 [![Son sürüm](https://img.shields.io/github/v/release/dixtuel/sely-minigame-hub?style=flat-square&label=release)](https://github.com/dixtuel/sely-minigame-hub/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/dixtuel/sely-minigame-hub/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/dixtuel/sely-minigame-hub/actions/workflows/ci.yml)
 [![Lisans](https://img.shields.io/badge/lisans-AGPL--3.0-blue?style=flat-square)](LICENSE)
+[![Runtime](https://img.shields.io/badge/runtime-Rust%20%7C%20Vercel%20%7C%20Docker-black?style=flat-square)](docs/DEPLOYMENT.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Test](https://img.shields.io/badge/test-Vitest-6E9F18?style=flat-square)](https://vitest.dev/)
 
 [Oyuna gir](https://sely.tr) · [Oyunları keşfet](#oyunlar) · [Kendi sunucunda çalıştır](#kurulum) · [Geliştirmeye katıl](#geliştirme-ve-katkı)
 
@@ -18,21 +21,15 @@ Bulmaca, çıkarım, refleks ve 3D keşif; hepsi tarayıcıda, hesap açmadan.
 
 ## SELY nedir?
 
-SELY, kısa bir mola için açıp oynayabileceğin oyunları tek bir katalogda toplar. Günün önerisi ve seçili oyunlar değişir; diğer oyunlar arşivden her zaman erişilebilir.
+SELY, kısa bir mola için açıp oynayabileceğin oyunları tek bir katalogda toplar. Günün önerisi ve öne çıkan oyunlar değişir; diğer oyunlara her zaman erişebilirsin.
 
 ## Öne çıkanlar
 
-- **Günlük seçki, kalıcı katalog:** Yeni bir öneriyle başla veya 17 oyundan istediğine dön.
+- **Günlük oyunlar, kalıcı katalog:** Yeni bir öneriyle başla veya 17 oyundan istediğine dön.
 - **Kendi ritminde ilerleme:** Günlük içerik seed tabanlıdır; rekorun yükseldikçe bazı oyunların zorluğu değişir.
 - **Hesapsız oyun:** Kişisel rekorların tarayıcında kalır; günlük liderlik tablosuna skor gönderebilirsin.
 - **Ekranına uygun kontrol:** Türkçe/İngilizce arayüz; klavye, fare ve dokunmatik etkileşim.
 - **Anahtarsız Vaka:** Dış yapay zekâ anahtarı olmasa da dedektiflik oyunu deterministik yerel motoruyla sürer.
-
-<p align="center">
-  <a href="https://sely.tr/play/echo"><img src="client/public/storage/yanki-odasi-poster_07ca7169.png" width="240" alt="Yankı Odası oyun afişi"></a>
-  <a href="https://sely.tr/play/vaka"><img src="client/public/storage/isaretci-poster_681e174b.png" width="240" alt="Vaka oyun afişi"></a>
-  <a href="https://sely.tr/play/knot"><img src="client/public/storage/dugum-poster_684e5a01.png" width="240" alt="Düğüm oyun afişi"></a>
-</p>
 
 ## Oyunlar
 
@@ -95,6 +92,19 @@ Uygulama [localhost:3000](http://localhost:3000) adresinde açılır. Yalnız ar
 | Oyun mantığı | İstemci kodu ve bazı oyunlarda paylaşılan Rust/WASM çekirdeği                              |
 | API          | Rust, Axum, Tokio; aynı kodun standalone ve Vercel Function girişleri                      |
 | Veri         | Self-host için SQLite; Vercel'de kalıcılık için Turso/libSQL; isteğe bağlı Redis önbelleği |
+
+```mermaid
+flowchart TD
+    Browser[Tarayıcı] --> UI[React + TypeScript + Vite]
+    UI --> Games[17 mini oyun: Canvas + Babylon.js]
+    Games --> WASM[Paylaşılan Rust/WASM oyun çekirdeği]
+    UI --> API[Rust + Axum API]
+    API --> Vercel[Vercel Function]
+    API --> Standalone[Standalone sunucu / Docker]
+    Vercel --> Turso[(Turso / libSQL)]
+    Standalone --> SQLite[(Yerel SQLite)]
+    API -. isteğe bağlı .-> Redis[(Redis önbelleği)]
+```
 
 `main` güncel Rust uygulamasıdır. Eski Node.js backend'i [`nodejs-legacy`](https://github.com/dixtuel/sely-minigame-hub/tree/nodejs-legacy) dalında arşivlenmiştir. Desteklenen ortam değişkenleri ve varsayılanları [`.env.example`](.env.example) dosyasındadır.
 
