@@ -13,6 +13,8 @@ SELY dört şekilde çalışır. Hazır release paketleri **Linux amd64** içind
 
 [Releases](https://github.com/dixtuel/sely-minigame-hub/releases/latest) sayfasından kendi yoluna ait arşivi ve `SHA256SUMS` dosyasını **aynı dizine** indir. Yeni release'lerde dosya adları `sely-linux-amd64-docker.tar.gz` ve `sely-linux-amd64-standalone.tar.gz` biçimindedir. Önceki `v2.0.2` release'inde daha uzun `sely-minigame-hub-v2.0.2-linux-amd64-*.tar.gz` adları kullanıldı; indirdiğin gerçek adı komutta kullan.
 
+GitHub'ın otomatik **Source code (zip/tar.gz)** dosyaları hazır binary veya Docker image içermez. Hazır kurulum için yukarıdaki iki SELY arşivinden birini seç; kaynak koddan kurulum adımları [aşağıda](#kaynaktan-kurulum).
+
 ```bash
 sha256sum -c --ignore-missing SHA256SUMS
 ```

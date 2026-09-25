@@ -75,7 +75,7 @@ Tam sunucu [localhost:3000](http://localhost:3000) adresinde açılır.
 
 - main: güncel Rust uygulaması.
 - nodejs-legacy: önceki Node.js sürümünün arşiv dalı.
-- [Ortam değişkenleri](.env.example) · [Release hazırlama](docs/RELEASING.md) · [Güvenlik](SECURITY.md)
+- [Ortam değişkenleri](.env.example) · [Güvenlik](SECURITY.md)
 
 ## Katkı ve lisans
 
