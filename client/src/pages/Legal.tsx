@@ -32,7 +32,7 @@ export default function Legal({ kind, locale = "tr" }: LegalPageProps) {
               : (english ? "TRANSPARENT & PLAYER-CENTRIC" : "ŞEFFAF VE OYUNCU ODAKLI BİLGİLENDİRME")}
           </span>
           <h1>{title}</h1>
-          <p>{english ? "Last updated: 20 September 2026" : "Son güncelleme: 20 Eylül 2026"}</p>
+          <p>{english ? "Last updated: 25 September 2026" : "Son güncelleme: 25 Eylül 2026"}</p>
         </div>
         {english ? (
           <EnglishLegalContent kind={kind} />
@@ -256,6 +256,47 @@ function EnglishLegalContent({ kind }: { kind: LegalPageProps["kind"] }) {
             request deletion. Because we don&apos;t maintain user accounts or personal profiles, there are typically
             no identifiable personal records to query; however, if you ever wish to remove an anonymous leaderboard
             score or have any question, write to us directly at <ProtectedContact locale="en" />.
+          </p>
+        </section>
+
+        <section>
+          <h2>9. Children&apos;s Privacy & Family Safety (COPPA & KVKK)</h2>
+          <p>
+            SELY.TR MiniGame Hub is designed as a family-safe, non-violent, mindful web arcade for players of all ages.
+            In strict compliance with the US Children&apos;s Online Privacy Protection Act (COPPA), EU GDPR-K, and Turkish KVKK:
+          </p>
+          <ul>
+            <li>
+              <strong>Zero Personal Data Collection:</strong> We never knowingly collect, solicit, or store personal
+              identifiable information (such as real names, home addresses, phone numbers, or emails) from children under 13 (or under 16 where applicable).
+            </li>
+            <li>
+              <strong>No Account Barrier:</strong> Children can enjoy all games directly without registration, user logins, or passwords.
+            </li>
+            <li>
+              <strong>Zero Targeted Profiling:</strong> Ad personalization cookies are disabled by default. If a minor or parent visits the site, no behavioral tracking or ad targeting occurs unless adult consent is provided.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>10. Infrastructure & Cloud Service Providers</h2>
+          <p>
+            To deliver fast WebAssembly loads and responsive global gameplay, we partner with industry-standard, privacy-compliant cloud providers:
+          </p>
+          <ul>
+            <li>
+              <strong>Hosting & Edge CDN:</strong> Vercel Inc. (Serverless execution and Edge network in Frankfurt, Germany / EU).
+            </li>
+            <li>
+              <strong>Ephemeral Score Storage:</strong> Turso / libSQL (ChiselStrike Inc.) for encrypted daily leaderboards with 24-hour auto-expiry.
+            </li>
+            <li>
+              <strong>AI Mystery Dialogue:</strong> NVIDIA NIM / Groq for real-time detective responses in &ldquo;Vaka&rdquo;, processing queries ephemerally without training on player inputs.
+            </li>
+          </ul>
+          <p>
+            All data processing is governed by strict technical data processing standards ensuring zero cross-site data harvesting.
           </p>
         </section>
       </div>
@@ -536,6 +577,50 @@ function PrivacyContent() {
           hakkına sahiptir. Sistemimizde adınıza ait bir kullanıcı hesabı bulunmadığı için doğrudan sorgulanabilir bir
           kişisel profiliniz yoktur; ancak liderlik tablosundaki anonim skorunuzun silinmesini isterseniz veya
           gizliliğe dair herhangi bir sorunuz olursa doğrudan <ProtectedContact /> adresinden bize yazabilirsiniz.
+        </p>
+      </section>
+
+      <section>
+        <h2>9. Çocukların Gizliliği ve Aile Dostu Ortam (COPPA & KVKK İlkeleri)</h2>
+        <p>
+          SELY.TR MiniGame Hub, şiddet içermeyen, zihin açıcı ve her yaştan oyuncunun güvenle vakit geçirebileceği
+          aile dostu bir mini oyun kataloğudur. 6698 sayılı KVKK ve uluslararası çocuk çevrim içi gizlilik
+          standartları (COPPA / GDPR-K) uyarınca:
+        </p>
+        <ul>
+          <li>
+            <strong>Sıfır Kişisel Veri Toplama:</strong> 13 yaşının (veya yerel mevzuat uyarınca 16 yaşının) altındaki
+            çocuklardan bilerek ad, soyad, telefon, adres veya e-posta gibi hiçbir kişisel veri toplanmaz, talep edilmez ve saklanmaz.
+          </li>
+          <li>
+            <strong>Üyelik ve Şifre Engeli Yoktur:</strong> Çocuklar oyunları herhangi bir kayıt, parola veya kişisel bilgi vermeden doğrudan oynayabilir.
+          </li>
+          <li>
+            <strong>Hedefli Reklam ve Profilleme Yapılmaz:</strong> Sitede çocuklara yönelik davranışsal reklam takibi
+            veya profil oluşturma kesinlikle uygulanmaz. Reklam çerezleri varsayılan olarak kapalıdır.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>10. Güvenilir Altyapı ve Veri İşleme Ortakları (KVKK Madde 9 & GDPR)</h2>
+        <p>
+          Oyunların dünya genelinde yüksek hızda, güvenli ve kesintisiz çalışabilmesi amacıyla uluslararası standartlarda
+          veri güvenliği sağlayan teknik hizmet ortaklarıyla çalışılır:
+        </p>
+        <ul>
+          <li>
+            <strong>Sunucusuz Barındırma & CDN:</strong> Vercel Inc. (Sunucusuz çalışma zamanı ve Edge CDN, Frankfurt/Almanya - AB bölgesi).
+          </li>
+          <li>
+            <strong>Günlük Skor Deposu:</strong> Turso / libSQL (ChiselStrike Inc.) - Günlük liderlik skorlarının şifreli ve 24 saat sonra kendi kendini imha eden şekilde muhafaza edilmesi.
+          </li>
+          <li>
+            <strong>Yapay Zekâ Dedektiflik Çıkarımı:</strong> NVIDIA NIM / Groq - &ldquo;Vaka&rdquo; oyunundaki şüpheli diyaloglarının anlık üretilmesi amacıyla kullanılır; oyuncu girdileri model eğitimi için saklanmaz veya üçüncü taraflarla paylaşılmaz.
+          </li>
+        </ul>
+        <p>
+          Tüm bu altyapı iş ortakları verileri yalnızca teknik hizmetin güvenli ve kesintisiz ifası amacıyla işler; veriler ticari amaçla satılamaz veya paylaşılamaz.
         </p>
       </section>
     </div>
