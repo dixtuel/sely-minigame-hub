@@ -372,7 +372,7 @@ export function generateOgSvg(params: OgParams): string {
     controls: "Tarayıcıda hemen oyna",
     controlsEn: "Play instantly in browser",
     playTime: "1–5 dk",
-    poster: "https://sely.tr/storage/sely-social-card-title_b4649a50.png",
+    poster: "https://sely.tr/storage/sely-social-card-46f07260.jpg",
     accent: "#E9563F",
     ink: "#1B1A1B",
     icon: "❖",

@@ -45,6 +45,6 @@ export default async function handler(req: Request) {
     });
   } catch (err) {
     // Graceful fallback to static social card
-    return Response.redirect(new URL("/storage/sely-social-card-title_b4649a50.png", req.url), 302);
+    return Response.redirect(new URL("/storage/sely-social-card-46f07260.jpg", req.url), 302);
   }
 }

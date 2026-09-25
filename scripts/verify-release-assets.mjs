@@ -4,10 +4,16 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const manifestPath = resolve(root, "scripts/release-assets.list");
-const manifest = (await readFile(manifestPath, "utf8"))
+const manifestLines = (await readFile(manifestPath, "utf8"))
   .split(/\r?\n/)
   .map(line => line.trim())
-  .filter(line => line && !line.startsWith("#"));
+  .filter(Boolean);
+const legacyAssets = new Set(
+  manifestLines
+    .filter(line => line.startsWith("# legacy: "))
+    .map(line => line.slice("# legacy: ".length))
+);
+const manifest = manifestLines.filter(line => !line.startsWith("#"));
 const sourceFiles = [];
 
 async function walk(directory) {
@@ -34,7 +40,9 @@ for (const file of sourceFiles) {
 
 const allowed = new Set(manifest);
 const missingFromManifest = [...referenced].filter(path => !allowed.has(path));
-const unreferencedInManifest = manifest.filter(path => !referenced.has(path));
+const unreferencedInManifest = manifest.filter(
+  path => !referenced.has(path) && !legacyAssets.has(path)
+);
 const ignoreExceptions = [];
 for (const name of [".gitignore", ".dockerignore"]) {
   const text = await readFile(resolve(root, name), "utf8");
@@ -63,6 +71,9 @@ for (const path of manifest) {
 }
 
 const findings = [
+  ...[...legacyAssets]
+    .filter(path => !allowed.has(path))
+    .map(path => `legacy asset is not allowlisted: ${path}`),
   ...missingFromManifest.map(
     path => `runtime reference is not allowlisted: ${path}`
   ),
