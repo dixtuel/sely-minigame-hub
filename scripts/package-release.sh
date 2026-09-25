@@ -131,7 +131,9 @@ msg checks
   "${pnpm_cmd[@]}" run check
   "${pnpm_cmd[@]}" test
   "${pnpm_cmd[@]}" run build
-  cargo test --locked --all-targets
+  # Reuse the checkout's target/ restored by rust-cache even though the clean
+  # tag source is unpacked in a temporary directory.
+  CARGO_TARGET_DIR="$repo/target" cargo test --locked --all-targets
 )
 
 docker buildx inspect --bootstrap >/dev/null

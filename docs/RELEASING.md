@@ -47,6 +47,6 @@ Repo public olduğu ve standart `ubuntu-24.04` runner kullandığı için Action
 | `docker-build.yml` | Dockerfile, Compose, ignore/build tanımı değişince | BuildKit `gha` cache `mode=max`; yalnız `main` push yazar, PR okur; image yayımlanmaz |
 | `codeql.yml` | Kod değişen push/PR ve haftalık zamanlama | CodeQL JS dependency cache; haftalık tarama docs değişmese de çalışır |
 | `dependency-review.yml` | Bağımlılık manifest/lockfile değişen PR | Build/cache yok; yalnız yeni runtime risklerini inceler |
-| `release-draft.yml` | `v*` tag push | CI Cargo cache'ini salt okunur kullanır; arşivler job'lar arasında 1 gün saklanır, sonra draft Release kalıcı varlıktır |
+| `release-draft.yml` | `v*` tag push | CI Cargo cache'ini salt okunur geri yükler; paketleme betiği testlerde repo `target/` dizinini kullanır. Arşivler job'lar arasında 1 gün saklanır, sonra draft Release kalıcı varlıktır |
 
 CI, CodeQL ve Docker işlerinde aynı dalın yeni koşusu eskisini iptal eder; release koşusu iptal edilmez. Path filtresiyle atlanan workflow'u branch protection'da **zorunlu check** yapma; GitHub atlanan zorunlu check'i pending bırakabilir. Cache içerikleri hiçbir zaman sır veya `.env` içermez. GitHub cache tekrar üretilebilir build girdileri içindir; release dosyaları iki job arasında kısa ömürlü artifact olarak taşınır. Docker cache dolarsa eski kayıtlar son erişime göre silinir. [Docker `gha` backend ayarları](https://docs.docker.com/build/cache/backends/gha/), [Rust cache `save-if`/`shared-key`](https://github.com/Swatinem/rust-cache).
