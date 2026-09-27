@@ -37,7 +37,7 @@ regex = "1.10"
 
 # SVG -> PNG Rasterizasyon (pure Rust, no system Cairo/Skia — safe on Vercel's serverless
 # runtime). Used to serve real og:image PNGs (SVG is not rendered by most social crawlers).
-resvg = { version = "0.44", default-features = false, features = ["text", "raster-images"] }
+resvg = { version = "0.48", default-features = false, features = ["text", "raster-images"] }
 
 # Güvenlik, Kriptografi & Token
 sha2 = "0.11"
