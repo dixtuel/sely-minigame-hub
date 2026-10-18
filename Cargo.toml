@@ -24,7 +24,7 @@ dotenvy = "0.15"
 # Only local/remote SQL connections are used. Disabling unused replication and
 # sync features keeps the Vercel Rust function smaller without changing runtime
 # behavior or the Turso/SQLite API used by this project.
-libsql = { version = "0.9", default-features = false, features = ["core", "remote", "tls"] }
+libsql = { version = "0.10", default-features = false, features = ["core", "remote", "tls"] }
 fred = { version = "10.1", features = ["enable-rustls-ring", "i-sorted-sets", "i-hashes", "i-keys"] }
 
 # HTTP İstemcisi & Dış İstekler
@@ -37,7 +37,7 @@ regex = "1.10"
 
 # SVG -> PNG Rasterizasyon (pure Rust, no system Cairo/Skia — safe on Vercel's serverless
 # runtime). Used to serve real og:image PNGs (SVG is not rendered by most social crawlers).
-resvg = { version = "0.44", default-features = false, features = ["text", "raster-images"] }
+resvg = { version = "0.48", default-features = false, features = ["text", "raster-images"] }
 
 # Güvenlik, Kriptografi & Token
 sha2 = "0.11"
