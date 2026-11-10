@@ -2,7 +2,7 @@
 name = "sely-minigame-hub"
 version = "2.0.3"
 edition = "2021"
-authors = ["Asrın Kılıç <asrinklcc@sely.tr>"]
+authors = ["Asrın Kılıç <dixtuel@gmail.com>"]
 license = "AGPL-3.0"
 description = "High-performance Rust backend and game logic engine for SELY MiniGame Hub"
 

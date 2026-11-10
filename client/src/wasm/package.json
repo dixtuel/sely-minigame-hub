@@ -2,7 +2,7 @@
   "name": "sely-game-core",
   "type": "module",
   "collaborators": [
-    "Asrın Kılıç <asrinklcc@sely.tr>"
+    "Asrın Kılıç <dixtuel@gmail.com>"
   ],
   "description": "High-performance WebAssembly game logic engine for SELY MiniGame Hub",
   "version": "2.0.0",

@@ -1,6 +1,6 @@
 // Intentionally public identity used by the site UI. Edit only these two plain-text
 // values; audit:public permits one occurrence here and flags copies/obfuscation elsewhere.
-const PUBLIC_CONTACT_EMAIL = "asrinklcc@sely.tr";
+const PUBLIC_CONTACT_EMAIL = "dixtuel@gmail.com";
 const PUBLIC_OPERATOR_NAME = "Asrın Kılıç";
 
 export function getPublicContactEmail(): string {

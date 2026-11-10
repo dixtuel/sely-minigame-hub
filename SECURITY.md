@@ -13,7 +13,7 @@ Use GitHub's private vulnerability reporting instead:
 2. Click **Report a vulnerability**.
 3. Describe the issue, the affected component (frontend, Rust backend, WASM game core), and steps to reproduce if possible.
 
-If you can't use GitHub's reporting flow, you can reach the maintainer at `asrinklcc@sely.tr`.
+If you can't use GitHub's reporting flow, you can reach the maintainer at `dixtuel@gmail.com`.
 
 You should expect an initial response within a few days. There is no bug bounty program — this is a small, independently maintained open-source project.
 
